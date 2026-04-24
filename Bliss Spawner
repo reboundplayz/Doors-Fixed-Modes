@@ -1,0 +1,67 @@
+local plr = game.Players.LocalPlayer
+local chr = plr.Character or plr.CharacterAdded:Wait()
+
+game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(246, 238, 0)
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("What the freak is that?!?!?!",true)
+local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://"..85677794592741
+    sound.Looped = false
+    sound.Parent = workspace
+    sound.Volume = 3
+    sound:Play()
+wait(6)
+if chr:GetAttribute("Crouching") then
+game.Players.LocalPlayer.Character.Humanoid.Health -= 1000
+game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Bliss[Crouched Early]"
+end
+wait(2)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ImageGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local imageLabel = Instance.new("ImageLabel")
+imageLabel.Size = UDim2.new(1, 0, 1, 0)
+imageLabel.Position = UDim2.new(0, 0, 0, 0)
+imageLabel.ImageTransparency = 0.5
+imageLabel.BackgroundTransparency = 1
+imageLabel.Image = "rbxassetid://106448471337051"
+imageLabel.Parent = screenGui
+
+task.delay(3, function()
+    if screenGui then
+        screenGui:Destroy()
+        ---====== Load achievement giver ======---
+local achievementGiver = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()
+
+---====== Display achievement ======---
+achievementGiver({
+    Title = "CROUCH NOW!!!",
+    Desc = "Whatrrrrr I Do?",
+    Reason = "Encounter Bliss",
+    Image = "rbxassetid://97762043789701"
+})
+    end
+end)
+wait(2)
+if not chr:GetAttribute("Crouching") then
+game.Players.LocalPlayer.Character.Humanoid.Health -= 1000
+function GitAud(soundgit,filename)
+    SoundName=tostring(SoundName)
+    local url=soundgit
+    local FileName = filename
+    writefile(FileName..".mp3", game:HttpGet(url))
+    return (getcustomasset or getsynasset)(FileName..".mp3")
+end
+
+    local sound = Instance.new("Sound")
+    sound.SoundId = GitAud("https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/bliss_sound.mp3", 1, "spawn")
+    sound.Parent = workspace
+    sound.Volume = 5
+    sound:Play()
+end
