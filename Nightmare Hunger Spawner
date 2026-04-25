@@ -1,0 +1,209 @@
+local hunger = game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+
+game.Players.LocalPlayer.Character.Humanoid:TakeDamage(1000)
+
+game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Nightmare Hunger [Opened Door]"
+
+end)
+
+local cue = Instance.new("Sound")
+
+cue.Parent = game.Workspace
+cue.Name = "HungerScream"
+cue.SoundId = "rbxassetid://933230732"
+cue.Volume = 10
+cue.PlaybackSpeed = 1
+cue:Play()
+
+wait(17)
+
+hunger:Disconnect()
+
+-- Check current room
+local entityModel = true
+local latestRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+
+if game.Workspace:FindFirstChild("SeekMovingNewClone") or 
+   latestRoom == 50 or latestRoom == 100 or  
+   (latestRoom >= 90 and latestRoom <= 100) then
+    entityModel = false
+end
+
+local Kill = true
+
+local depthsTer = game:GetObjects("rbxassetid://120789937431242")[1]
+depthsTer.Parent = game.Workspace
+
+workspace.HungerNew.Effects.Spawn:Destroy()
+
+local part = depthsTer:FindFirstChildWhichIsA("BasePart") or depthsTer:FindFirstChildWhichIsA("Part")
+
+part.CFrame = game.Workspace.CurrentRooms:GetChildren()[#game.Workspace.CurrentRooms:GetChildren() - 1].Parts.Floor.CFrame + Vector3.new(0, 6, 0)
+
+wait(3)
+
+-- =========================================================
+-- 💀 KICK SYSTEM + GITHUB SOUND (MERGED)
+-- =========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local triggered = false
+
+-- GitHub sound loader (requested getcustomasset version)
+local function GitAud(soundgit, filename)
+    local FileName = filename
+    writefile(FileName..".mp3", game:HttpGet(soundgit))
+    return (getcustomasset or getsynasset)(FileName..".mp3")
+end
+
+local function PlayKickSound()
+    local sound = Instance.new("Sound")
+    sound.Parent = workspace
+    sound.Volume = 5
+    sound.Looped = true
+
+    -- GitHub audio
+    local success, asset = pcall(function()
+        return GitAud(
+            "https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_07-04-2025%2016-09-19_1.mp3",
+            "hunger_kick"
+        )
+    end)
+
+    if success then
+        sound.SoundId = asset
+    else
+        sound.SoundId = "rbxassetid://933230732" -- fallback
+    end
+
+    sound:Play()
+end
+
+RunService.Heartbeat:Connect(function()
+    if triggered then return end
+    if not depthsTer or not depthsTer.Parent then return end
+
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+    local hrp = char.HumanoidRootPart
+
+    for _, v in pairs(depthsTer:GetDescendants()) do
+        if v:IsA("BasePart") then
+            if (hrp.Position - v.Position).Magnitude < 6 then
+                triggered = true
+
+                PlayKickSound()
+                task.wait(0.2)
+
+                player:Kick("You got too close to Nightmare Hunger...")
+                return
+            end
+        end
+    end
+end)
+
+-- =========================================================
+
+task.spawn(function()
+
+    while Kill == true do
+
+        task.wait(0.2)
+
+        local _, camera = game.Workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+
+        if not camera then
+
+            local FPS = 5
+            local clock = tick()
+
+            while clock + 1.6 / FPS > tick() do end
+            wait()
+            clock = tick()
+
+            game.Players.LocalPlayer.Character.Humanoid:TakeDamage(10)
+
+            function GitAud(soundgit,filename)
+                SoundName=tostring(SoundName)
+                local url=soundgit
+                local FileName = filename
+                writefile(FileName..".mp3", game:HttpGet(url))
+                return (getcustomasset or getsynasset)(FileName..".mp3")
+            end
+
+            function CustomGitSound(soundlink, vol, filename)
+                local sound = Instance.new("Sound")
+                sound.SoundId = GitAud(soundlink, filename)
+                sound.Parent = workspace
+                sound.Name = "Attacking1"
+                sound.Volume = 1
+                sound:Play()
+            end
+
+            CustomGitSound(
+                "https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_07-04-2025%2013-49-03_1.mp3",
+                1,
+                "hunger"
+            )
+        end
+
+        if game.Players.LocalPlayer.Character.Humanoid.Health <= 0 then
+
+            firesignal(game.ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {
+                "You died to who you call Nightmare Hunger...",
+                "He spawns in center of room and he will damage you if you dont look at him",
+                "He doesnt like to be ignoring"
+            }, "Blue")
+
+            wait(0.01)
+
+            game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Nightmare Hunger"
+        end
+
+    end
+end)
+
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+local achievementGiver = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"
+))()
+
+achievementGiver({
+    Title = "Let Me Open The Door!",
+    Desc = "Don't crash my game",
+    Reason = "Encounter Nightmare Hunger",
+    Image = "rbxassetid://94060220684903"
+})
+
+function CustomGitSound(soundlink, vol, filename)
+
+    local sound = Instance.new("Sound")
+
+    sound.SoundId = GitAud(soundlink, filename)
+
+    sound.Parent = workspace
+
+    sound.Name = "End"
+
+    sound.Volume = 5
+
+    sound.Looped = false
+
+    sound:Play()
+
+end
+
+CustomGitSound(
+    "https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_07-04-2025%2016-09-19_1.mp3",
+    1,
+    "leave"
+)
+
+Kill = false
+
+depthsTer:Destroy()
