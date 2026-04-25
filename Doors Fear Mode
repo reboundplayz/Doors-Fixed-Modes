@@ -81,7 +81,7 @@ end)()
 -- Boppies
 coroutine.wrap(function()
     while true do
-        wait(400)
+        wait(250)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
         wait(0)
 loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Boppies%20Spawner"))()
