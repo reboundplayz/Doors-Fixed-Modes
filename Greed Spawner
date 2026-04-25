@@ -1,0 +1,95 @@
+-- Check current room
+
+local entityModel = true
+
+local latestRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+
+-- If in Seek, Figure, or Room 90+
+
+if game.Workspace:FindFirstChild("SeekMovingNewClone") or 
+
+   latestRoom == 50 or latestRoom == 100 or  
+
+   (latestRoom >= 90 and latestRoom <= 100) then
+
+    entityModel = false
+
+end
+
+local Greed = true
+
+local depthsTer = game:GetObjects("rbxassetid://73449380101773")[1] -- Load DepthsTer from the ID
+
+depthsTer.Parent = game.Workspace
+
+depthsTer.Name = "Greed"
+
+workspace.Greed.Effects.PointLight2:Destroy()
+
+workspace.Greed.Effects.PointLight.Range = 0
+
+local part = depthsTer:FindFirstChildWhichIsA("BasePart") or depthsTer:FindFirstChildWhichIsA("Part")
+
+-- Set the position of DepthsTer in the room
+
+part.CFrame = game.Workspace.CurrentRooms:GetChildren()[#game.Workspace.CurrentRooms:GetChildren() - 1].Parts.Floor.CFrame + Vector3.new(0, 6, 0)
+
+wait(3)
+
+local TweenService = game:GetService("TweenService")
+
+local TW = TweenService:Create(workspace.Greed.Effects.PointLight, TweenInfo.new(3),{Range = 20})
+
+TW:Play()
+
+wait(1)
+
+task.spawn(function()
+
+    while Greed == true do
+
+        task.wait(0.2)  -- Reduce the wait time to increase damage speed
+
+        local _, camera = game.Workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+
+        
+
+        -- If the player is not looking at DepthTer, they take damage
+
+        if not camera then
+
+game.Players.LocalPlayer.Character.Humanoid:TakeDamage(5)
+
+        end
+
+        
+
+        -- If the player dies, update the death cause and show the death hint
+
+        if game.Players.LocalPlayer.Character.Humanoid.Health <= 0 then
+
+            -- Show death hint
+
+            firesignal(game.ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {"You died to who you call Greed...","He spawns in center of room and he will damage you if you dont look at him"},"Blue")
+
+            wait(0.01)
+
+            -- Update the death cause in the game stats
+
+            game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Greed"
+
+        end
+
+    end
+
+end)
+
+-- Wait for the room to change
+
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+Greed = false
+
+-- Destroy DepthTer when no longer need
+
+game.Workspace.Greed:Destroy()
