@@ -1,0 +1,145 @@
+--====== FEAR BAR SYSTEM (BOTTOM RIGHT, MATCHED STYLE) ======--
+
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "FearBarGUI"
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Container (bottom right)
+local bg = Instance.new("Frame")
+bg.Size = UDim2.new(0.22, 0, 0.035, 0)
+bg.Position = UDim2.new(0.75, 0, 0.92, 0) -- bottom right
+bg.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+bg.BorderSizePixel = 0
+bg.Parent = gui
+
+-- Rounded corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = bg
+
+-- Outline (light beige like image)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255, 230, 180)
+stroke.Thickness = 2
+stroke.Parent = bg
+
+-- Inner padding
+local padding = Instance.new("UIPadding")
+padding.PaddingLeft = UDim.new(0, 4)
+padding.PaddingRight = UDim.new(0, 4)
+padding.PaddingTop = UDim.new(0, 4)
+padding.PaddingBottom = UDim.new(0, 4)
+padding.Parent = bg
+
+-- Fill bar (red)
+local fill = Instance.new("Frame")
+fill.Size = UDim2.new(0, 0, 1, 0)
+fill.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+fill.BorderSizePixel = 0
+fill.Parent = bg
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(0, 6)
+fillCorner.Parent = fill
+
+-- Fear values
+local fear = 0
+local maxFear = 100
+
+local function UpdateFear(amount)
+    fear = math.clamp(fear + amount, 0, maxFear)
+
+    fill:TweenSize(
+        UDim2.new(fear / maxFear, 0, 1, 0),
+        Enum.EasingDirection.Out,
+        Enum.EasingStyle.Quad,
+        0.25,
+        true
+    )
+end
+
+local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
+caption.TextColor3 = Color3.fromRGB(255, 255, 255)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fear Mode Multiplayer Executed!",true)
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
+caption.TextColor3 = Color3.fromRGB(255, 255, 255)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fear Mode Initiated, Made by Oof, Fixed entities by reboundplayz and voorpr0",true)
+
+-- Deezer
+coroutine.wrap(function()
+    while true do
+        wait(30)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(3)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Voproo/Fear/refs/heads/main/Deezer"))()
+UpdateFear(5)
+    end
+end)()
+
+-- Boppies
+coroutine.wrap(function()
+    while true do
+        wait(400)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Boppies%20Spawner"))()
+UpdateFear(25)
+    end
+end)()
+
+-- Bliss
+coroutine.wrap(function()
+    while true do
+        wait(330)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Bliss%20Spawner"))()
+UpdateFear(15)
+    end
+end)()
+
+-- Greed
+coroutine.wrap(function()
+    while true do
+        wait(200)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Greed%20Spawner"))()
+UpdateFear(10)
+    end
+end)()
+
+-- Fearful
+coroutine.wrap(function()
+    while true do
+        wait(600)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fearful%20Spawner"))()
+UpdateFear(30)
+    end
+end)()
+
+-- Nightmare Hunger
+coroutine.wrap(function()
+    while true do
+        wait(500)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Hunger%20Spawner"))()
+UpdateFear(20)
+    end
+end)()
+
+-- Threat
+coroutine.wrap(function()
+    while true do
+        wait(370)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Threat%20Spawner"))()
+UpdateFear(18)
+    end
+end)()
