@@ -1,0 +1,220 @@
+---====== Load spawner ======---
+
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Create entity ======---
+
+local entity = Spawner:Create({
+	Entity = {
+		Name = "Threat",
+		Asset = "rbxassetid://116129357206746",
+		HeightOffset = 0
+	},
+	Lights = {
+		Flicker = {
+			Enabled = false,
+			Duration = 1
+		},
+		Shatter = true,
+		Repair = false
+	},
+	Earthquake = {
+		Enabled = false
+	},
+	CameraShake = {
+		Enabled = true,
+		Range = 100,
+		Values = {1.5, 20, 0.1, 1}
+	},
+	Movement = {
+		Speed = 200,
+		Delay = 2,
+		Reversed = false
+	},
+	Rebounding = {
+		Enabled = true,
+		Type = "Ambush",
+		Min = 7,
+		Max = 10,
+		Delay = 0
+	},
+	Damage = {
+		Enabled = true,
+		IgnoreHiding = false,
+		Range = 40,
+		Amount = 125
+	},
+	Crucifixion = {
+		Enabled = true,
+		Range = 40,
+		Resist = false,
+		Break = true
+	},
+	Death = {
+		Type = "Curious",
+		Hints = {"Oh... you died to the pink thing...", "I don't know what to really do about this threat...", "Maybe just hide?", "Good luck next time you see it..."},
+		Cause = ""
+	}
+})
+
+---====== SOUND HELPER ======---
+
+local function GitAud(url, filename)
+	local file = filename .. ".mp3"
+
+	if not isfile(file) then
+		writefile(file, game:HttpGet(url))
+	end
+
+	if not isfile(file) then
+		warn("Sound failed to download")
+		return nil
+	end
+
+	local success, asset = pcall(function()
+		return (getcustomasset or getsynasset)(file)
+	end)
+
+	if not success then
+		warn("getcustomasset failed")
+		return nil
+	end
+
+	return asset
+end
+
+---====== On Spawn ======---
+
+entity:SetCallback("OnSpawned", function()
+	print("Entity has spawned")
+
+	game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(244, 0, 255)
+
+	local id = GitAud(
+		"https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_06-24-2025%2017-33-48_1.mp3",
+		"spawn"
+	)
+
+	if id then
+		local sound = Instance.new("Sound")
+		sound.SoundId = id
+		sound.Volume = 10
+		sound.Parent = workspace
+		sound:Play()
+	end
+end)
+
+---====== On Start Moving ======---
+
+entity.Debug.OnEntityStartMoving = function()
+	print("Entity has started moving")
+
+	local id = GitAud(
+		"https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_06-24-2025%2017-40-08_1.mp3?raw=true",
+		"movesound"
+	)
+
+	if not id then return end
+
+	-- find entity model safely
+	local model
+	repeat
+		for _, v in pairs(workspace:GetChildren()) do
+			if v:IsA("Model") and v:FindFirstChildWhichIsA("BasePart") then
+				model = v
+			end
+		end
+		task.wait()
+	until model
+
+	-- ensure PrimaryPart
+	if not model.PrimaryPart then
+		local base = model:FindFirstChildWhichIsA("BasePart")
+		if base then
+			model.PrimaryPart = base
+		end
+	end
+
+	local part = model.PrimaryPart
+	if not part then
+		warn("No valid part found")
+		return
+	end
+
+	local sound = Instance.new("Sound")
+	sound.Name = "EntitySound"
+	sound.SoundId = id
+	sound.Parent = part
+
+	sound.Volume = 5
+	sound.Looped = true
+	sound.RollOffMode = Enum.RollOffMode.Linear
+	sound.RollOffMaxDistance = 1000
+	sound.RollOffMinDistance = 10
+
+	sound:Play()
+end
+
+---====== Despawn Cleanup ======---
+
+entity.Debug.OnEntityDespawned = function()
+	print("Entity has despawned")
+
+	local sound = workspace:FindFirstChild("EntitySound", true)
+	if sound then
+		sound:Destroy()
+	end
+
+	game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
+end
+
+---====== Other Callbacks ======---
+
+entity:SetCallback("OnStartMoving", function()
+	print("Entity has started moving")
+end)
+
+entity:SetCallback("OnEnterRoom", function(room, firstTime)
+	if firstTime then
+		print("Entered room:", room.Name, "(first time)")
+	else
+		print("Entered room:", room.Name, "(again)")
+	end
+end)
+
+entity:SetCallback("OnLookAt", function(lineOfSight)
+	if lineOfSight then
+		print("Player is looking at entity")
+	else
+		print("View obstructed")
+	end
+end)
+
+entity:SetCallback("OnRebounding", function(start)
+	if start then
+		print("Rebound started")
+	else
+		print("Rebound finished")
+	end
+end)
+
+entity:SetCallback("OnDespawning", function()
+	print("Entity is despawning")
+end)
+
+entity:SetCallback("OnDespawned", function()
+	print("Entity has despawned")
+	game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
+end)
+
+entity:SetCallback("OnDamagePlayer", function(newHealth)
+	if newHealth <= 0 then
+		print("Entity killed the player")
+	else
+		print("Entity damaged the player")
+	end
+end)
+
+---====== Run ======---
+
+entity:Run(true)
