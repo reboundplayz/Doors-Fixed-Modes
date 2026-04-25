@@ -83,7 +83,7 @@ entity:SetCallback("OnSpawned", function()
         sound.Parent = part
 
         sound.RollOffMode = Enum.RollOffMode.Inverse
-        sound.RollOffMaxDistance = 300
+        sound.RollOffMaxDistance = 500
         sound.Volume = 2
         sound.Looped = true
         wait(5)
