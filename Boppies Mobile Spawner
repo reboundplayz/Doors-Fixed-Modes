@@ -67,26 +67,33 @@ local entity = Spawner:Create({
 entity:SetCallback("OnSpawned", function()
 	print("Entity has spawned")
 
-	local model
-	repeat
-		model = workspace:FindFirstChild("Boppies")
-		task.wait()
-	until model
+local url = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/Boppies2077.mp3"
+    local file = "sound.mp3"
 
-	local part = model:FindFirstChildWhichIsA("BasePart")
+    if not isfile(file) then
+        writefile(file, game:HttpGet(url))
+    end
 
-	if part then
-		local sound = Instance.new("Sound")
-		sound.SoundId = "rbxassetid://9118823105"
-		sound.Parent = part
-		sound.RollOffMode = Enum.RollOffMode.Inverse
-		sound.RollOffMaxDistance = 500
-		sound.Volume = 2
-		sound.Looped = true
-		task.delay(5, function()
-			sound:Play()
-		end)
-	end
+    local model
+    repeat
+        model = workspace:FindFirstChild("Boppies")
+        task.wait()
+    until model
+
+    local part = model:FindFirstChildWhichIsA("BasePart")
+
+    if part then
+        local sound = Instance.new("Sound")
+        sound.SoundId = getcustomasset(file)
+        sound.Parent = part
+
+        sound.RollOffMode = Enum.RollOffMode.Inverse
+        sound.RollOffMaxDistance = 500
+        sound.Volume = 2
+        sound.Looped = true
+        wait(5)
+        sound:Play()
+    end
 end)
 
 entity:SetCallback("OnStartMoving", function()
