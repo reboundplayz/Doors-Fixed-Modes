@@ -1,0 +1,138 @@
+--====== FEAR BAR SYSTEM (HEALTH-BAR STYLE) ======--
+
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "FearBarGUI"
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Outer bar (like health UI)
+local bg = Instance.new("Frame")
+bg.Size = UDim2.new(0.18, 0, 0.018, 0) -- SMALL like health bar
+bg.Position = UDim2.new(0.78, 0, 0.94, 0) -- bottom right
+bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+bg.BackgroundTransparency = 0.8 -- 👈 makes it see-through like health bar
+bg.BorderSizePixel = 0
+bg.Parent = gui
+
+local bgCorner = Instance.new("UICorner")
+bgCorner.CornerRadius = UDim.new(0, 6)
+bgCorner.Parent = bg
+
+-- Outline (subtle like DOORS UI)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255, 220, 170)
+stroke.Thickness = 4
+stroke.Transparency = 0.3
+stroke.Parent = bg
+
+-- Fill (red fear bar)
+local fill = Instance.new("Frame")
+fill.Size = UDim2.new(0, 0, 1, 0)
+fill.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+fill.BorderSizePixel = 0
+fill.Parent = bg
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(0, 6)
+fillCorner.Parent = fill
+
+-- Fear system
+local fear = 0
+local maxFear = 100
+
+local function UpdateFear(amount)
+	fear = math.clamp(fear + amount, 0, maxFear)
+
+	fill:TweenSize(
+		UDim2.new(fear / maxFear, 0, 1, 0),
+		Enum.EasingDirection.Out,
+		Enum.EasingStyle.Quad,
+		0.25,
+		true
+	)
+end
+
+local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
+caption.TextColor3 = Color3.fromRGB(255, 255, 255)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fear Mode Multiplayer Executed!",true)
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
+caption.TextColor3 = Color3.fromRGB(255, 255, 255)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fear Mode Initiated, Made by Oof, Fixed entities by reboundplayz and voorpr0",true)
+
+-- Deezer
+coroutine.wrap(function()
+    while true do
+        wait(30)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(3)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Voproo/Fear/refs/heads/main/Deezer"))()
+UpdateFear(5)
+    end
+end)()
+
+-- Boppies
+coroutine.wrap(function()
+    while true do
+        wait(250)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/reboundplayz/Doors-Fixed-Modes/refs/heads/main/Boppies%20Mobile%20Spawner"))()
+UpdateFear(25)
+    end
+end)()
+
+-- Bliss
+coroutine.wrap(function()
+    while true do
+        wait(330)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Bliss%20Spawner"))()
+UpdateFear(15)
+    end
+end)()
+
+-- Greed
+coroutine.wrap(function()
+    while true do
+        wait(200)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Greed%20Spawner"))()
+UpdateFear(10)
+    end
+end)()
+
+-- Fearful
+coroutine.wrap(function()
+    while true do
+        wait(600)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fearful%20Spawner"))()
+UpdateFear(30)
+    end
+end)()
+
+-- Nightmare Hunger
+coroutine.wrap(function()
+    while true do
+        wait(500)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Hunger%20Spawner"))()
+UpdateFear(20)
+    end
+end)()
+
+-- Threat
+coroutine.wrap(function()
+    while true do
+        wait(370)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Threat%20Spawner"))()
+UpdateFear(18)
+    end
+end)()
