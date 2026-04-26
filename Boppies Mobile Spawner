@@ -1,0 +1,224 @@
+---====== Load spawner ======---
+
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Create entity ======---
+
+local entity = Spawner:Create({
+	Entity = {
+		Name = "Boppies",
+		Asset = "rbxassetid://16846474416",
+		HeightOffset = 0
+	},
+	Lights = {
+		Flicker = {
+			Enabled = true,
+			Duration = 5
+		},
+		Shatter = true,
+		Repair = false
+	},
+	Earthquake = {
+		Enabled = false
+	},
+	CameraShake = {
+		Enabled = true,
+		Range = 100,
+		Values = {10, 30, 0.1, 1}
+	},
+	Movement = {
+		Speed = 450,
+		Delay = 5,
+		Reversed = false
+	},
+	Rebounding = {
+		Enabled = true,
+		Type = "Ambush",
+		Min = 2,
+		Max = 3,
+		Delay = 0
+	},
+	Damage = {
+		Enabled = true,
+		IgnoreHiding = false,
+		Range = 40,
+		Amount = 125
+	},
+	Crucifixion = {
+		Enabled = true,
+		Range = 40,
+		Resist = false,
+		Break = true
+	},
+	Death = {
+		Type = "Curious",
+		Hints = {
+			"You died to Boppies...",
+			"Use your knowledge from Ambush...",
+			"You will need to go back in to hide a few times...",
+			"You can do it!"
+		},
+		Cause = ""
+	}
+})
+
+---====== Debug entity ======---
+
+entity:SetCallback("OnSpawned", function()
+	print("Entity has spawned")
+
+	local model
+	repeat
+		model = workspace:FindFirstChild("Boppies")
+		task.wait()
+	until model
+
+	local part = model:FindFirstChildWhichIsA("BasePart")
+
+	if part then
+		local sound = Instance.new("Sound")
+		sound.SoundId = "rbxassetid://9118823105"
+		sound.Parent = part
+		sound.RollOffMode = Enum.RollOffMode.Inverse
+		sound.RollOffMaxDistance = 500
+		sound.Volume = 2
+		sound.Looped = true
+		task.delay(5, function()
+			sound:Play()
+		end)
+	end
+end)
+
+entity:SetCallback("OnStartMoving", function()
+	print("Entity has started moving")
+end)
+
+entity:SetCallback("OnEnterRoom", function(room: Model, firstTime: boolean)
+	if firstTime then
+		print("Entity has entered room: "..room.Name.." for the first time")
+	else
+		print("Entity has entered room: "..room.Name.." again")
+	end
+end)
+
+entity:SetCallback("OnLookAt", function(lineOfSight: boolean)
+	if lineOfSight then
+		print("Player is looking at entity")
+	else
+		print("Player view is obstructed")
+	end
+end)
+
+entity:SetCallback("OnRebounding", function(startOfRebound: boolean)
+	if startOfRebound then
+		print("Entity started rebounding")
+	else
+		print("Entity finished rebounding")
+	end
+end)
+
+entity:SetCallback("OnDespawning", function()
+	print("Entity is despawning")
+end)
+
+entity:SetCallback("OnDespawned", function()
+	print("Entity has despawned")
+end)
+
+---====== MOBILE SAFE JUMPSCARE WITH GITHUB SOUND ======---
+
+entity:SetCallback("OnDamagePlayer", function(newHealth: number)
+	if newHealth <= 0 then
+		print("Entity killed player")
+	else
+		print("Entity damaged player")
+	end
+
+	local Players = game:GetService("Players")
+	local TweenService = game:GetService("TweenService")
+
+	local player = Players.LocalPlayer
+	local playerGui = player:WaitForChild("PlayerGui")
+
+	-- GUI
+	local gui = Instance.new("ScreenGui")
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 999999
+	gui.ResetOnSpawn = false
+	gui.Parent = playerGui
+
+	-- FLASH
+	local flash = Instance.new("Frame")
+	flash.Size = UDim2.new(1,0,1,0)
+	flash.BorderSizePixel = 0
+	flash.BackgroundColor3 = Color3.new(0,0,0)
+	flash.ZIndex = 10
+	flash.Parent = gui
+
+	-- IMAGE
+	local image = Instance.new("ImageLabel")
+	image.AnchorPoint = Vector2.new(0.5, 0.5)
+	image.Position = UDim2.new(0.5, 0, 0.5, 0)
+	image.Size = UDim2.new(0, 300, 0, 420)
+	image.BackgroundTransparency = 1
+	image.Image = "rbxassetid://135404087814479"
+	image.ZIndex = 11
+	image.Parent = gui
+
+	-- 🔊 GITHUB SOUND (YOUR ORIGINAL SYSTEM, BUT SAFE)
+	local url = "https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/Video-Proje.mp3"
+	local file = "jumpscare.mp3"
+
+	if not isfile(file) then
+		writefile(file, game:HttpGet(url))
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset(file)
+	sound.Volume = 10
+	sound.Parent = gui
+	task.spawn(function()
+		sound:Play()
+	end)
+
+	-- ZOOM
+	TweenService:Create(
+		image,
+		TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+		{Size = UDim2.new(0, 2500, 0, 3500)}
+	):Play()
+
+	-- LOOP (mobile stable)
+	task.spawn(function()
+		local duration = 1.2
+		local start = os.clock()
+
+		while true do
+			local t = os.clock() - start
+			if t >= duration then break end
+
+			-- FLASH
+			if math.random(1,2) == 1 then
+				flash.BackgroundColor3 = Color3.fromRGB(255,0,0)
+			else
+				flash.BackgroundColor3 = Color3.fromRGB(0,0,0)
+			end
+
+			-- SHAKE
+			image.Rotation = math.random(-15,15)
+
+			local offsetX = math.random(-25,25)
+			local offsetY = math.random(-25,25)
+
+			image.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
+
+			task.wait(0.03)
+		end
+
+		gui:Destroy()
+	end)
+end)
+
+---====== Run entity ======---
+
+entity:Run(true)
