@@ -92,7 +92,7 @@ entity:SetCallback("OnSpawned", function()
 
 	local id = GitAud(
 		"https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_06-24-2025%2017-33-48_1.mp3",
-		"spawn"
+		"threat_spawn"
 	)
 
 	if id then
@@ -111,7 +111,7 @@ entity.Debug.OnEntityStartMoving = function()
 
 	local id = GitAud(
 		"https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_06-24-2025%2017-40-08_1.mp3?raw=true",
-		"movesound"
+		"threat_movesound"
 	)
 
 	if not id then return end
