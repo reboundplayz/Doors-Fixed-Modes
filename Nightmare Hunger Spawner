@@ -31,7 +31,7 @@ end
 
 local Kill = true
 
-local depthsTer = game:GetObjects("rbxassetid://120789937431242")[1]
+local depthsTer = game:GetObjects("rbxassetid://130473352149503")[1]
 depthsTer.Parent = game.Workspace
 
 workspace.HungerNew.Effects.Spawn:Destroy()
