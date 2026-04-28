@@ -5,27 +5,45 @@ local chr = plr.Character or plr.CharacterAdded:Wait()
 local currentRoomNum = game.ReplicatedStorage.GameData.LatestRoom.Value
 local currentRoom = workspace.CurrentRooms:FindFirstChild(tostring(currentRoomNum))
 
---// Function to recolor ONLY current room
-local changedParts = {}
+-- Replace your yellow room section with this
 
-local function ChangeRoomColor(room, color)
+local TweenService = game:GetService("TweenService")
+
+--// Current room reference
+local currentRoomNum = game.ReplicatedStorage.GameData.LatestRoom.Value
+local currentRoom = workspace.CurrentRooms:FindFirstChild(tostring(currentRoomNum))
+
+-- Fade room into yellow after 2 sec
+wait(2)
+
+local function FadeRoomColor(room)
 	if not room then return end
-	
+
 	for _, obj in pairs(room:GetDescendants()) do
 		if obj:IsA("BasePart") then
-			changedParts[obj] = obj.Color -- save original color
-			obj.Color = color
+			local tween = TweenService:Create(
+				obj,
+				TweenInfo.new(2, Enum.EasingStyle.Linear),
+				{Color = Color3.fromRGB(246,238,0)}
+			)
+			tween:Play()
+
 		elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
-			obj.Color = color
+			local tween = TweenService:Create(
+				obj,
+				TweenInfo.new(2, Enum.EasingStyle.Linear),
+				{Color = Color3.fromRGB(246,238,0)}
+			)
+			tween:Play()
 		end
 	end
 end
 
---// Make room yellow
-ChangeRoomColor(currentRoom, Color3.fromRGB(246,238,0))
+FadeRoomColor(currentRoom)
 
--- Wait until entering next room
-wait(0)
+-- wait until fade finishes, then spawn 2 sec later
+wait(1)
+wait(1)
 
 -- Keep old room yellow permanently
 require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("What the freak is that?!?!?!",true)
@@ -36,6 +54,7 @@ sound.Looped = false
 sound.Parent = workspace
 sound.Volume = 3
 sound:Play()
+game:GetService("Debris"):AddItem(sound,5)
 
 wait(6)
 
@@ -113,4 +132,5 @@ if not chr:GetAttribute("Crouching") then
 	sound.Parent = workspace
 	sound.Volume = 5
 	sound:Play()
+    game:GetService("Debris"):AddItem(sound,5)
 end
