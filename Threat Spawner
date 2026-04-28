@@ -2,6 +2,66 @@
 
 local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
 
+-- ADD THIS near top after Spawner loads
+local TweenService = game:GetService("TweenService")
+
+--====== ROOM COLOR SYSTEM ======--
+
+local savedColors = {}
+local activeRoom
+
+local function GetCurrentRoom()
+	local num = game.ReplicatedStorage.GameData.LatestRoom.Value
+	return workspace.CurrentRooms:FindFirstChild(tostring(num))
+end
+
+local function SaveRoom(room)
+	savedColors = {}
+	if not room then return end
+
+	for _,v in pairs(room:GetDescendants()) do
+		if v:IsA("BasePart") then
+			savedColors[v] = v.Color
+		elseif v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+			savedColors[v] = v.Color
+		end
+	end
+end
+
+local function SetRoomColor(color)
+	if not activeRoom then return end
+
+	for _,v in pairs(activeRoom:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Color = color
+		elseif v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+			v.Color = color
+		end
+	end
+end
+
+local function TweenRoomColor(color,time)
+	if not activeRoom then return end
+
+	for _,v in pairs(activeRoom:GetDescendants()) do
+		if v:IsA("BasePart") then
+			TweenService:Create(v,TweenInfo.new(time),{Color=color}):Play()
+		elseif v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+			TweenService:Create(v,TweenInfo.new(time),{Color=color}):Play()
+		end
+	end
+end
+
+local function RestoreRoom(time)
+	for obj,col in pairs(savedColors) do
+		if obj and obj.Parent then
+			pcall(function()
+				TweenService:Create(obj,TweenInfo.new(time),{Color=col}):Play()
+			end)
+		end
+	end
+end
+
 ---====== Create entity ======---
 
 local entity = Spawner:Create({
@@ -28,7 +88,7 @@ local entity = Spawner:Create({
 	},
 	Movement = {
 		Speed = 200,
-		Delay = 2,
+		Delay = 3,
 		Reversed = false
 	},
 	Rebounding = {
@@ -85,10 +145,13 @@ end
 
 ---====== On Spawn ======---
 
+-- REPLACE ENTIRE OnSpawned callback with this
+
 entity:SetCallback("OnSpawned", function()
 	print("Entity has spawned")
 
-	game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(244, 0, 255)
+	activeRoom = GetCurrentRoom()
+	SaveRoom(activeRoom)
 
 	local id = GitAud(
 		"https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_06-24-2025%2017-33-48_1.mp3",
@@ -102,6 +165,46 @@ entity:SetCallback("OnSpawned", function()
 		sound.Parent = workspace
 		sound:Play()
 	end
+
+	-- rainbow for 2 seconds
+-- REPLACE ONLY the rainbow section inside OnSpawned with this
+-- This makes EACH color fade in, then fade out into the next one smoothly
+
+task.spawn(function()
+	local rainbow = {
+		Color3.fromRGB(255,170,185), -- soft pink
+		Color3.fromRGB(255,205,150), -- peach
+		Color3.fromRGB(255,240,170), -- soft yellow
+		Color3.fromRGB(185,255,185), -- mint
+		Color3.fromRGB(170,245,255), -- cyan
+		Color3.fromRGB(185,185,255), -- pastel blue
+		Color3.fromRGB(255,180,255)  -- lavender pink
+	}
+
+	-- start from saved/original room color feel
+	for _, color in ipairs(rainbow) do
+		-- fade INTO this color
+		TweenRoomColor(color, 0.22)
+		task.wait(0.22)
+
+		-- hold briefly like the video pulse
+		task.wait(0.06)
+
+		-- fade slightly darker version before next color
+		local dim = Color3.new(
+			color.R * 0.72,
+			color.G * 0.72,
+			color.B * 0.72
+		)
+
+		TweenRoomColor(dim, 0.14)
+		task.wait(0.14)
+	end
+
+	-- smooth merge into Threat purple
+	TweenRoomColor(Color3.fromRGB(244,0,255), 0.55)
+end)
+
 end)
 
 ---====== On Start Moving ======---
@@ -190,21 +293,39 @@ entity:SetCallback("OnLookAt", function(lineOfSight)
 	end
 end)
 
+-- REPLACE OnRebounding callback with this
+
 entity:SetCallback("OnRebounding", function(start)
 	if start then
 		print("Rebound started")
+
+		task.spawn(function()
+			SetRoomColor(Color3.fromRGB(255,0,0))
+			task.wait(0.12)
+			TweenRoomColor(Color3.fromRGB(244,0,255),0.25)
+		end)
+
 	else
 		print("Rebound finished")
 	end
 end)
 
-entity:SetCallback("OnDespawning", function()
-	print("Entity is despawning")
-end)
+-- REPLACE BOTH despawn callbacks with this
+
+entity.Debug.OnEntityDespawned = function()
+	print("Entity has despawned")
+
+	local sound = workspace:FindFirstChild("EntitySound", true)
+	if sound then
+		sound:Destroy()
+	end
+
+	RestoreRoom(2)
+end
 
 entity:SetCallback("OnDespawned", function()
 	print("Entity has despawned")
-	game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
+	RestoreRoom(2)
 end)
 
 entity:SetCallback("OnDamagePlayer", function(newHealth)
