@@ -1,95 +1,141 @@
--- Check current room
-
-local entityModel = true
-
-local latestRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
-
--- If in Seek, Figure, or Room 90+
-
-if game.Workspace:FindFirstChild("SeekMovingNewClone") or 
-
-   latestRoom == 50 or latestRoom == 100 or  
-
-   (latestRoom >= 90 and latestRoom <= 100) then
-
-    entityModel = false
-
-end
-
-local Greed = true
-
-local depthsTer = game:GetObjects("rbxassetid://73449380101773")[1] -- Load DepthsTer from the ID
-
-depthsTer.Parent = game.Workspace
-
-depthsTer.Name = "Greed"
-
-workspace.Greed.Effects.PointLight2:Destroy()
-
-workspace.Greed.Effects.PointLight.Range = 0
-
-local part = depthsTer:FindFirstChildWhichIsA("BasePart") or depthsTer:FindFirstChildWhichIsA("Part")
-
--- Set the position of DepthsTer in the room
-
-part.CFrame = game.Workspace.CurrentRooms:GetChildren()[#game.Workspace.CurrentRooms:GetChildren() - 1].Parts.Floor.CFrame + Vector3.new(0, 6, 0)
-
-wait(3)
-
+--// Services
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
-local TW = TweenService:Create(workspace.Greed.Effects.PointLight, TweenInfo.new(3),{Range = 20})
+local player = Players.LocalPlayer
 
-TW:Play()
+--// Check current room
+local entityModel = true
+local latestRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
 
-wait(1)
+if game.Workspace:FindFirstChild("SeekMovingNewClone")
+or latestRoom == 50
+or latestRoom == 100
+or (latestRoom >= 90 and latestRoom <= 100) then
+    entityModel = false
+end
 
-task.spawn(function()
+--// Load asset safely
+local assets = game:GetObjects("rbxassetid://84391551972885")
+if not assets or #assets == 0 then
+    warn("Greed asset failed to load")
+    return
+end
 
-    while Greed == true do
+local root = assets[1]
 
-        task.wait(0.2)  -- Reduce the wait time to increase damage speed
+-- Find Model inside asset (IMPORTANT FIX)
+local model = nil
 
-        local _, camera = game.Workspace.CurrentCamera:WorldToViewportPoint(part.Position)
-
-        
-
-        -- If the player is not looking at DepthTer, they take damage
-
-        if not camera then
-
-game.Players.LocalPlayer.Character.Humanoid:TakeDamage(5)
-
+if root:IsA("Model") then
+    model = root
+else
+    for _, v in ipairs(root:GetDescendants()) do
+        if v:IsA("Model") then
+            model = v
+            break
         end
+    end
+end
 
-        
+if not model then
+    warn("No model found inside Greed asset")
+    return
+end
 
-        -- If the player dies, update the death cause and show the death hint
+model.Parent = workspace
+model.Name = "Greed"
 
-        if game.Players.LocalPlayer.Character.Humanoid.Health <= 0 then
+local greed = workspace:WaitForChild("Greed")
 
-            -- Show death hint
+--// Safely disable lights
+local effects = greed:FindFirstChild("Effects")
+if effects then
+    local p2 = effects:FindFirstChild("PointLight2")
+    if p2 then p2:Destroy() end
 
-            firesignal(game.ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {"You died to who you call Greed...","He spawns in center of room and he will damage you if you dont look at him"},"Blue")
-
-            wait(0.01)
-
-            -- Update the death cause in the game stats
-
-            game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Greed"
-
-        end
-
+    local p1 = effects:FindFirstChild("PointLight")
+    if p1 then
+        p1.Range = 0
     end
 
+    -- tween light safely
+    if p1 then
+        TweenService:Create(p1, TweenInfo.new(3), {Range = 20}):Play()
+    end
+end
+
+--// Find a valid part (safe)
+local part
+for _, v in ipairs(greed:GetDescendants()) do
+    if v:IsA("BasePart") then
+        part = v
+        break
+    end
+end
+
+if not part then
+    warn("Greed has no BasePart")
+    return
+end
+
+--// Position in room safely
+task.wait(1)
+
+local rooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
+local lastRoom = rooms[#rooms - 1]
+
+if lastRoom and lastRoom:FindFirstChild("Parts") and lastRoom.Parts:FindFirstChild("Floor") then
+    part.CFrame = lastRoom.Parts.Floor.CFrame + Vector3.new(0, 6, 0)
+end
+
+--// Main logic
+local Greed = true
+
+task.spawn(function()
+    while Greed do
+        task.wait(0.2)
+
+        local char = player.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        local cam = workspace.CurrentCamera
+
+        if hum and cam and part then
+            -- PROPER look check (fixes viewport bug)
+            local direction = (part.Position - cam.CFrame.Position).Unit
+            local look = cam.CFrame.LookVector
+
+            local dot = look:Dot(direction)
+
+            -- if NOT looking at it
+            if dot < 0.5 then
+                hum:TakeDamage(5)
+            end
+
+            if hum.Health <= 0 then
+                firesignal(
+                    game.ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent,
+                    {
+                        "You died to who you call Greed...",
+                        "He spawns in the center and damages you if you don't look at him"
+                    },
+                    "Blue"
+                )
+
+                game:GetService("ReplicatedStorage")
+                    .GameStats["Player_" .. player.Name]
+                    .Total.DeathCause.Value = "Greed"
+            end
+        end
+    end
 end)
 
--- Wait for the room to change
+--// Cleanup on room change
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    Greed = false
 
-game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
-
-Greed = false
-
--- Destroy DepthTer when no longer need
-
-game.Workspace.Greed:Destroy()
+    local g = workspace:FindFirstChild("Greed")
+    if g then
+        g:Destroy()
+    end
+end)
