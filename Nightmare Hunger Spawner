@@ -1,8 +1,35 @@
+-- REPLACE your existing hunger connection at the top with this:
+
+local Kill = true
+
 local hunger = game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
 
-game.Players.LocalPlayer.Character.Humanoid:TakeDamage(1000)
+    Kill = false
 
-game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Nightmare Hunger [Opened Door]"
+    game.Players.LocalPlayer.Character.Humanoid:TakeDamage(1000)
+
+    game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Nightmare Hunger [Opened Door]"
+
+    -- FORCE STOP ALL ATTACK SOUNDS
+    if workspace:FindFirstChild("Attacking1") then
+        workspace.Attacking1:Stop()
+        workspace.Attacking1:Destroy()
+    end
+
+    if workspace:FindFirstChild("AttackEnd") then
+        workspace.AttackEnd:Stop()
+        workspace.AttackEnd:Destroy()
+    end
+
+    if workspace:FindFirstChild("End") then
+        workspace.End:Stop()
+        workspace.End:Destroy()
+    end
+
+    if workspace:FindFirstChild("HungerScream") then
+        workspace.HungerScream:Stop()
+        workspace.HungerScream:Destroy()
+    end
 
 end)
 
@@ -43,7 +70,7 @@ part.CFrame = game.Workspace.CurrentRooms:GetChildren()[#game.Workspace.CurrentR
 wait(3)
 
 -- =========================================================
--- 💀 KICK SYSTEM + GITHUB SOUND (MERGED)
+-- 💀 KICK SYSTEM + GITHUB SOUND
 -- =========================================================
 
 local Players = game:GetService("Players")
@@ -52,7 +79,6 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local triggered = false
 
--- GitHub sound loader (requested getcustomasset version)
 local function GitAud(soundgit, filename)
     local FileName = filename
     writefile(FileName..".mp3", game:HttpGet(soundgit))
@@ -65,7 +91,6 @@ local function PlayKickSound()
     sound.Volume = 5
     sound.Looped = true
 
-    -- GitHub audio
     local success, asset = pcall(function()
         return GitAud(
             "https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_07-04-2025%2016-09-19_1.mp3",
@@ -76,7 +101,7 @@ local function PlayKickSound()
     if success then
         sound.SoundId = asset
     else
-        sound.SoundId = "rbxassetid://933230732" -- fallback
+        sound.SoundId = "rbxassetid://933230732"
     end
 
     sound:Play()
@@ -95,10 +120,8 @@ RunService.Heartbeat:Connect(function()
         if v:IsA("BasePart") then
             if (hrp.Position - v.Position).Magnitude < 6 then
                 triggered = true
-
                 PlayKickSound()
                 task.wait(0.2)
-
                 player:Kick("You got too close to Nightmare Hunger...")
                 return
             end
@@ -106,64 +129,82 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- =========================================================
+-- REPLACE ONLY YOUR ATTACK LOOP WITH THIS (keeps fps freeze + fixes looping sound)
 
 task.spawn(function()
+    while Kill do
+        task.wait(0.1)
 
-    while Kill == true do
+        -- if next door opened stop everything instantly
+        if game.ReplicatedStorage.GameData.LatestRoom.Value ~= latestRoom then
+            Kill = false
 
-        task.wait(0.2)
-
-        local _, camera = game.Workspace.CurrentCamera:WorldToViewportPoint(part.Position)
-
-        if not camera then
-
-            local FPS = 5
-            local clock = tick()
-
-            while clock + 1.6 / FPS > tick() do end
-            wait()
-            clock = tick()
-
-            game.Players.LocalPlayer.Character.Humanoid:TakeDamage(10)
-
-            function GitAud(soundgit,filename)
-                SoundName=tostring(SoundName)
-                local url=soundgit
-                local FileName = filename
-                writefile(FileName..".mp3", game:HttpGet(url))
-                return (getcustomasset or getsynasset)(FileName..".mp3")
+            if workspace:FindFirstChild("Attacking1") then
+                workspace.Attacking1:Stop()
+                workspace.Attacking1:Destroy()
             end
 
-            function CustomGitSound(soundlink, vol, filename)
+            if workspace:FindFirstChild("AttackEnd") then
+                workspace.AttackEnd:Stop()
+                workspace.AttackEnd:Destroy()
+            end
+
+            break
+        end
+
+        local camera = workspace.CurrentCamera
+        if not camera then return end
+
+        local function IsLookingAt()
+            local viewportPoint, onScreen = camera:WorldToViewportPoint(part.Position)
+            if not onScreen then return false end
+
+            local lookVector = camera.CFrame.LookVector
+            local direction = (part.Position - camera.CFrame.Position).Unit
+            return lookVector:Dot(direction) > 0.65
+        end
+
+        if not IsLookingAt() then
+
+            -- FPS FREEZE EFFECT
+            local FPS = 5
+            local clock = tick()
+            while tick() < clock + (1.6 / FPS) do end
+
+            local humanoid = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:TakeDamage(10)
+            end
+
+            if not workspace:FindFirstChild("Attacking1") then
                 local sound = Instance.new("Sound")
-                sound.SoundId = GitAud(soundlink, filename)
-                sound.Parent = workspace
                 sound.Name = "Attacking1"
-                sound.Volume = 1
+                sound.Parent = workspace
+                sound.Volume = 5
+                sound.Looped = true
+                sound.SoundId = GitAud(
+    "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Video%20Project%202%201.mp3",
+    "hunger_attack"
+)
                 sound:Play()
             end
 
-            CustomGitSound(
-                "https://github.com/reboundplayz/doors-fear-mode-images/raw/refs/heads/main/ScreenRecording_07-04-2025%2013-49-03_1.mp3",
-                1,
-                "hunger"
-            )
+        else
+            if workspace:FindFirstChild("Attacking1") then
+                workspace.Attacking1:Stop()
+                workspace.Attacking1:Destroy()
+
+                local endSound = Instance.new("Sound")
+                endSound.Name = "AttackEnd"
+                endSound.Parent = workspace
+                endSound.Volume = 5
+                endSound.Looped = false
+                endSound.SoundId = "rbxassetid://6664373487"
+                endSound:Play()
+
+                game:GetService("Debris"):AddItem(endSound, 10)
+            end
         end
-
-        if game.Players.LocalPlayer.Character.Humanoid.Health <= 0 then
-
-            firesignal(game.ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {
-                "You died to who you call Nightmare Hunger...",
-                "He spawns in center of room and he will damage you if you dont look at him",
-                "He doesnt like to be ignoring"
-            }, "Blue")
-
-            wait(0.01)
-
-            game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Nightmare Hunger"
-        end
-
     end
 end)
 
@@ -177,7 +218,7 @@ achievementGiver({
     Title = "Let Me Open The Door!",
     Desc = "Don't crash my game",
     Reason = "Encounter Nightmare Hunger",
-    Image = "rbxassetid://94060220684903"
+    Image = "rbxassetid://134752454471771"
 })
 
 function CustomGitSound(soundlink, vol, filename)
@@ -203,6 +244,14 @@ CustomGitSound(
     1,
     "leave"
 )
+
+-- delete sounds when next door opens
+if workspace:FindFirstChild("Attacking1") then
+    workspace.Attacking1:Destroy()
+end
+if workspace:FindFirstChild("AttackEnd") then
+    workspace.AttackEnd:Destroy()
+end
 
 Kill = false
 
