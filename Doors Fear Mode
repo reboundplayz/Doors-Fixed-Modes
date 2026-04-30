@@ -66,7 +66,7 @@ coroutine.wrap(function()
         wait(30)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
         wait(3)
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Voproo/Fear/refs/heads/main/Deezer"))()
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Deezer%20Spawner"))()
 UpdateFear(5)
     end
 end)()
