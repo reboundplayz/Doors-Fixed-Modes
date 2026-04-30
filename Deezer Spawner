@@ -1,0 +1,180 @@
+--// DEEZER ENTITY (FINAL UPDATED HARD MODE)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local plr = Players.LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
+local camera = workspace.CurrentCamera
+
+---------------------------------------------------
+-- SETTINGS
+---------------------------------------------------
+
+local passiveModelId = "rbxassetid://95351373650401"
+local hostileModelId = "rbxassetid://76426640329474"
+
+local spawnSoundURL = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/DeezerSpawned.mp3"
+local jumpscareSoundURL = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/DeezerJumpscare.mp3"
+local damageSoundURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/NewDamageNoise.mp3.mpeg"
+
+---------------------------------------------------
+-- FILE LOADER
+---------------------------------------------------
+
+local function LoadCustomSound(url, name)
+    local file = name .. ".mp3"
+
+    if not isfile(file) then
+        writefile(file, game:HttpGet(url))
+    end
+
+    return getcustomasset(file)
+end
+
+---------------------------------------------------
+-- MODEL LOADER
+---------------------------------------------------
+
+local function LoadModel(id)
+    local ok, obj = pcall(function()
+        return game:GetObjects(id)[1]
+    end)
+
+    if ok and obj then
+        return obj
+    end
+end
+
+---------------------------------------------------
+-- LOOK DETECTION
+---------------------------------------------------
+
+local function IsLookingAt(part)
+    if not part then return false end
+    local dir = (part.Position - camera.CFrame.Position).Unit
+    return camera.CFrame.LookVector:Dot(dir) > 0.85
+end
+
+---------------------------------------------------
+-- SPAWN 10 STUDS AWAY
+---------------------------------------------------
+
+local model = LoadModel(passiveModelId)
+if not model then return end
+
+model.Parent = workspace
+
+if model:IsA("Model") then
+    if not model.PrimaryPart then
+        model.PrimaryPart = model:FindFirstChildWhichIsA("BasePart")
+    end
+
+    if model.PrimaryPart then
+        local offset = root.CFrame.LookVector * 10
+        model:SetPrimaryPartCFrame(CFrame.new(root.Position + offset))
+    end
+end
+
+---------------------------------------------------
+-- SPAWN SOUND
+---------------------------------------------------
+
+local spawnSound = Instance.new("Sound")
+spawnSound.SoundId = LoadCustomSound(spawnSoundURL,"DeezerSpawned")
+spawnSound.Volume = 2
+spawnSound.Parent = workspace
+spawnSound:Play()
+
+---------------------------------------------------
+-- LOOK CHECK
+---------------------------------------------------
+
+local looked = false
+local connection
+local lastCF = nil
+
+connection = RunService.RenderStepped:Connect(function()
+    if model and model.Parent and model.PrimaryPart then
+        lastCF = model.PrimaryPart.CFrame
+
+        if IsLookingAt(model.PrimaryPart) then
+            looked = true
+            connection:Disconnect()
+
+            task.delay(1.5, function()
+                if spawnSound then spawnSound:Stop() end
+                if model then model:Destroy() end
+            end)
+        end
+    end
+end)
+
+---------------------------------------------------
+-- HOSTILE MODE
+---------------------------------------------------
+
+task.spawn(function()
+    spawnSound.Ended:Wait()
+
+    if looked then return end
+    if connection then connection:Disconnect() end
+    if model then model:Destroy() end
+
+    local hostile = LoadModel(hostileModelId)
+    if not hostile then return end
+
+    hostile.Parent = workspace
+
+    if hostile:IsA("Model") then
+        if not hostile.PrimaryPart then
+            hostile.PrimaryPart = hostile:FindFirstChildWhichIsA("BasePart")
+        end
+
+        if hostile.PrimaryPart and lastCF then
+            hostile:SetPrimaryPartCFrame(lastCF)
+        end
+    end
+
+    ---------------------------------------------------
+    -- DAMAGE + SOUND EFFECTS
+    ---------------------------------------------------
+
+    hum:TakeDamage(1)
+
+    local scare = Instance.new("Sound")
+    scare.SoundId = LoadCustomSound(jumpscareSoundURL,"DeezerJumpscare")
+    scare.Volume = 3
+    scare.Parent = workspace
+    scare:Play()
+
+    local dmg = Instance.new("Sound")
+    dmg.SoundId = LoadCustomSound(damageSoundURL,"DeezerDamage")
+    dmg.Volume = 3
+    dmg.Parent = workspace
+    dmg:Play()
+
+    ---------------------------------------------------
+    -- SLOW EFFECT (5 SEC RECOVERY)
+    ---------------------------------------------------
+
+    local oldSpeed = hum.WalkSpeed
+    hum.WalkSpeed = 0.1
+
+    TweenService:Create(
+        hum,
+        TweenInfo.new(5, Enum.EasingStyle.Linear),
+        {WalkSpeed = oldSpeed}
+    ):Play()
+
+    ---------------------------------------------------
+    -- DESPAWN
+    ---------------------------------------------------
+
+    task.delay(10, function()
+        if hostile then hostile:Destroy() end
+    end)
+end)
