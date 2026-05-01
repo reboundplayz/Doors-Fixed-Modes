@@ -86,7 +86,7 @@ entity:SetCallback("OnSpawned", function()
         sound.RollOffMaxDistance = 500
         sound.Volume = 2
         sound.Looped = true
-        wait(7)
+        wait(6)
         sound:Play()
     end
 end)
