@@ -21,7 +21,7 @@ bgCorner.Parent = bg
 -- Outline (subtle like DOORS UI)
 local stroke = Instance.new("UIStroke")
 stroke.Color = Color3.fromRGB(255, 220, 170)
-stroke.Thickness = 4
+stroke.Thickness = 3
 stroke.Transparency = 0.3
 stroke.Parent = bg
 
