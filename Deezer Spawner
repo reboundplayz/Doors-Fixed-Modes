@@ -1,10 +1,10 @@
---// DEEZER ENTITY (FINAL UPDATED HARD MODE)
+--// DEEZER ENTITY (RANDOM AROUND PLAYER)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
-local plr = Players.LocalPlayer
+local plr = game:GetService("Players").LocalPlayer
 local char = plr.Character or plr.CharacterAdded:Wait()
 local hum = char:WaitForChild("Humanoid")
 local root = char:WaitForChild("HumanoidRootPart")
@@ -25,8 +25,8 @@ local damageSoundURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/re
 -- FILE LOADER
 ---------------------------------------------------
 
-local function LoadCustomSound(url, name)
-    local file = name .. ".mp3"
+local function LoadCustomSound(url,name)
+    local file = name..".mp3"
 
     if not isfile(file) then
         writefile(file, game:HttpGet(url))
@@ -40,7 +40,7 @@ end
 ---------------------------------------------------
 
 local function LoadModel(id)
-    local ok, obj = pcall(function()
+    local ok,obj = pcall(function()
         return game:GetObjects(id)[1]
     end)
 
@@ -50,17 +50,37 @@ local function LoadModel(id)
 end
 
 ---------------------------------------------------
--- LOOK DETECTION
+-- LOOK CHECK
 ---------------------------------------------------
 
 local function IsLookingAt(part)
     if not part then return false end
+
     local dir = (part.Position - camera.CFrame.Position).Unit
     return camera.CFrame.LookVector:Dot(dir) > 0.85
 end
 
 ---------------------------------------------------
--- SPAWN 10 STUDS AWAY
+-- RANDOM 10 STUDS AROUND PLAYER
+---------------------------------------------------
+
+-- Replace ONLY the GetRandomPosition function with this fixed one
+
+local function GetRandomPosition()
+    local angle = math.rad(math.random(0, 359))
+    local radius = math.random(8, 12) -- random distance around player
+
+    local offset = Vector3.new(
+        math.cos(angle) * radius,
+        0,
+        math.sin(angle) * radius
+    )
+
+    return root.Position + offset
+end
+
+---------------------------------------------------
+-- SPAWN PASSIVE
 ---------------------------------------------------
 
 local model = LoadModel(passiveModelId)
@@ -74,8 +94,8 @@ if model:IsA("Model") then
     end
 
     if model.PrimaryPart then
-        local offset = root.CFrame.LookVector * 10
-        model:SetPrimaryPartCFrame(CFrame.new(root.Position + offset))
+        local pos = GetRandomPosition()
+        model:SetPrimaryPartCFrame(CFrame.new(pos, root.Position))
     end
 end
 
@@ -90,12 +110,12 @@ spawnSound.Parent = workspace
 spawnSound:Play()
 
 ---------------------------------------------------
--- LOOK CHECK
+-- LOOK SYSTEM
 ---------------------------------------------------
 
 local looked = false
-local connection
 local lastCF = nil
+local connection
 
 connection = RunService.RenderStepped:Connect(function()
     if model and model.Parent and model.PrimaryPart then
@@ -105,7 +125,7 @@ connection = RunService.RenderStepped:Connect(function()
             looked = true
             connection:Disconnect()
 
-            task.delay(1.5, function()
+            task.delay(1,function()
                 if spawnSound then spawnSound:Stop() end
                 if model then model:Destroy() end
             end)
@@ -140,10 +160,14 @@ task.spawn(function()
     end
 
     ---------------------------------------------------
-    -- DAMAGE + SOUND EFFECTS
+    -- DAMAGE
     ---------------------------------------------------
 
     hum:TakeDamage(1)
+
+    ---------------------------------------------------
+    -- SOUNDS
+    ---------------------------------------------------
 
     local scare = Instance.new("Sound")
     scare.SoundId = LoadCustomSound(jumpscareSoundURL,"DeezerJumpscare")
@@ -158,11 +182,11 @@ task.spawn(function()
     dmg:Play()
 
     ---------------------------------------------------
-    -- SLOW EFFECT (5 SEC RECOVERY)
+    -- SUPER SLOW / RESTORE 5 SEC
     ---------------------------------------------------
 
     local oldSpeed = hum.WalkSpeed
-    hum.WalkSpeed = 0.1
+    hum.WalkSpeed = 0.5
 
     TweenService:Create(
         hum,
@@ -174,7 +198,7 @@ task.spawn(function()
     -- DESPAWN
     ---------------------------------------------------
 
-    task.delay(10, function()
+    task.delay(5,function()
         if hostile then hostile:Destroy() end
     end)
 end)
