@@ -13,7 +13,7 @@ local entity = Spawner:Create({
 	Lights = {
 		Flicker = {
 			Enabled = true,
-			Duration = 5
+			Duration = 6
 		},
 		Shatter = true,
 		Repair = false
@@ -24,11 +24,11 @@ local entity = Spawner:Create({
 	CameraShake = {
 		Enabled = true,
 		Range = 100,
-		Values = {10, 30, 0.1, 1} -- Magnitude, Roughness, FadeIn, FadeOut
+		Values = {10, 40, 0.1, 1} -- Magnitude, Roughness, FadeIn, FadeOut
 	},
 	Movement = {
-		Speed = 450,
-		Delay = 5,
+		Speed = 480,
+		Delay = 8,
 		Reversed = false
 	},
 	Rebounding = {
@@ -86,7 +86,7 @@ entity:SetCallback("OnSpawned", function()
         sound.RollOffMaxDistance = 500
         sound.Volume = 2
         sound.Looped = true
-        wait(5)
+        wait(6)
         sound:Play()
     end
 end)
