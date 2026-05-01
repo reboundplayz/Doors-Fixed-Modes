@@ -28,7 +28,7 @@ local entity = Spawner:Create({
 	},
 	Movement = {
 		Speed = 480,
-		Delay = 8,
+		Delay = 7,
 		Reversed = false
 	},
 	Rebounding = {
@@ -86,7 +86,7 @@ entity:SetCallback("OnSpawned", function()
         sound.RollOffMaxDistance = 500
         sound.Volume = 2
         sound.Looped = true
-        wait(6)
+        wait(7)
         sound:Play()
     end
 end)
