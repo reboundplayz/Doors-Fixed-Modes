@@ -58,7 +58,7 @@ require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("
 game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
 local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
 caption.TextColor3 = Color3.fromRGB(255, 255, 255)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fear Mode Initiated, Made by Oof, Fixed entities by reboundplayz and voorpr0",true)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fear Mode Initiated, Mode Originally Made by Oof, Fixed entities by reboundplayz and voorpr0",true)
 
 -- Deezer
 coroutine.wrap(function()
