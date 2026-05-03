@@ -152,6 +152,6 @@ end)()
 game.ReplicatedStorage.GameData.LatestRoom.Changed:connect(function()
 if game.ReplicatedStorage.GameData.LatestRoom.Value == 50 then
 wait(5)
-loadstring(Game:HttpGet("https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/common%20sense%20spawner"))()
+loadstring(Game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Overkill%20Spawner"))()
 end
 end)
