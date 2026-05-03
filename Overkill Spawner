@@ -1,0 +1,142 @@
+--[[ 
+    MANUAL PIVOT ENTITY: OVERKILL
+    Full Map Logic: FigureNodes (1-22+) with Kill Logic
+]]--
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ====== Configuration ======
+local entityspeed = 40 
+local killRange = 15 -- Distance in studs to trigger death
+local entityName = "Overkill"
+local assetId = "rbxassetid://122663790893019"
+
+-- ====== Setup Model ======
+local function LoadEntity()
+    local success, objects = pcall(function()
+        return game:GetObjects(assetId)
+    end)
+    if success and objects and objects[1] then
+        local model = objects[1]
+        model.Name = entityName
+        model.Parent = workspace
+        return model
+    end
+    return nil
+end
+
+local entity = LoadEntity()
+if not entity then return end
+
+for _, v in ipairs(entity:GetDescendants()) do
+    if v:IsA("BasePart") then
+        v.Transparency = 0
+        v.Anchored = true
+        v.CanCollide = false
+    end
+end
+
+-- ====== Movement Core ======
+function EntityMoveTo(targetCFrame)
+    if not entity or not entity.Parent then return end
+    local reached = false
+    local connection
+    
+    connection = RunService.Stepped:Connect(function(_, step)
+        if not entity or not entity.Parent then 
+            if connection then connection:Disconnect() end
+            reached = true 
+            return 
+        end
+        
+        local pivot = entity:GetPivot()
+        local difference = (targetCFrame.Position - pivot.Position)
+        
+        if difference.Magnitude > 0.5 then
+            local unit = difference.Unit
+            entity:PivotTo(pivot + unit * math.min(step * entityspeed, difference.Magnitude))
+        else
+            connection:Disconnect()
+            reached = true
+        end
+    end)
+    
+    local start = tick()
+    repeat RunService.Stepped:Wait() until reached or (tick() - start > 15)
+    if connection then connection:Disconnect() end
+end
+
+-- ====== Spawn Logic ======
+local function spawnAtExit()
+    local room50 = workspace.CurrentRooms:FindFirstChild("50")
+    if room50 and room50:FindFirstChild("RoomExit") then
+        entity:PivotTo(room50.RoomExit.CFrame + Vector3.new(0, 5, 0))
+    else
+        entity:PivotTo(CFrame.new(841.8, 10, -468.3))
+    end
+end
+
+spawnAtExit()
+
+-- ====== Kill Logic (Active Collision Check) ======
+local isDead = false
+task.spawn(function()
+    while RunService.Heartbeat:Wait() and entity and entity.Parent do
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") and not isDead then
+            local root = character.HumanoidRootPart
+            local distance = (entity:GetPivot().Position - root.Position).Magnitude
+            
+            -- Check distance and if the player is NOT hiding
+            if distance < killRange and character:GetAttribute("Hiding") ~= true then
+                isDead = true
+                character.Humanoid.Health = 0
+                print("Overkill eliminated the player!")
+                
+                -- Reset death toggle after respawn
+                task.delay(5, function() isDead = false end)
+            end
+        end
+    end
+end)
+
+-- ====== Pathing Logic (FigureNodes) ======
+local function patrol()
+    local pathFolder = workspace:FindFirstChild("FigureNodes", true)
+    
+    if pathFolder then
+        local nodes = pathFolder:GetChildren()
+        
+        table.sort(nodes, function(a, b)
+            local numA = tonumber(a.Name:match("%d+")) or 0
+            local numB = tonumber(b.Name:match("%d+")) or 0
+            return numA < numB
+        end)
+
+        for _, node in ipairs(nodes) do
+            if not entity or not entity.Parent then return end
+            if node:IsA("BasePart") then
+                EntityMoveTo(node.CFrame + Vector3.new(0, 4, 0))
+            end
+        end
+    else
+        task.wait(1)
+    end
+end
+
+-- ====== Main Loop ======
+task.spawn(function()
+    while entity and entity.Parent do
+        patrol()
+        task.wait(0.1)
+    end
+end)
+
+-- Cleanup on Room Change
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    if entity then 
+        entity:Destroy() 
+    end
+end)
