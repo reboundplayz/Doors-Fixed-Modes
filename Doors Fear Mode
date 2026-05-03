@@ -136,3 +136,22 @@ loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/r
 UpdateFear(18)
     end
 end)()
+
+-- SY3T4M
+coroutine.wrap(function()
+    while true do
+        wait(200)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/SY3T4M%20Spawner"))()
+UpdateFear(10)
+    end
+end)()
+
+-- Overkill
+game.ReplicatedStorage.GameData.LatestRoom.Changed:connect(function()
+if game.ReplicatedStorage.GameData.LatestRoom.Value == 50 then
+wait(5)
+loadstring(Game:HttpGet("https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/common%20sense%20spawner"))()
+end
+end)
