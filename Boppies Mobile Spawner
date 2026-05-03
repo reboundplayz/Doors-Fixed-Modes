@@ -205,14 +205,14 @@ entity:SetCallback("OnDamagePlayer", function(newHealth: number)
 			end
 
 			-- SHAKE
-			image.Rotation = math.random(-15,15)
+			image.Rotation = math.random(-5,5)
 
 			local offsetX = math.random(-25,25)
 			local offsetY = math.random(-25,25)
 
 			image.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
 
-			task.wait(0.03)
+			task.wait(0.01)
 		end
 
 		gui:Destroy()
