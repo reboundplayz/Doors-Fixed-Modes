@@ -1,0 +1,126 @@
+---====== Load spawner ======--- 
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Create entity ======---
+local entity = Spawner:Create({
+    Entity = {
+        Name = "SY3T4M",
+        Asset = "rbxassetid://130088369054565",
+        HeightOffset = 0
+    },
+    Lights = {
+        Flicker = { Enabled = true, Duration = 0.5 },
+        Shatter = true,
+        Repair = false
+    },
+    Movement = {
+        Speed = 250,
+        Delay = 0.5,
+        Reversed = true
+    },
+    Rebounding = {
+        Enabled = false,
+        Type = "Ambush", -- "Blitz"
+        Min = 1,
+        Max = 1,
+        Delay = 2
+    },
+    Damage = {
+        Enabled = false,
+        IgnoreHiding = false,
+        Range = 40,
+        Amount = 125
+    },
+    Earthquake = {
+        Enabled = false
+    },
+    Crucifixion = {
+        Enabled = true,
+        Range = 40,
+        Resist = false,
+        Break = true
+    },
+    Death = {
+        Type = "Guiding",
+        Hints = {"You cannot hide from SY3T4M.", "The closets are no longer safe."},
+        Cause = "SY3T4M"
+    }
+})
+
+---====== The Instant-Fling Logic (No Touch Required) ======---
+
+local function explodeHidingSpot(model)
+    if not model then return end
+    
+    -- Play Sound
+    local breakSound = Instance.new("Sound")
+    breakSound.SoundId = "rbxassetid://9125584819"
+    breakSound.Volume = 4
+    breakSound.RollOffMaxDistance = 200
+    breakSound.Parent = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+    breakSound:Play()
+    game:GetService("Debris"):AddItem(breakSound, 3)
+
+    -- Remove Interaction
+    local prompt = model:FindFirstChild("HidePrompt", true)
+    if prompt then prompt:Destroy() end
+
+    local center = model:GetModelCFrame().Position
+
+    -- Break all welds so pieces can fly
+    model:BreakJoints()
+
+    for _, obj in pairs(model:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            -- Force server-side physics so they fling without player touch
+            obj.Anchored = false
+            obj.CanCollide = true
+            pcall(function()
+                obj:SetNetworkOwner(nil) 
+            end)
+
+            -- Calculate fling vector
+            local direction = (obj.Position - center).Unit
+            if direction ~= direction then direction = Vector3.new(0, 1, 0) end
+            
+            -- High-power impulse for the "Explosion" look
+            local forcePower = 220 
+            obj.AssemblyLinearVelocity = (direction + Vector3.new(0, 1.5, 0)).Unit * forcePower
+            obj.AssemblyAngularVelocity = Vector3.new(math.random(-60,60), math.random(-60,60), math.random(-60,60))
+            
+            -- Clean up pieces after 12 seconds
+            game:GetService("Debris"):AddItem(obj, 12)
+            
+        elseif obj:IsA("Weld") or obj:IsA("WeldConstraint") or obj:IsA("ManualWeld") then
+            obj:Destroy()
+        end
+    end
+end
+
+local function scanRoom(room)
+    if not room then return end
+    for _, obj in pairs(room:GetDescendants()) do
+        if obj:IsA("Model") and (obj.Name:find("Wardrobe") or obj.Name:find("Bed")) then
+            explodeHidingSpot(obj)
+        end
+    end
+end
+
+---====== Callbacks ======---
+
+entity:SetCallback("OnEnterRoom", function(room)
+    task.wait(0.05)
+    scanRoom(room)
+end)
+
+entity:SetCallback("OnSpawned", function()
+    local latestRoomNum = game.ReplicatedStorage.GameData.LatestRoom.Value
+    local currentRoom = workspace.CurrentRooms:FindFirstChild(latestRoomNum)
+    if currentRoom then
+        scanRoom(currentRoom)
+    end
+end)
+
+---====== Run entity ======---
+
+entity:Run(true)
