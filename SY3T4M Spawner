@@ -1,45 +1,23 @@
 ---====== Load spawner ======--- 
 local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+local RunService = game:GetService("RunService")
+
+local brokenSpots = {}
+local currentThreadID = 0 
 
 ---====== Create entity ======---
 local entity = Spawner:Create({
     Entity = {
         Name = "SY3T4M",
         Asset = "rbxassetid://130088369054565",
-        HeightOffset = 0
+        HeightOffset = 1
     },
-    Lights = {
-        Flicker = { Enabled = true, Duration = 0.5 },
-        Shatter = true,
-        Repair = false
-    },
-    Movement = {
-        Speed = 250,
-        Delay = 0.5,
-        Reversed = true
-    },
-    Rebounding = {
-        Enabled = false,
-        Type = "Ambush", -- "Blitz"
-        Min = 1,
-        Max = 1,
-        Delay = 2
-    },
-    Damage = {
-        Enabled = false,
-        IgnoreHiding = false,
-        Range = 40,
-        Amount = 125
-    },
-    Earthquake = {
-        Enabled = false
-    },
-    Crucifixion = {
-        Enabled = true,
-        Range = 40,
-        Resist = false,
-        Break = true
-    },
+    Lights = { Flicker = { Enabled = true, Duration = 0.5 }, Shatter = false, Repair = false },
+    Movement = { Speed = 0, Delay = 0.5, Reversed = true },
+    Rebounding = { Enabled = false },
+    Damage = { Enabled = false },
+    Crucifixion = { Enabled = true, Range = 40, Resist = false, Break = true },
+    Earthquake = { Enabled = false },
     Death = {
         Type = "Guiding",
         Hints = {"You cannot hide from SY3T4M.", "The closets are no longer safe."},
@@ -47,80 +25,170 @@ local entity = Spawner:Create({
     }
 })
 
----====== The Instant-Fling Logic (No Touch Required) ======---
-
-local function explodeHidingSpot(model)
-    if not model then return end
+---====== Independent Stuck & Clone Watchdog ======---
+task.spawn(function()
+    local lastPos = Vector3.new(0,0,0)
+    local lastMoveTick = tick()
     
-    -- Play Sound
-    local breakSound = Instance.new("Sound")
-    breakSound.SoundId = "rbxassetid://9125584819"
-    breakSound.Volume = 4
-    breakSound.RollOffMaxDistance = 200
-    breakSound.Parent = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-    breakSound:Play()
-    game:GetService("Debris"):AddItem(breakSound, 3)
+    while task.wait(0.1) do
+        local model = workspace:FindFirstChild("SY3T4M")
+        
+        for _, v in pairs(workspace:GetChildren()) do
+            if v.Name == "SY3T4M" and v ~= model then
+                v:Destroy()
+            end
+        end
+        
+        if model and model.PrimaryPart then
+            local currentPos = model.PrimaryPart.Position
+            if (currentPos - lastPos).Magnitude > 0.3 then
+                lastPos = currentPos
+                lastMoveTick = tick()
+            else
+                if (tick() - lastMoveTick) > 2 then
+                    model:Destroy()
+                    task.wait(0.2)
+                    entity:Run(true)
+                    lastMoveTick = tick()
+                end
+            end
+            
+            for _, p in pairs(model:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false p.Massless = true end
+            end
+        end
+    end
+end)
 
-    -- Remove Interaction
-    local prompt = model:FindFirstChild("HidePrompt", true)
-    if prompt then prompt:Destroy() end
+---====== The "Permanent Smash" Function ======---
+local function explodeHidingSpot(model)
+    if not model or brokenSpots[model] then return end
+    brokenSpots[model] = true 
+
+   local breakSound = Instance.new("Sound")
+    breakSound.SoundId = "rbxassetid://9125584819"
+    breakSound.Volume = 5
+
+    -- 🔥 Random pitch
+    breakSound.PlaybackSpeed = math.random(60,140) / 100 -- 0.8 to 1.2 range
+
+    breakSound.Parent = workspace
+    breakSound:Play()
+    game:GetService("Debris"):AddItem(breakSound, 5)
 
     local center = model:GetModelCFrame().Position
 
-    -- Break all welds so pieces can fly
-    model:BreakJoints()
+    -- Create a folder for the debris so it's organized
+    local debrisFolder = workspace:FindFirstChild("SY3T4M_Debris") or Instance.new("Folder", workspace)
+    debrisFolder.Name = "SY3T4M_Debris"
 
     for _, obj in pairs(model:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            -- Force server-side physics so they fling without player touch
+        -- Destroy prompts and welds
+        if obj:IsA("Weld") or obj:IsA("ManualWeld") or obj:IsA("WeldConstraint") or obj:IsA("ProximityPrompt") or obj.Name:find("HidePrompt") then
+            pcall(function() obj:Destroy() end)
+        
+        -- Move parts to Workspace/DebrisFolder so the room-cleaner can't delete them
+        elseif obj:IsA("BasePart") then
+            obj.Parent = debrisFolder
             obj.Anchored = false
             obj.CanCollide = true
-            pcall(function()
-                obj:SetNetworkOwner(nil) 
-            end)
-
-            -- Calculate fling vector
-            local direction = (obj.Position - center).Unit
-            if direction ~= direction then direction = Vector3.new(0, 1, 0) end
             
-            -- High-power impulse for the "Explosion" look
-            local forcePower = 220 
-            obj.AssemblyLinearVelocity = (direction + Vector3.new(0, 1.5, 0)).Unit * forcePower
-            obj.AssemblyAngularVelocity = Vector3.new(math.random(-60,60), math.random(-60,60), math.random(-60,60))
+            -- Random slight rotation for "crunchy" look
+            obj.CFrame = obj.CFrame * CFrame.Angles(math.rad(math.random(-10,10)), math.rad(math.random(-10,10)), 0)
             
-            -- Clean up pieces after 12 seconds
-            game:GetService("Debris"):AddItem(obj, 12)
+            pcall(function() obj:SetNetworkOwner(nil) end)
             
-        elseif obj:IsA("Weld") or obj:IsA("WeldConstraint") or obj:IsA("ManualWeld") then
-            obj:Destroy()
+            -- High velocity explosion
+            local dir = (obj.Position - center).Unit
+            obj.AssemblyLinearVelocity = (dir + Vector3.new(0, 1.2, 0)).Unit * 250
         end
     end
+    
+    -- Finally, remove the empty model shell
+    model:Destroy()
 end
 
-local function scanRoom(room)
-    if not room then return end
-    for _, obj in pairs(room:GetDescendants()) do
-        if obj:IsA("Model") and (obj.Name:find("Wardrobe") or obj.Name:find("Bed")) then
-            explodeHidingSpot(obj)
+---====== Smooth Movement ======---
+local function smoothMove(targetPos, travelSpeed, isCloset, myID)
+    local entityModel = workspace:FindFirstChild("SY3T4M")
+    if not entityModel or not entityModel.PrimaryPart then return end
+    
+    local root = entityModel.PrimaryPart
+    local finalTarget = targetPos
+
+    if isCloset then
+        local direction = (targetPos - root.Position).Unit
+        finalTarget = targetPos - (direction * 8.5)
+    end
+
+    local distance = (root.Position - finalTarget).Magnitude
+    if distance < 1.5 then return end 
+
+    local duration = distance / travelSpeed
+    local startTick = tick()
+    local done = false
+    
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        if myID ~= currentThreadID or not entityModel.Parent then 
+            done = true connection:Disconnect() return 
         end
+
+        local elapsed = tick() - startTick
+        local alpha = math.min(elapsed / duration, 1)
+        local easedAlpha = 1 - math.pow(1 - alpha, 3)
+        local currentPos = root.Position:Lerp(finalTarget, easedAlpha)
+        
+        if not isCloset and (root.Position - finalTarget).Magnitude < 4 then alpha = 1 end
+
+        if (targetPos - currentPos).Magnitude > 1 then
+            entityModel:PivotTo(CFrame.new(currentPos, targetPos))
+        else
+            entityModel:PivotTo(CFrame.new(currentPos))
+        end
+        
+        if alpha >= 1 then done = true connection:Disconnect() end
+    end)
+    
+    repeat task.wait() until done or not entityModel.Parent
+end
+
+local function processRoom(room)
+    currentThreadID = currentThreadID + 1
+    local myID = currentThreadID
+
+    local targets = {}
+    for _, obj in pairs(room:GetDescendants()) do
+        if (obj.Name == "HidePrompt" or obj:IsA("ProximityPrompt")) and obj.Parent:IsA("Model") then
+            if not brokenSpots[obj.Parent] then table.insert(targets, obj.Parent) end
+        end
+    end
+
+    for _, closet in pairs(targets) do
+        if myID ~= currentThreadID then return end
+        smoothMove(closet:GetModelCFrame().Position, 230, true, myID)
+        task.wait(0.3) 
+        explodeHidingSpot(closet)
+    end
+
+    if myID == currentThreadID then
+        local nextNode = room:FindFirstChild("Exit") or room:FindFirstChild("Entry")
+        if nextNode then smoothMove(nextNode.Position, 260, false, myID) end
     end
 end
 
 ---====== Callbacks ======---
-
 entity:SetCallback("OnEnterRoom", function(room)
-    task.wait(0.05)
-    scanRoom(room)
+    task.spawn(function() processRoom(room) end)
 end)
 
 entity:SetCallback("OnSpawned", function()
-    local latestRoomNum = game.ReplicatedStorage.GameData.LatestRoom.Value
-    local currentRoom = workspace.CurrentRooms:FindFirstChild(latestRoomNum)
+    local latestRoomNumber = game.ReplicatedStorage.GameData.LatestRoom.Value
+    local currentRoom = workspace.CurrentRooms:FindFirstChild(tostring(latestRoomNumber))
+    
     if currentRoom then
-        scanRoom(currentRoom)
+        task.spawn(function() processRoom(currentRoom) end)
     end
 end)
-
----====== Run entity ======---
 
 entity:Run(true)
