@@ -1,0 +1,153 @@
+---====== Load spawner ======---
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Asset Handling ======---
+local fileName = "SilentSpawn.mp3"
+local soundUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Video%20Project%206.mp3"
+
+if not isfile(fileName) then
+    writefile(fileName, game:HttpGet(soundUrl))
+end
+
+local function playSpawnSound()
+    local success, assetId = pcall(function() return getcustomasset(fileName) end)
+    if success then
+        local sound = Instance.new("Sound")
+        sound.SoundId = assetId
+        sound.Volume = 3
+        sound.Parent = game:GetService("SoundService")
+        sound:Play()
+        game:GetService("Debris"):AddItem(sound, 10)
+    end
+end
+
+local function makeCurrentRoomBlue()
+    local player = game.Players.LocalPlayer
+    local currentRoomNumber = player:GetAttribute("CurrentRoom")
+    local rooms = game.Workspace:FindFirstChild("CurrentRooms")
+    if rooms then
+        local room = rooms:FindFirstChild(tostring(currentRoomNumber))
+        if room then
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    v.Color = Color3.fromRGB(0, 0, 255)
+                    v.Brightness = v.Brightness * 2
+                elseif (v:IsA("Part") or v:IsA("MeshPart")) and (v.Material == Enum.Material.Neon or v.Name == "LightFixture") then
+                    v.Color = Color3.fromRGB(0, 0, 255)
+                end
+            end
+        end
+    end
+end
+
+---====== Create Entity ======---
+
+local entity = Spawner:Create({
+    Entity = {
+        Name = "Silent",
+        Asset = "https://github.com/kodbolx/kodbolhub/raw/400fd27e0297d11ec3c3a020e97dca02cbd0c1c2/Nightmare%20Mode/Models/Slient.rbxm",
+        HeightOffset = 0
+    },
+    Lights = { Flicker = { Enabled = false }, Shatter = true, Repair = false },
+    Movement = { Speed = 150, Delay = 4, Reversed = false },
+    Rebounding = { Enabled = true, Type = "Ambush", Min = 4, Max = 7, Delay = 0.5 },
+    Damage = { Enabled = false }, 
+    Earthquake = { Enabled = false },
+    Death = { Enabled = false }
+})
+
+---====== Manual Proximity Kill System ======---
+
+local isKilling = false 
+
+local function startJumpscare(targetEntity)
+    if isKilling then return end
+    isKilling = true
+
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local cam = game.Workspace.CurrentCamera
+
+    -- 1. FREEZE PLAYER (Stop movement)
+    if root then root.Anchored = true end
+
+    -- 2. FREEZE ENTITY
+    local freezePos = targetEntity:GetPivot()
+    local freezeConnection = game:GetService("RunService").Heartbeat:Connect(function()
+        if targetEntity and targetEntity.Parent then
+            targetEntity:PivotTo(freezePos)
+        end
+    end)
+
+    -- 3. LOCK CAMERA
+    cam.CameraType = Enum.CameraType.Scriptable
+    local camConnection = game:GetService("RunService").RenderStepped:Connect(function()
+        if targetEntity then
+            local p = targetEntity:FindFirstChild("HumanoidRootPart") or targetEntity:FindFirstChildWhichIsA("BasePart")
+            if p then
+                cam.CFrame = CFrame.new(cam.CFrame.Position, p.Position)
+            end
+        end
+    end)
+
+    -- 4. JUMPSCARE SOUND
+    local s = Instance.new("Sound", game:GetService("SoundService"))
+    s.SoundId = "rbxassetid://7017782324"
+    s.PlaybackSpeed = 2
+    s.Volume = 5
+    s:Play()
+
+    -- 5. THE 4 SECOND WAIT
+    task.wait(4)
+
+    -- 6. CLEANUP AND FINAL DEATH
+    freezeConnection:Disconnect()
+    camConnection:Disconnect()
+    s:Destroy()
+    
+    if targetEntity then targetEntity:Destroy() end
+
+    hum.Health = 0
+    char:BreakJoints()
+    
+    -- Reset state if script survives (it shouldn't)
+    if root then root.Anchored = false end
+    cam.CameraType = Enum.CameraType.Custom
+end
+
+---====== Detection Loop ======---
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if not isKilling then
+            local char = game.Players.LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local target = game.Workspace:FindFirstChild("Silent") or game.Workspace:FindFirstChild("Entity")
+            
+            if root and target then
+                local entityPart = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
+                if entityPart and (root.Position - entityPart.Position).Magnitude < 20 then
+                    startJumpscare(target)
+                end
+            end
+        end
+    end
+end)
+
+---====== Triggers ======---
+
+entity:SetCallback("OnSpawned", function()
+    task.spawn(playSpawnSound)
+    makeCurrentRoomBlue()
+end)
+
+entity:SetCallback("OnEnterRoom", function()
+    makeCurrentRoomBlue()
+end)
+
+---====== Run Entity ======---
+
+entity:Run(true)
