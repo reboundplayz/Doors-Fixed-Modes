@@ -1,0 +1,192 @@
+--// Hungry Entity (FINAL FIXED VERSION)
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+local camera = workspace.CurrentCamera
+
+--// SETTINGS
+local DAMAGE = 20
+local ATTACK_DELAY = 2.5
+local LOOK_THRESHOLD = 0.65
+
+--// LOAD MODEL
+local fileName = "hungry.rbxm"
+
+if not isfile(fileName) then
+	writefile(
+		fileName,
+		game:HttpGet("https://github.com/kodbolx/kodbolhub/raw/400fd27e0297d11ec3c3a020e97dca02cbd0c1c2/Nightmare%20Mode/Models/hungry.rbxm")
+	)
+end
+
+local entity = game:GetObjects(getcustomasset(fileName))[1]
+entity.Parent = workspace
+
+if not entity.PrimaryPart then
+	entity.PrimaryPart = entity:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local primary = entity.PrimaryPart
+
+--// freeze parts
+for _, v in pairs(entity:GetDescendants()) do
+	if v:IsA("BasePart") then
+		v.Anchored = true
+		v.CanCollide = false
+	end
+end
+
+-- Make OOGA BOOGAAAA collidable
+local ooga = entity:FindFirstChild("OOGA BOOGAAAA", true)
+
+if ooga and ooga:IsA("BasePart") then
+	ooga.CanCollide = true
+	ooga.Anchored = true -- keep it stable unless you WANT it to fall
+	ooga.Massless = false
+end
+
+--// spawn closer in front of player
+entity:PivotTo(root.CFrame * CFrame.new(0, 0, -8))
+
+--// scream
+local scream = Instance.new("Sound")
+scream.SoundId = "rbxassetid://666800317"
+scream.Volume = 3
+scream.PlaybackSpeed = 0.7
+scream.Parent = primary
+
+local state = "alive"
+
+--// LOOK CHECK (any part)
+local function IsLookingAtEntity()
+	local camPos = camera.CFrame.Position
+	local lookDir = camera.CFrame.LookVector
+
+	for _, part in ipairs(entity:GetDescendants()) do
+		if part:IsA("BasePart") then
+			local dir = part.Position - camPos
+			local dist = dir.Magnitude
+
+			if dist > 0 then
+				dir = dir.Unit
+
+				if lookDir:Dot(dir) > LOOK_THRESHOLD then
+					local params = RaycastParams.new()
+					params.FilterType = Enum.RaycastFilterType.Blacklist
+					params.FilterDescendantsInstances = {character}
+
+					local result = workspace:Raycast(camPos, dir * dist, params)
+
+					if result and result.Instance and result.Instance:IsDescendantOf(entity) then
+						return true
+					end
+				end
+			end
+		end
+	end
+
+	return false
+end
+
+--// FIXED FALL
+local function FallIntoVoid()
+	if state == "dead" then return end
+	state = "dead"
+
+	for _, v in pairs(entity:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Anchored = false
+			v.CanCollide = false
+		end
+	end
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+	bv.Velocity = Vector3.new(0, -160, 0)
+	bv.Parent = primary
+
+	task.wait(2)
+	entity:Destroy()
+end
+
+--// FIXED ATTACK + BIG SMOOTH SHAKE
+local function Attack()
+	if state ~= "alive" then return end
+	state = "attack"
+
+	local tween = TweenService:Create(
+		primary,
+		TweenInfo.new(0.2, Enum.EasingStyle.Linear),
+		{ CFrame = root.CFrame }
+	)
+
+	tween:Play()
+	tween.Completed:Wait()
+
+	humanoid:TakeDamage(DAMAGE)
+	scream:Play()
+
+	-- Screen drop + rebound impact shake (0.8s)
+
+local original = camera.CFrame
+local duration = 0.8
+local start = tick()
+
+while true do
+	local t = tick() - start
+	local alpha = t / duration
+
+	if alpha >= 1 then break end
+
+	-- impact curve (fast drop, slower recovery)
+	-- negative = downwards screen movement feel
+	local drop =
+		(-6 * math.exp(-t * 6)) +
+		(2.5 * math.exp(-t * 10) * math.sin(t * 25))
+
+	-- slight secondary rebound bounce
+	local rebound =
+		2 * math.exp(-t * 4) * math.sin(t * 12)
+
+	local y = drop + rebound
+
+	camera.CFrame =
+		original *
+		CFrame.new(0, y, 0)
+
+	RunService.RenderStepped:Wait()
+end
+
+camera.CFrame = original
+
+	FallIntoVoid()
+end
+
+--// instant look-away death loop
+task.spawn(function()
+	while state == "alive" do
+		if not IsLookingAtEntity() then
+			FallIntoVoid()
+			break
+		end
+
+		RunService.RenderStepped:Wait()
+	end
+end)
+
+--// attack delay check
+task.delay(ATTACK_DELAY, function()
+	if state ~= "alive" then return end
+
+	if IsLookingAtEntity() then
+		Attack()
+	else
+		FallIntoVoid()
+	end
+end)
