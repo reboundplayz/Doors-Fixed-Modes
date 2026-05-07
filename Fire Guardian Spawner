@@ -1,0 +1,114 @@
+---====== Load spawner ======---
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Asset Handling ======---
+local fileName = "FireGuardianSpawn.mp3"
+local soundUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/main/Video%20Project%205.mp3"
+
+-- Ensure the sound is downloaded locally
+if not isfile(fileName) then
+    print("Downloading sound for the first time...")
+    writefile(fileName, game:HttpGet(soundUrl))
+end
+
+local function playSpawnSound()
+    local success, assetId = pcall(function()
+        return getcustomasset(fileName)
+    end)
+
+    if success then
+        local sound = Instance.new("Sound")
+        sound.SoundId = assetId
+        sound.Volume = 3
+        sound.Parent = game:GetService("SoundService")
+        sound:Play()
+        
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+    else
+        warn("Failed to play local asset: " .. fileName)
+    end
+end
+
+---====== Room Coloring Logic ======---
+
+local function makeCurrentRoomRed()
+    local player = game.Players.LocalPlayer
+    local currentRoomNumber = player:GetAttribute("CurrentRoom")
+    local roomsFolder = game.Workspace:FindFirstChild("CurrentRooms")
+    
+    if roomsFolder then
+        local room = roomsFolder:FindFirstChild(tostring(currentRoomNumber))
+        if room then
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    v.Color = Color3.fromRGB(255, 0, 0)
+                    v.Brightness = v.Brightness * 2
+                elseif (v:IsA("Part") or v:IsA("MeshPart")) and (v.Material == Enum.Material.Neon or v.Name == "LightFixture") then
+                    v.Color = Color3.fromRGB(255, 0, 0)
+                end
+            end
+            print("Room " .. tostring(currentRoomNumber) .. " is now permanently red.")
+        end
+    end
+end
+
+---====== Create Entity ======---
+
+local entity = Spawner:Create({
+    Entity = {
+        Name = "Fire Guardian",
+        Asset = "https://github.com/kodbolx/kodbolhub/raw/400fd27e0297d11ec3c3a020e97dca02cbd0c1c2/Nightmare%20Mode/Models/fireguardian.rbxm",
+        HeightOffset = 0
+    },
+    Lights = {
+        Flicker = { Enabled = false },
+        Shatter = true,
+        Repair = false
+    },
+    CameraShake = {
+        Enabled = true,
+        Range = 100,
+        Values = {1.5, 20, 0.1, 1}
+    },
+    Movement = {
+        Speed = 150,
+        Delay = 2,
+        Reversed = false
+    },
+    Rebounding = {
+        Enabled = true,
+        Type = "Ambush",
+        Min = 3,
+        Max = 3,
+        Delay = 0.5
+    },
+    Damage = {
+        Enabled = true,
+        Range = 40,
+        Amount = 125
+    },
+    Death = {
+        Type = "Guiding",
+        Hints = {"The room turns red when he arrives."},
+        Cause = "Fire Guardian"
+    }
+})
+
+---====== The Instant Trigger ======---
+
+entity:SetCallback("OnSpawned", function()
+    -- These run the moment the entity spawns
+    task.spawn(playSpawnSound)
+    makeCurrentRoomRed()
+end)
+
+-- Ensure room stays red if entity enters it again during rebound
+entity:SetCallback("OnEnterRoom", function()
+    makeCurrentRoomRed()
+end)
+
+---====== Run Entity ======---
+
+entity:Run(true)
