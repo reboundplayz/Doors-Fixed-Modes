@@ -50,7 +50,7 @@ local entity = Spawner:Create({
     },
     Lights = { Flicker = { Enabled = false }, Shatter = true, Repair = false },
     Movement = { Speed = 150, Delay = 2, Reversed = false },
-    Rebounding = { Enabled = true, Type = "Ambush", Min = 3, Max = 3, Delay = 0.5 },
+    Rebounding = { Enabled = true, Type = "Ambush", Min = 5, Max = 5, Delay = 0.5 },
     Damage = { 
         Enabled = false, 
         Range = 60 -- visual reference only
