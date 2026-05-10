@@ -46,12 +46,15 @@ local entity = Spawner:Create({
     Entity = {
         Name = "Silent",
         Asset = "https://github.com/kodbolx/kodbolhub/raw/400fd27e0297d11ec3c3a020e97dca02cbd0c1c2/Nightmare%20Mode/Models/Slient.rbxm",
-        HeightOffset = 0
+        HeightOffset = 5 -- INCREASED: This makes him float higher off the ground
     },
     Lights = { Flicker = { Enabled = false }, Shatter = true, Repair = false },
-    Movement = { Speed = 150, Delay = 4, Reversed = false },
-    Rebounding = { Enabled = true, Type = "Ambush", Min = 4, Max = 7, Delay = 0.5 },
-    Damage = { Enabled = false }, 
+    Movement = { Speed = 150, Delay = 2, Reversed = false },
+    Rebounding = { Enabled = true, Type = "Ambush", Min = 3, Max = 3, Delay = 0.5 },
+    Damage = { 
+        Enabled = false, 
+        Range = 60 -- visual reference only
+    }, 
     Earthquake = { Enabled = false },
     Death = { Enabled = false }
 })
@@ -59,6 +62,7 @@ local entity = Spawner:Create({
 ---====== Manual Proximity Kill System ======---
 
 local isKilling = false 
+local DETECTION_RANGE = 50 -- INCREASED: He will now trigger the jumpscare from farther away
 
 local function startJumpscare(targetEntity)
     if isKilling then return end
@@ -70,10 +74,10 @@ local function startJumpscare(targetEntity)
     local hum = char:FindFirstChildOfClass("Humanoid")
     local cam = game.Workspace.CurrentCamera
 
-    -- 1. FREEZE PLAYER (Stop movement)
+    -- 1. FREEZE PLAYER
     if root then root.Anchored = true end
 
-    -- 2. FREEZE ENTITY
+    -- 2. FREEZE ENTITY (Exactly where he is floating)
     local freezePos = targetEntity:GetPivot()
     local freezeConnection = game:GetService("RunService").Heartbeat:Connect(function()
         if targetEntity and targetEntity.Parent then
@@ -87,6 +91,7 @@ local function startJumpscare(targetEntity)
         if targetEntity then
             local p = targetEntity:FindFirstChild("HumanoidRootPart") or targetEntity:FindFirstChildWhichIsA("BasePart")
             if p then
+                -- Camera looks slightly up if he is floating high
                 cam.CFrame = CFrame.new(cam.CFrame.Position, p.Position)
             end
         end
@@ -112,7 +117,6 @@ local function startJumpscare(targetEntity)
     hum.Health = 0
     char:BreakJoints()
     
-    -- Reset state if script survives (it shouldn't)
     if root then root.Anchored = false end
     cam.CameraType = Enum.CameraType.Custom
 end
@@ -129,8 +133,12 @@ task.spawn(function()
             
             if root and target then
                 local entityPart = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
-                if entityPart and (root.Position - entityPart.Position).Magnitude < 20 then
-                    startJumpscare(target)
+                if entityPart then
+                    -- Detection range check
+                    local distance = (root.Position - entityPart.Position).Magnitude
+                    if distance <= DETECTION_RANGE then
+                        startJumpscare(target)
+                    end
                 end
             end
         end
