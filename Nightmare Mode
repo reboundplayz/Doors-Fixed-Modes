@@ -1,0 +1,88 @@
+loadstring(game:HttpGet("https://github.com/thelostw3r/ScriptsForMyModes/raw/refs/heads/main/Hardcore%20Sprint%20System%20(PC%20and%20Mobile%20Adaptation).lua.txt"))()
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Mode%20Enterance"))()
+local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
+caption.TextColor3 = Color3.fromRGB(255, 255, 255)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Nightmare Mode Initiated", "Made by Kodbol (Scripter) and Asif (Helper)", "Fixed/Remade by reboundplayz", "Five Nights At Freddys, how can it be?")
+
+-- Hungry
+coroutine.wrap(function()
+    while true do
+        wait(math.random(15, 30))
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hungry%20Spawner"))()
+    end
+end)()
+
+-- Nightmare Screech
+coroutine.wrap(function()
+    while true do
+        wait(math.random(25, 45))
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Screech%20Spawner"))()
+    end
+end)()
+
+-- Attraction
+coroutine.wrap(function()
+    while true do
+        wait(75)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Attraction%20Spawner"))()
+    end
+end)()
+
+-- A-60
+coroutine.wrap(function()
+    while true do
+        wait(110)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-60%20(LSPLASH%20version)%20Spawner"))()
+    end
+end)()
+
+-- Fire Guardian
+coroutine.wrap(function()
+    while true do
+        wait(150)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fire%20Guardian%20Spawner"))()
+    end
+end)()
+
+-- Silent
+coroutine.wrap(function()
+    while true do
+        wait(200)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Silent%20Spawner"))()
+    end
+end)()
+
+-- Fear
+coroutine.wrap(function()
+    while true do
+        wait(280)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fear%20Spawner"))()
+    end
+end)()
+
+-- B-60
+coroutine.wrap(function()
+    while true do
+        wait(600)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(3)
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/B-60%20Spawner"))()
+    end
+end)()
+
+
+
+
+
+
