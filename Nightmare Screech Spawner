@@ -1,0 +1,256 @@
+--// Nightmare Screech Entity
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+local head = character:WaitForChild("Head")
+
+--// SETTINGS
+local MODEL_ID = "rbxassetid://12803018561"
+local ATTACK_SOUND_ID = "rbxassetid://135968179377207"
+local LOOK_TIME = 4
+local DAMAGE = 35
+local FOLLOW_DISTANCE = 2.5
+
+--// Load model
+local model = game:GetObjects(MODEL_ID)[1]
+model.Parent = workspace
+
+--// Spawn close
+local randomDir = Vector3.new(
+	math.random(-100,100),
+	math.random(-40,40),
+	math.random(-100,100)
+).Unit
+
+local spawnPos = root.Position + (randomDir * FOLLOW_DISTANCE)
+
+local spawnCF = CFrame.lookAt(spawnPos, root.Position)
+
+if model.PrimaryPart then
+	model:SetPrimaryPartCFrame(spawnCF)
+else
+	model:PivotTo(spawnCF)
+end
+
+--// References
+local animFolder = model:WaitForChild("Animations")
+
+local idleAnim = animFolder:WaitForChild("Idle")
+local attackAnim = animFolder:WaitForChild("Attack")
+local caughtAnim = animFolder:WaitForChild("Caught")
+
+local animController = model:FindFirstChildOfClass("AnimationController")
+
+if not animController then
+	error("AnimationController missing!")
+end
+
+local animator = animController:FindFirstChildOfClass("Animator")
+
+if not animator then
+	animator = Instance.new("Animator")
+	animator.Parent = animController
+end
+
+--// Smooth follow
+local following = true
+
+task.spawn(function()
+	while model.Parent and following do
+		local currentCF
+
+		if model.PrimaryPart then
+			currentCF = model.PrimaryPart.CFrame
+		else
+			currentCF = model:GetPivot()
+		end
+
+		local currentPos = currentCF.Position
+
+		local offsetDir = (currentPos - root.Position).Unit
+		local targetPos = root.Position + (offsetDir * FOLLOW_DISTANCE)
+
+		local newPos = currentPos:Lerp(targetPos, 0.25)
+
+		local lookCF = CFrame.lookAt(newPos, root.Position)
+
+		if model.PrimaryPart then
+			model:SetPrimaryPartCFrame(lookCF)
+		else
+			model:PivotTo(lookCF)
+		end
+
+		RunService.RenderStepped:Wait()
+	end
+end)
+
+--// Animation helper
+local function playAnim(anim)
+	local track = animator:LoadAnimation(anim)
+	track:Play()
+	return track
+end
+
+--// Built-in sound
+local builtInSound = model:FindFirstChild("Sound", true)
+
+if builtInSound and builtInSound:IsA("Sound") then
+	builtInSound:Play()
+end
+
+--// Idle
+local idleTrack = playAnim(idleAnim)
+
+--// Look detection
+local lookedAt = false
+local startTime = tick()
+
+local function isLookingAtModel()
+	local camera = workspace.CurrentCamera
+	local camPos = camera.CFrame.Position
+
+	local targetPart =
+		model:FindFirstChild("Root")
+		or model.PrimaryPart
+		or model:FindFirstChildWhichIsA("BasePart")
+
+	if not targetPart then
+		return false
+	end
+
+	local direction = (targetPart.Position - camPos).Unit
+	local dot = camera.CFrame.LookVector:Dot(direction)
+
+	return dot > 0.75
+end
+
+while tick() - startTime < LOOK_TIME do
+	if isLookingAtModel() then
+		lookedAt = true
+		break
+	end
+
+	RunService.RenderStepped:Wait()
+end
+
+idleTrack:Stop()
+following = false
+
+if lookedAt then
+	--// CAUGHT
+	playAnim(caughtAnim)
+
+	if not isfile("ScreechKill.mp3") then
+		writefile(
+			"ScreechKill.mp3",
+			game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/ScreechKill.mp3")
+		)
+	end
+
+	local caughtSound = Instance.new("Sound")
+	caughtSound.SoundId = getcustomasset("ScreechKill.mp3")
+	caughtSound.Volume = 1
+	caughtSound.Parent = workspace
+	caughtSound:Play()
+
+	task.wait(2.5)
+
+	--// Fade out
+	for _, v in pairs(model:GetDescendants()) do
+		if v:IsA("BasePart") then
+			TweenService:Create(
+				v,
+				TweenInfo.new(1),
+				{Transparency = 1}
+			):Play()
+		elseif v:IsA("Decal") then
+			TweenService:Create(
+				v,
+				TweenInfo.new(1),
+				{Transparency = 1}
+			):Play()
+		end
+	end
+
+	task.wait(1.2)
+	model:Destroy()
+
+else
+	--// ATTACK
+	playAnim(attackAnim)
+
+	--// Move to front of player's face like biting
+	local bitePos =
+		head.Position
+		+ (workspace.CurrentCamera.CFrame.LookVector * 1.2)
+
+	local biteCF = CFrame.lookAt(
+		bitePos,
+		head.Position
+	)
+
+	if model.PrimaryPart then
+		local tween = TweenService:Create(
+			model.PrimaryPart,
+			TweenInfo.new(0.18, Enum.EasingStyle.Quad),
+			{CFrame = biteCF}
+		)
+
+		tween:Play()
+	end
+
+	local attackSound = Instance.new("Sound")
+	attackSound.SoundId = ATTACK_SOUND_ID
+	attackSound.PlaybackSpeed = 0.75
+	attackSound.Volume = 1
+	attackSound.Parent = workspace
+	attackSound:Play()
+
+	humanoid:TakeDamage(DAMAGE)
+
+	--// Camera shake
+	local camera = workspace.CurrentCamera
+	local original = camera.CFrame
+
+	for i = 1,12 do
+		camera.CFrame =
+			original *
+			CFrame.new(
+				math.random(-10,10)/120,
+				math.random(-10,10)/120,
+				0
+			)
+
+		task.wait(0.03)
+	end
+
+	camera.CFrame = original
+
+	task.wait(2)
+
+	--// Fade out
+	for _, v in pairs(model:GetDescendants()) do
+		if v:IsA("BasePart") then
+			TweenService:Create(
+				v,
+				TweenInfo.new(1),
+				{Transparency = 1}
+			):Play()
+		elseif v:IsA("Decal") then
+			TweenService:Create(
+				v,
+				TweenInfo.new(1),
+				{Transparency = 1}
+			):Play()
+		end
+	end
+
+	task.wait(1.2)
+	model:Destroy()
+end
