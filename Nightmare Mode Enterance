@@ -1,0 +1,98 @@
+--// Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+
+local player = Players.LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
+
+--// SOUND
+local function getGitSoundId(url, name)
+    if not isfile(name..".mp3") then
+        writefile(name..".mp3", game:HttpGet(url))
+    end
+    local Sound = Instance.new("Sound")
+    Sound.SoundId = (getcustomasset or getsynasset)(name..".mp3")
+    return Sound
+end
+
+local sound = getGitSoundId(
+    "https://github.com/thelostw3r/ScriptsForMyModes/blob/main/HorrorBeginChime.mp3?raw=true",
+    "HorrorBeginChime"
+)
+sound.Parent = SoundService
+
+--// IMAGE DOWNLOAD
+local imgUrl = "https://raw.githubusercontent.com/reboundplayz/Doors-Fixed-Modes/refs/heads/main/image-removebg-preview%20(1).png"
+local imgName = "NightmareTitle.png"
+
+if not isfile(imgName) then
+    writefile(imgName, game:HttpGet(imgUrl))
+end
+
+local imgAsset = (getcustomasset or getsynasset)(imgName)
+
+--// UI SETUP
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "IntroUI"
+screenGui.IgnoreGuiInset = true -- Crucial for reaching the very top
+screenGui.ResetOnSpawn = false
+screenGui.Parent = gui
+
+-- Positioning variables for easy adjustment
+local targetYPos = 0.02 -- "Almost very top"
+local shadowOffset = 4
+
+-- Main Image
+local titleImage = Instance.new("ImageLabel")
+titleImage.Name = "MainTitle"
+titleImage.Size = UDim2.new(0, 550, 0, 210) 
+titleImage.Position = UDim2.new(0.5, 0, targetYPos, 0)
+titleImage.AnchorPoint = Vector2.new(0.5, 0)
+titleImage.BackgroundTransparency = 1
+titleImage.Image = imgAsset
+titleImage.ImageTransparency = 1
+titleImage.ZIndex = 10
+titleImage.ScaleType = Enum.ScaleType.Fit
+titleImage.Parent = screenGui
+
+--// SHADOW
+local shadow = Instance.new("ImageLabel")
+shadow.Name = "Shadow"
+shadow.BackgroundTransparency = 1
+shadow.Image = imgAsset
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 1
+shadow.Size = titleImage.Size
+shadow.Position = UDim2.new(0.5, shadowOffset, targetYPos, shadowOffset) 
+shadow.AnchorPoint = Vector2.new(0.5, 0)
+shadow.ZIndex = 9
+shadow.ScaleType = Enum.ScaleType.Fit
+shadow.Parent = screenGui
+
+--// TWEENS
+local info = TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+
+local fadeIn = TweenService:Create(titleImage, info, {ImageTransparency = 0})
+local shadowIn = TweenService:Create(shadow, info, {ImageTransparency = 0.4})
+
+local fadeOut = TweenService:Create(titleImage, info, {ImageTransparency = 1})
+local shadowOut = TweenService:Create(shadow, info, {ImageTransparency = 1})
+
+--// EXECUTION
+sound:Play()
+
+fadeIn:Play()
+shadowIn:Play()
+fadeIn.Completed:Wait()
+
+task.wait(12) 
+
+fadeOut:Play()
+shadowOut:Play()
+fadeOut.Completed:Wait()
+
+task.wait(1)
+
+screenGui:Destroy()
+sound:Destroy()
