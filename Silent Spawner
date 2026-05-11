@@ -46,15 +46,12 @@ local entity = Spawner:Create({
     Entity = {
         Name = "Silent",
         Asset = "https://github.com/kodbolx/kodbolhub/raw/400fd27e0297d11ec3c3a020e97dca02cbd0c1c2/Nightmare%20Mode/Models/Slient.rbxm",
-        HeightOffset = 5 -- INCREASED: This makes him float higher off the ground
+        HeightOffset = 5 
     },
     Lights = { Flicker = { Enabled = false }, Shatter = true, Repair = false },
     Movement = { Speed = 150, Delay = 2, Reversed = false },
-    Rebounding = { Enabled = true, Type = "Ambush", Min = 5, Max = 5, Delay = 0.5 },
-    Damage = { 
-        Enabled = false, 
-        Range = 60 -- visual reference only
-    }, 
+    Rebounding = { Enabled = true, Type = "Ambush", Min = 3, Max = 3, Delay = 0.5 },
+    Damage = { Enabled = false }, 
     Earthquake = { Enabled = false },
     Death = { Enabled = false }
 })
@@ -62,7 +59,7 @@ local entity = Spawner:Create({
 ---====== Manual Proximity Kill System ======---
 
 local isKilling = false 
-local DETECTION_RANGE = 50 -- INCREASED: He will now trigger the jumpscare from farther away
+local DETECTION_RANGE = 50 
 
 local function startJumpscare(targetEntity)
     if isKilling then return end
@@ -74,10 +71,8 @@ local function startJumpscare(targetEntity)
     local hum = char:FindFirstChildOfClass("Humanoid")
     local cam = game.Workspace.CurrentCamera
 
-    -- 1. FREEZE PLAYER
     if root then root.Anchored = true end
 
-    -- 2. FREEZE ENTITY (Exactly where he is floating)
     local freezePos = targetEntity:GetPivot()
     local freezeConnection = game:GetService("RunService").Heartbeat:Connect(function()
         if targetEntity and targetEntity.Parent then
@@ -85,29 +80,24 @@ local function startJumpscare(targetEntity)
         end
     end)
 
-    -- 3. LOCK CAMERA
     cam.CameraType = Enum.CameraType.Scriptable
     local camConnection = game:GetService("RunService").RenderStepped:Connect(function()
         if targetEntity then
             local p = targetEntity:FindFirstChild("HumanoidRootPart") or targetEntity:FindFirstChildWhichIsA("BasePart")
             if p then
-                -- Camera looks slightly up if he is floating high
                 cam.CFrame = CFrame.new(cam.CFrame.Position, p.Position)
             end
         end
     end)
 
-    -- 4. JUMPSCARE SOUND
     local s = Instance.new("Sound", game:GetService("SoundService"))
     s.SoundId = "rbxassetid://7017782324"
     s.PlaybackSpeed = 2
     s.Volume = 5
     s:Play()
 
-    -- 5. THE 4 SECOND WAIT
     task.wait(4)
 
-    -- 6. CLEANUP AND FINAL DEATH
     freezeConnection:Disconnect()
     camConnection:Disconnect()
     s:Destroy()
@@ -121,23 +111,37 @@ local function startJumpscare(targetEntity)
     cam.CameraType = Enum.CameraType.Custom
 end
 
----====== Detection Loop ======---
+---====== Advanced Detection Loop ======---
 
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.05) -- Faster check
         if not isKilling then
-            local char = game.Players.LocalPlayer.Character
+            local player = game.Players.LocalPlayer
+            local char = player.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
+            
+            -- Multi-check for hiding
+            local isHiding = player:GetAttribute("Hiding") == true or char:GetAttribute("Hiding") == true or char:FindFirstChild("Hidden")
+            
             local target = game.Workspace:FindFirstChild("Silent") or game.Workspace:FindFirstChild("Entity")
             
-            if root and target then
+            if root and target and not isHiding then
                 local entityPart = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
                 if entityPart then
-                    -- Detection range check
                     local distance = (root.Position - entityPart.Position).Magnitude
                     if distance <= DETECTION_RANGE then
-                        startJumpscare(target)
+                        -- Raycast check: Can the entity actually "see" the player?
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterDescendantsInstances = {char, target}
+                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                        
+                        local ray = game.Workspace:Raycast(entityPart.Position, (root.Position - entityPart.Position).Unit * distance, rayParams)
+                        
+                        -- If the ray didn't hit a wall, trigger the jumpscare
+                        if not ray then
+                            startJumpscare(target)
+                        end
                     end
                 end
             end
