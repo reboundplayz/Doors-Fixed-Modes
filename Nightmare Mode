@@ -3,7 +3,7 @@ game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
 loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Mode%20Enterance"))()
 local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
 caption.TextColor3 = Color3.fromRGB(255, 255, 255)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Nightmare Mode Initiated", "Made by Kodbol (Scripter) and Asif (Helper)", "Fixed/Remade by reboundplayz", "Five Nights At Freddys, how can it be?")
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Nightmare Mode Initiated", "Made by Kodbol (Scripter) and Asif (Helper)", "Fixed/Remade by reboundplayz", "Sprint Bar by TheLostW3r", "Five Nights At Freddys, how can it be?")
 
 -- Hungry
 coroutine.wrap(function()
