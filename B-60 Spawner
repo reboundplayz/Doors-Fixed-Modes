@@ -1,0 +1,167 @@
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Configuration ======---
+local EntityName = "B-60"
+local ModelAsset = "rbxassetid://126201090853359"
+local KillSoundID = "rbxassetid://132942725846535"
+
+local FaceIDs = {
+    "rbxassetid://132608289829623",
+    "rbxassetid://132598758780611",
+    "rbxassetid://103365774502046", 
+    "rbxassetid://120065678981246",
+    "rbxassetid://14303506455"
+}
+
+---====== Smooth Earthquake Logic ======---
+
+local function forceRedTint(color, duration)
+    local rooms = game.Workspace:FindFirstChild("CurrentRooms")
+    if not rooms then return end
+    for _, room in pairs(rooms:GetChildren()) do
+        for _, v in pairs(room:GetDescendants()) do
+            if v:IsA("Light") then
+                local oldCol = v.Color
+                v.Color = color
+                task.delay(duration, function() v.Color = oldCol end)
+            end
+        end
+    end
+end
+
+-- Smoothly fading earthquake
+local function smoothEarthquake(duration, maxIntensity)
+    local camera = game.Workspace.CurrentCamera
+    local start = tick()
+    local connection
+    
+    connection = game:GetService("RunService").RenderStepped:Connect(function()
+        local elapsed = tick() - start
+        if elapsed >= duration then
+            connection:Disconnect()
+            return
+        end
+        
+        -- Calculate current intensity (Fades from maxIntensity to 0)
+        local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+        
+        camera.CFrame = camera.CFrame * CFrame.Angles(
+            math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+            math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+            math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+        )
+    end)
+end
+
+---====== Create Entity ======---
+
+local entity = Spawner:Create({
+    Entity = { Name = EntityName, Asset = ModelAsset, HeightOffset = 0 },
+    Lights = { Flicker = { Enabled = true, Duration = 3 }, Shatter = true, Repair = false },
+    Movement = { 
+        Speed = 250, 
+        Delay = 4.5, 
+        Reversed = false 
+    },
+    Rebounding = { Enabled = true, Type = "Ambush", Min = 5, Max = 5, Delay = 1.2 },
+    Damage = { Enabled = false },
+    CameraShake = {
+        Enabled = true,
+        Range = 150,
+        -- High Magnitude and Roughness as per your requirement
+        Values = {5, 45, 0.1, 1} 
+    },
+    Death = { Type = "Guiding", Hints = {"B-60 is blindingly fast.", "The tremors fade as it leaves."}, Cause = EntityName }
+})
+
+---====== Jumpscare Logic (Fast & Red) ======---
+
+local isKilling = false
+local function runHardJumpscare()
+    if isKilling then return end
+    isKilling = true
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    local gui = Instance.new("ScreenGui", player.PlayerGui)
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 1000
+
+    local s = Instance.new("Sound", game:GetService("SoundService"))
+    s.SoundId = KillSoundID
+    s.Volume = 3 
+    s:Play()
+
+    -- Rapid Sequential Flashes (Blood Red)
+    for i = 1, 14 do
+        local img = Instance.new("ImageLabel", gui)
+        img.BackgroundTransparency = 1
+        img.Image = FaceIDs[math.random(1, #FaceIDs)]
+        img.ImageColor3 = Color3.fromRGB(255, 0, 0)
+        img.Size = UDim2.new(0.8, 0, 0.8, 0)
+        img.AnchorPoint = Vector2.new(0.5, 0.5)
+        img.Position = UDim2.new(0.5 + math.random(-15, 15)/100, 0, 0.5 + math.random(-15, 15)/100, 0)
+        img.Rotation = math.random(-45, 45)
+        task.wait(0.05)
+        img:Destroy()
+    end
+
+    -- Static Finale Zoom (No Cycle)
+    local finalFace = Instance.new("ImageLabel", gui)
+    finalFace.Image = "rbxassetid://103365774502046" 
+    finalFace.ImageColor3 = Color3.fromRGB(200, 0, 0) 
+    finalFace.BackgroundTransparency = 1
+    finalFace.AnchorPoint = Vector2.new(0.5, 0.5)
+    finalFace.Position = UDim2.new(0.5, 0, 0.5, 0)
+    
+    local zoomStart = tick()
+    while tick() - zoomStart < 1.3 do
+        local size = 0.5 + ((tick() - zoomStart) * 6.5) 
+        finalFace.Size = UDim2.new(size, 0, size, 0)
+        finalFace.Position = UDim2.new(0.5, math.random(-80, 80), 0.5, math.random(-80, 80))
+        task.wait()
+    end
+    if char:FindFirstChildOfClass("Humanoid") then char:FindFirstChildOfClass("Humanoid").Health = 0 end
+    char:BreakJoints()
+    task.wait(0.5)
+    gui:Destroy()
+end
+
+---====== Detection Logic ======---
+
+task.spawn(function()
+    while true do
+        task.wait(0.05)
+        if not isKilling then
+            local char = game.Players.LocalPlayer.Character
+            local isHiding = game.Players.LocalPlayer:GetAttribute("Hiding") == true or (char and char:FindFirstChild("Hidden"))
+            local target = game.Workspace:FindFirstChild(EntityName) or game.Workspace:FindFirstChild("Entity")
+            
+            if char and target and not isHiding then
+                local dist = (char.PrimaryPart.Position - target:GetPivot().Position).Magnitude
+                if dist < 55 then runHardJumpscare() end
+            end
+        end
+    end
+end)
+
+---====== EXECUTION ======---
+
+-- 1. Initial Warning (Starts shaking)
+forceRedTint(Color3.fromRGB(255, 0, 0), 4.5)
+smoothEarthquake(4.5, 15)
+
+-- 2. Run B-60
+entity:Run(true)
+
+-- 3. THE FINALE WATCHER (Smooth Fade-out)
+task.spawn(function()
+    local eModel = game.Workspace:WaitForChild(EntityName, 10)
+    if eModel then
+        while eModel.Parent == game.Workspace do
+            task.wait(0.1)
+        end
+        -- MODEL IS GONE: Trigger the fading finale shake
+        forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
+        smoothEarthquake(8, 55) -- Starts VERY strong (55) and fades to zero over 8 seconds
+    end
+end)
