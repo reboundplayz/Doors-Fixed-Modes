@@ -1,0 +1,332 @@
+---====== Load spawner ======---
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+local TweenService = game:GetService("TweenService")
+
+---====== Configuration & Assets ======---
+local EntityAsset = "rbxassetid://115255506640233"
+local JumpscareImage = "rbxassetid://128068256827134"
+local isFirstSpawn = true
+
+---====== Smooth Purple Lighting ======---
+
+local function tweenLight(light)
+    local goal = {
+        Color = Color3.fromRGB(150, 0, 255),
+        Brightness = light.Brightness * 1.5
+    }
+
+    local tween = TweenService:Create(
+        light,
+        TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        goal
+    )
+
+    tween:Play()
+end
+
+local function tweenPart(part)
+    local tween = TweenService:Create(
+        part,
+        TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {
+            Color = Color3.fromRGB(150, 0, 255)
+        }
+    )
+
+    tween:Play()
+end
+
+local function colorPurple(num)
+    local roomsFolder = game.Workspace:FindFirstChild("CurrentRooms")
+    if not roomsFolder then return end
+
+    local r = roomsFolder:FindFirstChild(tostring(num))
+
+    if r then
+        for _, v in pairs(r:GetDescendants()) do
+
+            if v:IsA("Light") then
+                tweenLight(v)
+
+            elseif (v:IsA("Part") or v:IsA("MeshPart"))
+                and (v.Material == Enum.Material.Neon or v.Name == "LightFixture") then
+
+                tweenPart(v)
+            end
+        end
+    end
+end
+
+local function makeRoomsPurple()
+    local latest = game.ReplicatedStorage.GameData.LatestRoom.Value
+    colorPurple(latest)
+    colorPurple(latest - 1)
+end
+
+---====== Universal Jumpscare ======---
+
+local isKilling = false
+
+local function runJumpscare(targetModel)
+    if isKilling then return end
+    isKilling = true
+
+    local player = game.Players.LocalPlayer
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "FearJumpscare"
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999
+    gui.ResetOnSpawn = false
+    gui.Parent = player.PlayerGui
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BorderSizePixel = 0
+    bg.ZIndex = 1
+    bg.Parent = gui
+
+    task.spawn(function()
+        while bg.Parent do
+            bg.BackgroundColor3 = Color3.fromRGB(120, 0, 255)
+            task.wait(0.04)
+
+            bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            task.wait(0.04)
+        end
+    end)
+
+    local img = Instance.new("ImageLabel")
+    img.Image = JumpscareImage
+    img.BackgroundTransparency = 1
+    img.AnchorPoint = Vector2.new(0.5, 0.5)
+    img.Position = UDim2.new(0.5, 0, 0.5, 0)
+    img.Size = UDim2.new(0, 0, 0, 0)
+    img.ZIndex = 2
+    img.Parent = gui
+
+    local killSound = targetModel:FindFirstChild("Kill", true)
+
+    if killSound then
+        local s = killSound:Clone()
+        s.Parent = game:GetService("SoundService")
+        s.Volume = 5
+        s:Play()
+    end
+
+    local start = tick()
+
+    while tick() - start < 1.2 do
+        local alpha = (tick() - start) / 1.2
+        local size = 400 + (alpha * 1400)
+
+        img.Size = UDim2.new(0, size, 0, size)
+        img.Rotation = math.random(-15, 15)
+
+        task.wait()
+    end
+
+    if hum then
+        hum.Health = 0
+    end
+
+    char:BreakJoints()
+
+    task.wait(1)
+
+    gui:Destroy()
+    isKilling = false
+end
+
+---====== Reset Killing On Respawn ======---
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    isKilling = false
+end)
+
+---====== Ultra-Aggressive Detection Loop ======---
+
+task.spawn(function()
+    while true do
+        task.wait(0.05)
+
+        if not isKilling then
+            local player = game.Players.LocalPlayer
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+
+            local isHiding =
+                player:GetAttribute("Hiding") == true
+                or (char and char:GetAttribute("Hiding") == true)
+                or (char and char:FindFirstChild("Hidden"))
+
+            if root and not isHiding then
+                for _, v in pairs(game.Workspace:GetDescendants()) do
+                    if v.Name == "RushNew" and v:IsA("BasePart") then
+
+                        local dist = (root.Position - v.Position).Magnitude
+
+                        if dist <= 50 then
+                            local rayParams = RaycastParams.new()
+                            rayParams.FilterDescendantsInstances = {char, v.Parent}
+                            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+                            local ray = workspace:Raycast(
+                                v.Position,
+                                (root.Position - v.Position).Unit * dist,
+                                rayParams
+                            )
+
+                            if not ray then
+                                print("FEAR DETECTED PLAYER - TRIGGERING KILL")
+
+                                runJumpscare(v.Parent)
+
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+---====== Sound Manager (Scream Logic) ======---
+
+game.Workspace.DescendantAdded:Connect(function(des)
+    if des:IsA("Sound") and des.Name == "Scream" and isFirstSpawn then
+        task.wait()
+
+        if des.Parent and des.Parent.Name == "RushNew" then
+            des.Volume = 3
+            des:Play()
+        end
+    end
+end)
+
+---====== Sequential Spawning Logic ======---
+
+local config = {
+    Lights = {
+        Flicker = { Enabled = false },
+        Shatter = true,
+        Repair = false
+    },
+
+    Movement = {
+        Speed = 180,
+        Delay = 2,
+        Reversed = false
+    },
+
+    Rebounding = {
+        Enabled = true,
+        Type = "Ambush",
+        Min = 1,
+        Max = 1,
+        Delay = 1
+    },
+
+    Damage = {
+        Enabled = false
+    },
+
+    Earthquake = {
+        Enabled = false
+    }
+}
+
+local f1 = Spawner:Create({
+    Entity = {
+        Name = "Fear1",
+        Asset = EntityAsset,
+        HeightOffset = 0
+    },
+
+    Lights = config.Lights,
+    Movement = config.Movement,
+    Rebounding = config.Rebounding,
+    Damage = config.Damage,
+    Earthquake = config.Earthquake
+})
+
+local f2 = Spawner:Create({
+    Entity = {
+        Name = "Fear2",
+        Asset = EntityAsset,
+        HeightOffset = 0
+    },
+
+    Lights = config.Lights,
+    Movement = config.Movement,
+    Rebounding = config.Rebounding,
+    Damage = config.Damage,
+    Earthquake = config.Earthquake
+})
+
+local f3 = Spawner:Create({
+    Entity = {
+        Name = "Fear3",
+        Asset = EntityAsset,
+        HeightOffset = 0
+    },
+
+    Lights = config.Lights,
+    Movement = config.Movement,
+    Rebounding = config.Rebounding,
+    Damage = config.Damage,
+    Earthquake = config.Earthquake
+})
+
+local f4 = Spawner:Create({
+    Entity = {
+        Name = "Fear4",
+        Asset = EntityAsset,
+        HeightOffset = 0
+    },
+
+    Lights = config.Lights,
+    Movement = config.Movement,
+    Rebounding = config.Rebounding,
+    Damage = config.Damage,
+    Earthquake = config.Earthquake
+})
+
+---====== Sequential Spawning ======---
+
+task.spawn(function()
+
+    -- ROOM 1
+    makeRoomsPurple()
+    f1:Run(true)
+
+    -- ROOM 2
+    game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+    isFirstSpawn = false
+
+    task.wait(2.5)
+
+    makeRoomsPurple()
+    f2:Run(true)
+
+    -- ROOM 3
+    game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+    task.wait(2.5)
+
+    makeRoomsPurple()
+    f3:Run(true)
+
+    -- ROOM 4
+    game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+    task.wait(2.5)
+
+    makeRoomsPurple()
+    f4:Run(true)
+end)
