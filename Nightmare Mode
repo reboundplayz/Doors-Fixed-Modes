@@ -46,7 +46,7 @@ end)()
 -- A-60
 coroutine.wrap(function()
     while true do
-        wait(110)
+        wait(230)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
         wait(0)
 loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-60%20(LSPLASH%20version)%20Spawner"))()
