@@ -128,93 +128,84 @@ entity:SetCallback("OnDespawned", function()
 end)
 
 entity:SetCallback("OnDamagePlayer", function(newHealth: number)
-	if newHealth <= 0 then
-		print("Entity has killed the player")
-	else
-		print("Entity has damaged the player")
-	end
+    if newHealth <= 0 then
+        print("Entity killed player")
+    else
+        print("Entity damaged player")
+    end
 
-	--// JUMPSCARE START
+    -- ====== GITHUB CONFIGURATION ====== --
+    local SOUND_URL = "https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/Video-Proje.mp3"
+    local IMAGE_ID = "rbxassetid://120969916366029" -- Keep as rbxassetid for better performance
+    local FILE_NAME = "jumpscare_audio.mp3"
+    -- =================================== --
 
-	local Players = game:GetService("Players")
-	local TweenService = game:GetService("TweenService")
-	local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+    local player = Players.LocalPlayer
+    local playerGui = player:WaitForChild("PlayerGui")
 
-	local player = Players.LocalPlayer
+    -- Create GUI
+    local gui = Instance.new("ScreenGui")
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999999
+    gui.ResetOnSpawn = false
+    gui.Parent = playerGui
 
-	-- GUI
-	local gui = Instance.new("ScreenGui")
-	gui.IgnoreGuiInset = true
-	gui.ResetOnSpawn = false
-	gui.Parent = player:WaitForChild("PlayerGui")
+    -- Background Flash
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(1, 0, 1, 0)
+    flash.BorderSizePixel = 0
+    flash.BackgroundColor3 = Color3.new(0, 0, 0)
+    flash.ZIndex = 10
+    flash.Parent = gui
 
-	-- FLASH
-	local flash = Instance.new("Frame")
-	flash.Size = UDim2.new(1,0,1,0)
-	flash.BorderSizePixel = 0
-	flash.BackgroundColor3 = Color3.new(0,0,0)
-	flash.Parent = gui
+    -- Jumpscare Image
+    local image = Instance.new("ImageLabel")
+    image.AnchorPoint = Vector2.new(0.5, 0.5)
+    image.Position = UDim2.new(0.5, 0, 0.5, 0)
+    image.Size = UDim2.new(0, 300, 0, 420)
+    image.BackgroundTransparency = 1
+    image.Image = IMAGE_ID
+    image.ZIndex = 11
+    image.Parent = gui
 
-	-- IMAGE
-	local image = Instance.new("ImageLabel")
-	image.AnchorPoint = Vector2.new(0.5, 0.5)
-	image.Position = UDim2.new(0.5, 0, 0.5, 0)
-	image.Size = UDim2.new(0, 300, 0, 420)
-	image.BackgroundTransparency = 1
-	image.Image = "rbxassetid://135404087814479"
-	image.Parent = gui
+    -- Github Sound Handler
+    if not isfile(FILE_NAME) then
+        writefile(FILE_NAME, game:HttpGet(SOUND_URL))
+    end
 
-	-- SOUND (GitHub)
-	local url = "https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/Video-Proje.mp3"
-	local file = "jumpscare.mp3"
+    local sound = Instance.new("Sound")
+    sound.SoundId = getcustomasset(FILE_NAME)
+    sound.Volume = 10
+    sound.Parent = gui
+    sound:Play()
 
-	if not isfile(file) then
-		writefile(file, game:HttpGet(url))
-	end
+    -- Zoom Animation
+    TweenService:Create(
+        image,
+        TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        {Size = UDim2.new(0, 2500, 0, 3500)}
+    ):Play()
 
-	local sound = Instance.new("Sound")
-	sound.SoundId = getsynasset(file)
-	sound.Volume = 10
-	sound.Parent = gui
-	sound:Play()
+    -- Shake and Flicker Loop
+    task.spawn(function()
+        local duration = 1.2
+        local start = os.clock()
 
-	-- SETTINGS
-	local duration = 0.8
-	local start = tick()
+        while (os.clock() - start) < duration do
+            -- Flicker
+            flash.BackgroundColor3 = (math.random(1, 2) == 1) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 0, 0)
+            
+            -- Shake
+            image.Rotation = math.random(-5, 5)
+            image.Position = UDim2.new(0.5, math.random(-25, 25), 0.5, math.random(-25, 25))
 
-	-- EXTREME ZOOM
-	TweenService:Create(
-		image,
-		TweenInfo.new(duration, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-		{Size = UDim2.new(0, 2500, 0, 3500)}
-	):Play()
+            task.wait(0.01)
+        end
 
-	-- SHAKE + FLASH
-	local conn
-	conn = RunService.RenderStepped:Connect(function()
-		local t = tick() - start
-
-		if t >= duration then
-			conn:Disconnect()
-			gui:Destroy()
-			return
-		end
-
-		-- FLASH
-		flash.BackgroundColor3 = (math.random() > 0.5)
-			and Color3.fromRGB(255,0,0)
-			or Color3.fromRGB(0,0,0)
-
-		-- ROTATION SHAKE
-		local rotIntensity = 10
-		image.Rotation = math.sin(t * 220) * rotIntensity
-
-		-- DIAGONAL JITTER
-		local offset = math.sin(t * 180) * 20
-		image.Position = UDim2.new(0.5, offset, 0.5, -offset)
-	end)
-
-	--// JUMPSCARE END
+        gui:Destroy()
+    end)
 end)
 
 --[[
