@@ -13,7 +13,7 @@ local FaceIDs = {
     "rbxassetid://14303506455"
 }
 
----====== Smooth Earthquake Logic ======---
+---====== Logic Functions ======---
 
 local function forceRedTint(color, duration)
     local rooms = game.Workspace:FindFirstChild("CurrentRooms")
@@ -29,7 +29,6 @@ local function forceRedTint(color, duration)
     end
 end
 
--- Smoothly fading earthquake
 local function smoothEarthquake(duration, maxIntensity)
     local camera = game.Workspace.CurrentCamera
     local start = tick()
@@ -42,7 +41,6 @@ local function smoothEarthquake(duration, maxIntensity)
             return
         end
         
-        -- Calculate current intensity (Fades from maxIntensity to 0)
         local currentIntensity = maxIntensity * (1 - (elapsed / duration))
         
         camera.CFrame = camera.CFrame * CFrame.Angles(
@@ -58,23 +56,18 @@ end
 local entity = Spawner:Create({
     Entity = { Name = EntityName, Asset = ModelAsset, HeightOffset = 0 },
     Lights = { Flicker = { Enabled = true, Duration = 3 }, Shatter = true, Repair = false },
-    Movement = { 
-        Speed = 250, 
-        Delay = 4.5, 
-        Reversed = false 
-    },
+    Movement = { Speed = 250, Delay = 4.5, Reversed = false },
     Rebounding = { Enabled = true, Type = "Ambush", Min = 5, Max = 5, Delay = 1.2 },
-    Damage = { Enabled = false },
+    Damage = { Enabled = false }, -- Handled by custom detection
     CameraShake = {
         Enabled = true,
         Range = 150,
-        -- High Magnitude and Roughness as per your requirement
-        Values = {5, 45, 0.1, 1} 
+        Values = {5, 45, 0.1, 1} --
     },
-    Death = { Type = "Guiding", Hints = {"B-60 is blindingly fast.", "The tremors fade as it leaves."}, Cause = EntityName }
+    Death = { Type = "Guiding", Hints = {"B-60 is fast. Hide and stay out of sight."}, Cause = EntityName }
 })
 
----====== Jumpscare Logic (Fast & Red) ======---
+---====== Hardcore Jumpscare Logic ======---
 
 local isKilling = false
 local function runHardJumpscare()
@@ -91,7 +84,6 @@ local function runHardJumpscare()
     s.Volume = 3 
     s:Play()
 
-    -- Rapid Sequential Flashes (Blood Red)
     for i = 1, 14 do
         local img = Instance.new("ImageLabel", gui)
         img.BackgroundTransparency = 1
@@ -105,7 +97,6 @@ local function runHardJumpscare()
         img:Destroy()
     end
 
-    -- Static Finale Zoom (No Cycle)
     local finalFace = Instance.new("ImageLabel", gui)
     finalFace.Image = "rbxassetid://103365774502046" 
     finalFace.ImageColor3 = Color3.fromRGB(200, 0, 0) 
@@ -126,19 +117,42 @@ local function runHardJumpscare()
     gui:Destroy()
 end
 
----====== Detection Logic ======---
+---====== Detection Logic (With Raycast Wall Check) ======---
 
 task.spawn(function()
     while true do
         task.wait(0.05)
         if not isKilling then
-            local char = game.Players.LocalPlayer.Character
-            local isHiding = game.Players.LocalPlayer:GetAttribute("Hiding") == true or (char and char:FindFirstChild("Hidden"))
+            local player = game.Players.LocalPlayer
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            
+            -- Checks attributes or specific "Hidden" tags used by most Doors scripts
+            local isHiding = player:GetAttribute("Hiding") == true 
+                or (char and char:GetAttribute("Hiding") == true)
+                or (char and char:FindFirstChild("Hidden"))
+            
             local target = game.Workspace:FindFirstChild(EntityName) or game.Workspace:FindFirstChild("Entity")
             
-            if char and target and not isHiding then
-                local dist = (char.PrimaryPart.Position - target:GetPivot().Position).Magnitude
-                if dist < 55 then runHardJumpscare() end
+            if root and target and not isHiding then
+                local entityPart = target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
+                if entityPart then
+                    local dist = (root.Position - entityPart.Position).Magnitude
+                    if dist < 55 then 
+                        -- RAYCAST CHECK: Ensure no walls/closets are between you and B-60
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterDescendantsInstances = {char, target}
+                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                        
+                        local direction = (root.Position - entityPart.Position)
+                        local rayResult = game.Workspace:Raycast(entityPart.Position, direction, rayParams)
+                        
+                        -- If rayResult is nil, nothing blocked the line of sight
+                        if not rayResult then
+                            runHardJumpscare()
+                        end
+                    end
+                end
             end
         end
     end
@@ -146,22 +160,18 @@ end)
 
 ---====== EXECUTION ======---
 
--- 1. Initial Warning (Starts shaking)
 forceRedTint(Color3.fromRGB(255, 0, 0), 4.5)
 smoothEarthquake(4.5, 15)
 
--- 2. Run B-60
 entity:Run(true)
 
--- 3. THE FINALE WATCHER (Smooth Fade-out)
 task.spawn(function()
     local eModel = game.Workspace:WaitForChild(EntityName, 10)
     if eModel then
         while eModel.Parent == game.Workspace do
             task.wait(0.1)
         end
-        -- MODEL IS GONE: Trigger the fading finale shake
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
-        smoothEarthquake(8, 55) -- Starts VERY strong (55) and fades to zero over 8 seconds
+        smoothEarthquake(8, 55) 
     end
 end)
