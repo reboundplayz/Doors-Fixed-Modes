@@ -1,0 +1,199 @@
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Create entity ======---
+local entity = Spawner:Create({
+    Entity = {
+        Name = "A-100",
+        Asset = "rbxassetid://13832543503",
+        HeightOffset = 0
+    },
+    Lights = { Flicker = { Enabled = true, Duration = 2 }, Shatter = false, Repair = false },
+    Earthquake = { Enabled = false },
+    CameraShake = {
+        Enabled = true,
+        Range = 100,
+        Values = {10, 40, 0.1, 1} 
+    },
+    Movement = { Speed = 300, Delay = 4, Reversed = false },
+    Rebounding = { Enabled = true, Type = "Ambush", Min = 1, Max = 1, Delay = 0 },
+    Damage = {
+        Enabled = true,
+        IgnoreHiding = false, 
+        Range = 100,
+        Amount = 125
+    },
+    Death = {
+        Type = "Curious",
+        Hints = {"A-100 checks wardrobes clockwise.", "Beds are safe!", "He checks for movement inside closets."},
+        Cause = "A-100"
+    }
+})
+
+---====== Jumpscare Function ======---
+local function triggerJumpscare()
+    local player = game.Players.LocalPlayer
+    local guiParent = player:FindFirstChild("PlayerGui")
+    if not guiParent or guiParent:FindFirstChild("A100Jumpscare") then return end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "A100Jumpscare"
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999999
+    gui.Parent = guiParent
+
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(1,0,1,0)
+    flash.BackgroundColor3 = Color3.new(0,0,0)
+    flash.BorderSizePixel = 0
+    flash.Parent = gui
+
+    local img = Instance.new("ImageLabel")
+    img.AnchorPoint = Vector2.new(0.5,0.5)
+    img.Position = UDim2.new(0.5,0,0.5,0)
+    img.Size = UDim2.new(0,300,0,420)
+    img.BackgroundTransparency = 1
+    img.Image = "rbxassetid://7057923071"
+    img.Parent = gui
+
+    -- RESTORE GITHUB SOUND LOGIC
+    local jumpUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-100Jumpscare.mp3.mpeg"
+    pcall(function()
+        if not isfile("a100jump.mp3") then 
+            writefile("a100jump.mp3", game:HttpGet(jumpUrl)) 
+        end
+    end)
+
+    local sound = Instance.new("Sound")
+    sound.SoundId = getcustomasset("a100jump.mp3")
+    sound.Volume = 10
+    sound.Parent = gui
+    sound:Play()
+
+    game:GetService("TweenService"):Create(
+        img,
+        TweenInfo.new(1.2, Enum.EasingStyle.Exponential),
+        {Size = UDim2.new(0,2500,0,3500)}
+    ):Play()
+
+    task.spawn(function()
+        local start = os.clock()
+        while os.clock() - start < 1.2 do
+            flash.BackgroundColor3 = (math.random(1,2) == 1) and Color3.fromRGB(170, 0, 255) or Color3.fromRGB(0,0,0)
+            img.Position = UDim2.new(0.5, math.random(-25,25), 0.5, math.random(-25,25))
+            img.Rotation = math.random(-10,10)
+            task.wait(0.01)
+        end
+        gui:Destroy()
+    end)
+end
+
+---====== Custom AI Logic ======---
+
+entity:SetCallback("OnSpawned", function()
+    local model = entity.Model
+    if not model then return end
+
+    local ambienceUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A100Ambience.mp3.mpeg"
+    local spawnUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A100Spawn.mp3.mpeg"
+    
+    pcall(function()
+        if not isfile("a100amb.mp3") then writefile("a100amb.mp3", game:HttpGet(ambienceUrl)) end
+        if not isfile("a100spw.mp3") then writefile("a100spw.mp3", game:HttpGet(spawnUrl)) end
+    end)
+
+    local part = model:FindFirstChildWhichIsA("BasePart")
+    if part then
+        local sSpawn = Instance.new("Sound", part); sSpawn.SoundId = getcustomasset("a100spw.mp3"); sSpawn.Volume = 5; sSpawn:Play()
+        local sAmb = Instance.new("Sound", part); sAmb.SoundId = getcustomasset("a100amb.mp3"); sAmb.Volume = 5; sAmb.Looped = true; sAmb:Play()
+    end
+
+    task.spawn(function()
+        local hrp = model:WaitForChild("HumanoidRootPart", 5)
+        if not hrp then return end
+        local A1, A2 = hrp:WaitForChild("A1", 5), hrp:WaitForChild("A2", 5)
+        while model and model.Parent do
+            task.wait(0.1)
+            if A1 and A2 then
+                A1.StudsOffsetWorldSpace = Vector3.new(math.random(-1, 1), math.random(0, 2), math.random(-1, 1))
+                A2.StudsOffsetWorldSpace = Vector3.new(math.random(-1, 1), math.random(0, 2), math.random(-1, 1))
+            end
+        end
+    end)
+end)
+
+entity:SetCallback("OnEnterRoom", function(room, firstTime)
+    local model = entity.Model
+    if not model or not firstTime then return end
+
+    task.spawn(function()
+        task.wait(0.1)
+        local wardrobes = {}
+
+        for _, v in ipairs(room:GetDescendants()) do
+            if v:IsA("Model") then
+                local n = string.lower(v.Name)
+                if n:find("wardrobe") or n:find("closet") then
+                    table.insert(wardrobes, v)
+                end
+            end
+        end
+
+        table.sort(wardrobes, function(a, b)
+            return a:GetPivot().Position.X < b:GetPivot().Position.X
+        end)
+
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+
+        for _, wardrobe in ipairs(wardrobes) do
+            entity:Pause()
+            model:PivotTo(wardrobe:GetPivot() * CFrame.new(0, 0, 4))
+            task.wait(0.35)
+
+            local function isPlayerInsideWardrobe()
+                if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
+                local boxPos = wardrobe:GetPivot().Position
+                return (char.HumanoidRootPart.Position - boxPos).Magnitude < 6
+            end
+
+            local wasHiding = isPlayerInsideWardrobe()
+            task.wait(1.5) -- Tension/Breaking time
+
+            -- Destroy Doors + Prompts
+            for _, v in ipairs(wardrobe:GetDescendants()) do
+                if v:IsA("ProximityPrompt") or v.Name == "HidePrompt" then v:Destroy() end
+                if v:IsA("BasePart") and string.lower(v.Name):find("door") then
+                    v.Anchored = false
+                    v:ApplyImpulse(Vector3.new(math.random(-140,140), math.random(60,100), math.random(-140,140)) * v.AssemblyMass)
+                    task.delay(0.2, function() if v and v.Parent then v:Destroy() end end)
+                end
+            end
+
+            -- KILL + JUMPSCARE
+            if isPlayerInsideWardrobe() or wasHiding then
+                if char then
+                    task.spawn(triggerJumpscare) -- Trigger jumpscare GUI immediately
+                    task.wait(0.1)
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum then hum.Health = 0 else char:BreakJoints() end
+                end
+            end
+
+            entity:Resume()
+            task.wait(0.2)
+        end
+    end)
+end)
+
+entity:SetCallback("OnRebounding", function(start)
+    if not start then entity:Despawn() end
+end)
+
+-- This handles death from physical collision with the entity (not closet hiding)
+entity:SetCallback("OnDamagePlayer", function(health)
+    if health <= 0 then
+        triggerJumpscare()
+    end
+end)
+
+entity:Run()
