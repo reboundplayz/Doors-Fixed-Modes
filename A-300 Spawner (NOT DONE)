@@ -1,0 +1,229 @@
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local Debris = game:GetService("Debris")
+
+-- ---====== Configuration & Assets ======---
+local PASSIVE_MODEL_ID = "rbxassetid://121139293194536"
+local ENRAGED_MODEL_ID = "rbxassetid://128985287053192"
+
+local URL_SPAWN = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-332Spawn.mp3.mpeg"
+local URL_STATIC = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300_Static.mp3.mpeg"
+local URL_SCREAM = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300Effected.mp3.mpeg"
+local URL_BASS = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300_Entity_Spawning.mp3.mpeg"
+
+-- ---====== Helper: Audio File Downloader ======---
+local function createCustomSound(fileName, url, parent)
+    local sound = Instance.new("Sound")
+    pcall(function()
+        if not isfile(fileName) then
+            writefile(fileName, game:HttpGet(url))
+        end
+        sound.SoundId = getcustomasset(fileName)
+    end)
+    sound.Parent = parent
+    return sound
+end
+
+-- ---====== Entity Table & Color Chart ======---
+local EntityPool = {
+    {
+        Name = "A-278",
+        Color = Color3.fromRGB(45, 0, 90), -- Dark Purple (Purple fog)
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-278 via custom loadstring executor here.")
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-278%20Spawner"))()
+        end
+    },
+    {
+        Name = "A-245",
+        Color = Color3.fromRGB(0, 255, 170), -- Light Green (Cyan Fog)
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-245 via custom loadstring executor here.")
+
+        end
+    },
+    {
+        Name = "A-200",
+        Color = Color3.fromRGB(255, 255, 255), -- White
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-200 via custom loadstring executor here.")
+        end
+    },
+    {
+        Name = "A-120",
+        Color = Color3.fromRGB(255, 235, 40), -- Yellow
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-120 via custom loadstring executor here.")
+        end
+    },
+    {
+        Name = "A-100",
+        Color = Color3.fromRGB(130, 0, 230), -- Purple
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-100 via custom loadstring executor here.")
+            loadstring(game:Httpget("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-100%20Spawner"))()
+        end
+    },
+    {
+        Name = "X-60",
+        Color = Color3.fromRGB(255, 215, 0), -- Yellow
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn X-60 via custom loadstring executor here.")
+        end
+    },
+    {
+        Name = "A-60",
+        Color = Color3.fromRGB(255, 0, 0), -- Red
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-60 via custom loadstring executor here.")
+        end
+    },
+    {
+        Name = "A-35",
+        Color = Color3.fromRGB(0, 220, 50), -- Green
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-35 via custom loadstring executor here.")
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-35%20Spawner"))()
+        end
+    },
+    {
+        Name = "X-35",
+        Color = Color3.fromRGB(255, 0, 255), -- Magenta
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn X-35 via custom loadstring executor here.")
+        end
+    },
+    {
+        Name = "A-15",
+        Color = Color3.fromRGB(0, 0, 150), -- Blue, fades to Black (Blue fog)
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn A-15 via custom loadstring executor here.")
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-15%20Spawner"))()
+        end
+    },
+    {
+        Name = "X-15",
+        Color = Color3.fromRGB(0, 255, 255), -- Cyan
+        SpawnFunction = function()
+            print("[A-300] Template: Spawn X-15 via custom loadstring executor here.")
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/X-15%20Spawner"))()
+        end
+    }
+}
+
+-- ---====== Main Summoning Logic ======---
+local function spawnA300()
+    -- Floor geometry alignment math tracker
+    local rooms = Workspace:WaitForChild("CurrentRooms"):GetChildren()
+    local lastRoom = rooms[#rooms - 1]
+    if not lastRoom then 
+        warn("A-300 error: Target room index calculation evaluated nil.") 
+        return 
+    end
+    
+    local chosenEntity = EntityPool[math.random(1, #EntityPool)]
+    
+    -- Load the Passive Model instance directly via GetObjects
+    local modelObjects = game:GetObjects(PASSIVE_MODEL_ID)
+    local activeModel = modelObjects[1]
+    if not activeModel then
+        warn("A-300 error: Failed to fetch passive model via GetObjects")
+        return
+    end
+    
+    activeModel.Name = "A-300_Summoner"
+    activeModel.Parent = lastRoom
+    
+    -- Exact mid-room target alignment calculation logic
+    local rootPart = activeModel.PrimaryPart or activeModel:FindFirstChildWhichIsA("BasePart")
+    if lastRoom:FindFirstChild("Parts") and lastRoom.Parts:FindFirstChild("Floor") and rootPart then
+        activeModel:PivotTo(lastRoom.Parts.Floor.CFrame + Vector3.new(0, 6, 0))
+    else
+        activeModel:PivotTo(lastRoom:GetPivot() * CFrame.new(0, 6, 0))
+    end
+    
+    -- Setup initial audio elements on passive part container
+    rootPart = activeModel.PrimaryPart or activeModel:FindFirstChildWhichIsA("BasePart")
+    local spawnSound = createCustomSound("a300_spawn.mp3", URL_SPAWN, rootPart)
+    local staticSound = createCustomSound("a300_static.mp3", URL_STATIC, rootPart)
+    
+    if spawnSound then
+        spawnSound.Volume = 3
+        spawnSound:Play()
+    end
+    
+    task.wait(0)
+    
+    if staticSound then
+        staticSound.Volume = 2
+        staticSound.Looped = true
+        staticSound:Play()
+    end
+    
+    -- Wait time window for standard passive state behavior
+    task.wait(math.random(4, 7))
+    
+    -- Phase 2: Switch to Enraged Model & Inject Variant Color Target Overrides
+    if staticSound then staticSound:Stop() end
+    local savedSpawnCFrame = activeModel:GetPivot()
+    activeModel:Destroy()
+    
+    local enragedObjects = game:GetObjects(ENRAGED_MODEL_ID)
+    local enragedModel = enragedObjects[1]
+    if enragedModel then
+        enragedModel.Name = "A-300_Enraged"
+        enragedModel:PivotTo(savedSpawnCFrame)
+        enragedModel.Parent = lastRoom
+        
+        -- FIXED: Color is now dynamically added to the Enraged Model here
+        local pointLight = enragedModel:FindFirstChild("PointLight", true) or enragedModel:FindFirstChildWhichIsA("PointLight")
+        local faceParticles = enragedModel:FindFirstChild("face", true) or enragedModel:FindFirstChild("BlackTrail", true)
+
+        if pointLight then
+            pointLight.Color = chosenEntity.Color
+            pointLight.Enabled = true
+        else
+            local attachment = enragedModel:FindFirstChild("Attachment", true) or enragedModel:FindFirstChildWhichIsA("Attachment")
+            if attachment then
+                pointLight = Instance.new("PointLight", attachment)
+                pointLight.Color = chosenEntity.Color
+                pointLight.Range = 25
+                pointLight.Brightness = 3
+            end
+        end
+        
+        if faceParticles and faceParticles:IsA("ParticleEmitter") then
+            faceParticles.Color = ColorSequence.new(chosenEntity.Color)
+        end
+        
+        local enragedRoot = enragedModel.PrimaryPart or enragedModel:FindFirstChildWhichIsA("BasePart")
+        local screamSound = createCustomSound("a300_scream.mp3", URL_SCREAM, enragedRoot)
+        
+        if screamSound then
+            screamSound.Volume = 4
+            screamSound:Play()
+        end
+        
+        -- Keeps the enraged variant visible for exactly 5 seconds before destruction
+        task.wait(5)
+        enragedModel:Destroy()
+    else
+        task.wait(5)
+    end
+    
+    -- Phase 3: Spatial Audio Bass Notification
+    local bassSound = createCustomSound("a300_bass.mp3", URL_BASS, Workspace)
+    if bassSound then
+        bassSound.Volume = 5
+        bassSound:Play()
+        Debris:AddItem(bassSound, 6)
+    end
+    
+    task.wait(1.5)
+    
+    -- Phase 4: Fire the custom framework setup function
+    chosenEntity.SpawnFunction()
+end
+
+-- Run sequence trigger
+spawnA300()
