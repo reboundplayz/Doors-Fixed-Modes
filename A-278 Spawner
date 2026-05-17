@@ -1,0 +1,414 @@
+-- ACCURATE A-278 MECHANICS (EQUAL MIXED VARIATIONS)
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Asset Configuration
+local ASSETS = {
+    A278   = "rbxassetid://12731800555",
+    ULB278 = "rbxassetid://82318075149007",
+    TLAB   = "rbxassetid://12731861571",
+    Portal = "rbxassetid://14304343274",
+    JumpscareImg = "rbxassetid://11945909450"
+}
+
+local JUMP_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-278Jumpscare.mp3.mpeg"
+local SPEED = 32 
+local ATTACK_DURATION = 30 
+
+-- Helper to download real 3D assets on the fly with variant-specific color fallbacks
+local function loadRealRobloxModel(assetId, name, variantType)
+    local success, objects = pcall(function()
+        return game:GetObjects(assetId)
+    end)
+    
+    local loadedModel
+    if success and objects and #objects > 0 then
+        loadedModel = objects[1]
+        if not loadedModel:IsA("Model") then
+            local container = Instance.new("Model")
+            loadedModel.Parent = container
+            loadedModel = container
+        end
+    else
+        loadedModel = Instance.new("Model")
+        local p = Instance.new("Part", loadedModel)
+        p.Name = "HumanoidRootPart"
+        p.Size = Vector3.new(5, 5, 5)
+        p.Material = Enum.Material.Neon
+        
+        -- Fallback colors per entity identity
+        if variantType == "ULB" then
+            p.Color = Color3.fromRGB(200, 0, 0)
+        elseif variantType == "TLAB" then
+            p.Color = Color3.fromRGB(0, 150, 255)
+        else
+            p.Color = Color3.fromRGB(140, 0, 180) -- Base A-278 Purple
+        end
+    end
+    
+    loadedModel.Name = name
+    if not loadedModel.PrimaryPart then
+        local root = loadedModel:FindFirstChildWhichIsA("BasePart", true)
+        if root then loadedModel.PrimaryPart = root else
+            local rootPart = Instance.new("Part", loadedModel)
+            rootPart.Name = "HumanoidRootPart"
+            rootPart.Size = Vector3.new(1,1,1)
+            rootPart.Transparency = 1
+            loadedModel.PrimaryPart = rootPart
+        end
+    end
+    
+    for _, part in ipairs(loadedModel:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+            part.Anchored = true
+        end
+    end
+    
+    return loadedModel
+end
+
+-----------------------------------------
+-- ATMOSPHERIC LIGHT FLICKER
+-----------------------------------------
+local function flickerLights()
+    local roomsFolder = workspace:FindFirstChild("CurrentRooms")
+    if not roomsFolder then return end
+
+    local purpleColor = Color3.fromRGB(93, 0, 255)
+    local blackColor = Color3.fromRGB(0, 0, 0)
+
+    task.spawn(function()
+        for _, room in ipairs(roomsFolder:GetChildren()) do
+            for _, light in ipairs(room:GetDescendants()) do
+                if light:IsA("Light") or light:IsA("SurfaceLight") or light:IsA("PointLight") then
+                    task.spawn(function()
+                        local originalColor = light.Color
+                        local originalEnabled = light.Enabled
+                        for i = 1, 14 do
+                            light.Color = (i % 2 == 0) and purpleColor or blackColor
+                            light.Enabled = (i % 3 ~= 0)
+                            task.wait(0.06)
+                        end
+                        light.Color = originalColor
+                        light.Enabled = originalEnabled
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+-----------------------------------------
+-- JUMPSCARE MATRIX
+-----------------------------------------
+local function triggerCustomJumpscare()
+    local guiParent = LocalPlayer:FindFirstChild("PlayerGui")
+    if not guiParent or guiParent:FindFirstChild("A278Jumpscare") then return end
+
+    local gui = Instance.new("ScreenGui", guiParent)
+    gui.Name = "A278Jumpscare"
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999999
+
+    local flash = Instance.new("Frame", gui)
+    flash.Size = UDim2.new(1,0,1,0)
+    flash.BackgroundColor3 = Color3.new(0,0,0)
+    flash.BorderSizePixel = 0
+
+    local img = Instance.new("ImageLabel", gui)
+    img.AnchorPoint = Vector2.new(0.5,0.5)
+    img.Position = UDim2.new(0.5,0,0.5,0)
+    img.Size = UDim2.new(0,300,0,420)
+    img.BackgroundTransparency = 1
+    img.Image = ASSETS.JumpscareImg
+
+    pcall(function()
+        if not isfile("a278jump.mp3") then 
+            writefile("a278jump.mp3", game:HttpGet(JUMP_SOUND_URL)) 
+        end
+    end)
+
+    local sound = Instance.new("Sound", gui)
+    sound.SoundId = getcustomasset("a278jump.mp3")
+    sound.Volume = 10
+    sound:Play()
+
+    TweenService:Create(img, TweenInfo.new(1.2, Enum.EasingStyle.Exponential), {Size = UDim2.new(0,2500,0,3500)}):Play()
+
+    task.spawn(function()
+        local start = os.clock()
+        while os.clock() - start < 1.2 do
+            flash.BackgroundColor3 = (math.random(1,2) == 1) and Color3.fromRGB(93,0,255) or Color3.fromRGB(0,0,0)
+            img.Position = UDim2.new(0.5, math.random(-25,25), 0.5, math.random(-25,25))
+            img.Rotation = math.random(-10,10)
+            task.wait(0.01)
+        end
+        gui:Destroy()
+    end)
+end
+
+-----------------------------------------
+-- SEPARATED RUNTIME KILL LOGIC PER VARIANT
+-----------------------------------------
+local function checkHidingSafety(entityPart, variantType)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+    local distance = (char.HumanoidRootPart.Position - entityPart.Position).Magnitude
+    if distance > 16 then return end 
+
+    local isHidingInCloset = false
+    local isHidingInBed = false
+
+    for _, room in ipairs(workspace.CurrentRooms:GetChildren()) do
+        for _, v in ipairs(room:GetDescendants()) do
+            if v.Name == "Wardrobe" or v.Name == "Closet" then
+                local hp = v:FindFirstChild("HiddenPlayer")
+                if hp and hp:IsA("ObjectValue") and hp.Value == char then
+                    isHidingInCloset = true
+                    break
+                end
+            end
+            if v.Name == "Bed" or v.Name:find("Bed") then
+                local hp = v:FindFirstChild("HiddenPlayer")
+                if hp and hp:IsA("ObjectValue") and hp.Value == char then
+                    isHidingInBed = true
+                    break
+                end
+            end
+        end
+    end
+
+    if not isHidingInCloset and not isHidingInBed and char:GetAttribute("Hiding") then
+        isHidingInCloset = true
+    end
+
+    -- INDEPENDENT BEHAVIOR MECHANICS BASED ON WHO IS ATTACKING
+    if variantType == "ULB" then
+        -- ULB-278 kills players out in the open OR inside Closets. Beds are completely safe!
+        if isHidingInCloset or (not isHidingInCloset and not isHidingInBed) then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            triggerCustomJumpscare()
+            task.wait(0.05)
+            if hum then hum.Health = 0 else char:BreakJoints() end
+        end
+    elseif variantType == "TLAB" then
+        -- TLAB-278 kills players out in the open OR inside Beds. Closets are completely safe!
+        if isHidingInBed or (not isHidingInCloset and not isHidingInBed) then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            triggerCustomJumpscare()
+            task.wait(0.05)
+            if hum then hum.Health = 0 else char:BreakJoints() end
+        end
+    else
+        -- Base A-278 kills players out in the open. All closets and beds are safe.
+        if not isHidingInCloset and not isHidingInBed then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            triggerCustomJumpscare()
+            task.wait(0.05)
+            if hum then hum.Health = 0 else char:BreakJoints() end
+        end
+    end
+end
+
+-----------------------------------------
+-- MIXED SCATTER PATHING CORE
+-----------------------------------------
+local function setupPathing(model, startRoom, variantType, isClone)
+    local root = model.PrimaryPart
+    if not root then return end
+    model.Parent = workspace
+
+    task.spawn(function()
+        local currentRoomNum = tonumber(startRoom.Name) or 0
+        local movingBackward = true
+        local startTime = os.clock()
+        
+        while model and model.Parent do
+            if os.clock() - startTime >= ATTACK_DURATION then
+                model:Destroy()
+                break
+            end
+
+            local targetRoomNum = currentRoomNum + (movingBackward and -1 or 1)
+            local targetRoom = workspace.CurrentRooms:FindFirstChild(tostring(targetRoomNum))
+            
+            if not targetRoom then
+                if movingBackward then
+                    movingBackward = false
+                    targetRoomNum = currentRoomNum + 1
+                    targetRoom = workspace.CurrentRooms:FindFirstChild(tostring(targetRoomNum))
+                else
+                    movingBackward = true
+                    targetRoomNum = currentRoomNum - 1
+                    targetRoom = workspace.CurrentRooms:FindFirstChild(tostring(targetRoomNum))
+                end
+                
+                if not targetRoom then
+                    task.wait(0.1)
+                    continue
+                end
+            end
+
+            -- Gather specific room targets depending on individual clone variant profile
+            local targetNodes = {}
+            for _, item in ipairs(targetRoom:GetDescendants()) do
+                if item:IsA("Model") then
+                    if variantType == "ULB" and (item.Name == "Closet" or item.Name == "Wardrobe") then
+                        table.insert(targetNodes, item:GetPivot().Position)
+                    elseif variantType == "TLAB" and (item.Name == "Bed" or item.Name:find("Bed")) then
+                        table.insert(targetNodes, item:GetPivot().Position)
+                    end
+                end
+            end
+            
+            -- Scramble pathing nodes for independent tracking patterns
+            if isClone and #targetNodes > 1 then
+                for i = #targetNodes, 2, -1 do
+                    local j = math.random(1, i)
+                    targetNodes[i], targetNodes[j] = targetNodes[j], targetNodes[i]
+                end
+            end
+            
+            -- Always append center room navigation line
+            table.insert(targetNodes, targetRoom:GetPivot().Position + Vector3.new(0, 3, 0))
+
+            for _, targetPos in ipairs(targetNodes) do
+                if not model or not model.Parent then return end
+                if os.clock() - startTime >= ATTACK_DURATION then model:Destroy() return end
+                
+                local scatterOffset = isClone and Vector3.new(math.random(-15, 15), 0, math.random(-10, 10)) or Vector3.new(0,0,0)
+                local trueTarget = targetPos + Vector3.new(0, 2, 0) + scatterOffset
+                
+                while (root.Position - trueTarget).Magnitude > 6 do
+                    if os.clock() - startTime >= ATTACK_DURATION then model:Destroy() return end
+                    
+                    local frameTime = task.wait()
+                    local moveDir = (trueTarget - root.Position).Unit
+                    local nextPos = root.Position + moveDir * (SPEED * frameTime)
+                    
+                    model:PivotTo(CFrame.lookAt(nextPos, nextPos + moveDir))
+                    checkHidingSafety(root, variantType)
+                end
+            end
+            
+            currentRoomNum = targetRoomNum
+        end
+    end)
+end
+
+-----------------------------------------
+-- PORTAL EMITTER (EQUAL 3-WAY VARIANT ROLLING)
+-----------------------------------------
+local function createPortalSpawn(originPosition, currentRoom)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    
+    local portalPosition = originPosition + Vector3.new(math.random(-8, 8), 12, math.random(-8, 8))
+    local portalRotation = CFrame.Angles(math.rad(90), 0, 0)
+    
+    local ceilingHit = workspace:Raycast(originPosition, Vector3.new(0, 35, 0), rayParams)
+    if ceilingHit then
+        portalPosition = ceilingHit.Position - Vector3.new(0, 0.5, 0)
+    else
+        local wallHit = workspace:Raycast(originPosition, Vector3.new(math.random(-1,1)*22, 2, math.random(-1,1)*22), rayParams)
+        if wallHit then
+            portalPosition = wallHit.Position + (wallHit.Normal * 0.5)
+            portalRotation = CFrame.lookAt(portalPosition, portalPosition + wallHit.Normal).Rotation
+        end
+    end
+
+    local portal = loadRealRobloxModel(ASSETS.Portal, "A278Portal", "BASE")
+    portal:PivotTo(CFrame.new(portalPosition) * portalRotation)
+    portal.Parent = workspace
+    
+    task.wait(0.4)
+
+    -- EQUAL SELECTION SYSTEM (1 in 3 chance for each)
+    local roll = math.random(1, 3)
+    local chosenId, chosenName, chosenVariant
+    
+    if roll == 1 then
+        chosenId = ASSETS.ULB278
+        chosenName = "ULB-278"
+        chosenVariant = "ULB"
+    elseif roll == 2 then
+        chosenId = ASSETS.TLAB
+        chosenName = "TLAB-278"
+        chosenVariant = "TLAB"
+    else
+        chosenId = ASSETS.A278
+        chosenName = "A-278 Clone"
+        chosenVariant = "BASE"
+    end
+    
+    local subClone = loadRealRobloxModel(chosenId, chosenName, chosenVariant)
+    subClone:PivotTo(CFrame.new(portalPosition))
+    
+    setupPathing(subClone, currentRoom, chosenVariant, true)
+
+    task.delay(0.4, function() if portal then portal:Destroy() end end)
+end
+
+-----------------------------------------
+-- ATTACK INITIATOR
+-----------------------------------------
+local function executeAttackSequence(spawnRoom)
+    flickerLights()
+    task.wait(1.5)
+
+    local success, err = pcall(function()
+        -- The primary master entity always spawns as Base A-278
+        local masterEntity = loadRealRobloxModel(ASSETS.A278, "A-278", "BASE")
+        masterEntity:PivotTo(spawnRoom:GetPivot() * CFrame.new(0, 4, 0))
+
+        local amb = Instance.new("Sound", masterEntity.PrimaryPart)
+        amb.SoundId = "rbxassetid://9114223101"
+        amb.Volume = 6
+        amb.Looped = true
+        amb:Play()
+
+        setupPathing(masterEntity, spawnRoom, "BASE", false)
+
+        -- Portal loop runs high-density spawns with rolling variants
+        task.spawn(function()
+            local startSpawnTrack = os.clock()
+            while os.clock() - startSpawnTrack < ATTACK_DURATION do
+                task.wait(math.random(60, 110) / 100) 
+                if not masterEntity or not masterEntity.Parent then break end
+
+                local currentPos = masterEntity.PrimaryPart.Position
+                task.spawn(createPortalSpawn, currentPos + Vector3.new(math.random(-14, 14), 0, math.random(5, 15)), spawnRoom)
+            end
+        end)
+    end)
+
+    if not success then
+        warn("[A-278 Engine Crash]: " .. tostring(err))
+    end
+end
+
+-----------------------------------------
+-- RADAR INITIALIZATION COUPLING
+-----------------------------------------
+local function launch()
+    local rooms = workspace:FindFirstChild("CurrentRooms")
+    if not rooms then return end
+
+    local roomList = rooms:GetChildren()
+    if #roomList == 0 then return end
+
+    table.sort(roomList, function(a, b)
+        return (tonumber(a.Name) or 0) > (tonumber(b.Name) or 0)
+    end)
+
+    local targetRoom = roomList[1]
+    if targetRoom then
+        executeAttackSequence(targetRoom)
+    end
+end
+
+launch()
