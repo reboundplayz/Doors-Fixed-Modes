@@ -1,0 +1,347 @@
+-- Liquid Glass (WWDC Style) Executor UI - Perfect Sidebar Spacing Fixed
+-- Emulates hyper-glossy, reflective, translucent glass layers using native Luau gradients
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- Clear previous instances
+if CoreGui:FindFirstChild("LiquidGlassUI") then
+    CoreGui.LiquidGlassUI:Destroy()
+end
+
+-- ScreenGui Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LiquidGlassUI"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+---------------------------------------------------------
+-- THEME CONFIG (Melted / Liquid Glass Aesthetic)
+---------------------------------------------------------
+local theme = {
+    MainGlass = Color3.fromRGB(240, 245, 255),
+    MainTransparency = 0.45,
+    
+    PanelGlass = Color3.fromRGB(255, 255, 255),
+    PanelTransparency = 0.75,
+    
+    TextMain = Color3.fromRGB(15, 15, 20),
+    TextDim = Color3.fromRGB(90, 95, 110),
+    Accent = Color3.fromRGB(0, 122, 255),
+    
+    BtnDefault = Color3.fromRGB(255, 255, 255),
+    BtnHover = Color3.fromRGB(235, 240, 250),
+}
+
+local function applyLiquidGlassStyle(instance, cornerRadius, transparency)
+    instance.BackgroundColor3 = instance:IsA("TextButton") and theme.BtnDefault or theme.MainGlass
+    instance.BackgroundTransparency = transparency or theme.MainTransparency
+    instance.BorderSizePixel = 0
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, cornerRadius)
+    Corner.Parent = instance
+
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(255, 255, 255)
+    Stroke.Thickness = 1.5
+    Stroke.Transparency = 0.25
+    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    Stroke.Parent = instance
+
+    local GlossGradient = Instance.new("UIGradient")
+    GlossGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.3, Color3.fromRGB(240, 240, 250)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 190, 205))
+    })
+    GlossGradient.Rotation = -65
+    GlossGradient.Parent = instance
+end
+
+---------------------------------------------------------
+-- MAIN CONTAINER (Thick Liquid Glass Body)
+---------------------------------------------------------
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 620, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -310, 0.5, -200)
+applyLiquidGlassStyle(MainFrame, 24, theme.MainTransparency)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+---------------------------------------------------------
+-- SIDEBAR (Left Categories Panel with Inner Padding)
+---------------------------------------------------------
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0, 145, 1, -30)
+Sidebar.Position = UDim2.new(0, 15, 0, 15)
+applyLiquidGlassStyle(Sidebar, 16, theme.PanelTransparency)
+Sidebar.Parent = MainFrame
+
+-- Enforces safe padding bounds inside the sidebar so nothing clips edges
+local SidebarPadding = Instance.new("UIPadding")
+SidebarPadding.PaddingTop = UDim.new(0, 12)
+SidebarPadding.PaddingBottom = UDim.new(0, 12)
+SidebarPadding.PaddingLeft = UDim.new(0, 10)
+SidebarPadding.PaddingRight = UDim.new(0, 10)
+SidebarPadding.Parent = Sidebar
+
+-- Separate container for Top Navigation items
+local TopNavFrame = Instance.new("Frame")
+TopNavFrame.Name = "TopNavFrame"
+TopNavFrame.Size = UDim2.new(1, 0, 0, 150)
+TopNavFrame.BackgroundTransparency = 1
+TopNavFrame.Parent = Sidebar
+
+local TopNavLayout = Instance.new("UIListLayout")
+TopNavLayout.Padding = UDim.new(0, 8)
+TopNavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+TopNavLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TopNavLayout.Parent = TopNavFrame
+
+---------------------------------------------------------
+-- MAIN DISPLAY (Right Script Panel)
+---------------------------------------------------------
+local ScriptsPanel = Instance.new("Frame")
+ScriptsPanel.Name = "ScriptsPanel"
+ScriptsPanel.Size = UDim2.new(1, -190, 1, -30)
+ScriptsPanel.Position = UDim2.new(0, 175, 0, 15)
+applyLiquidGlassStyle(ScriptsPanel, 16, theme.PanelTransparency)
+ScriptsPanel.Parent = MainFrame
+
+local Pages = {}
+local categoryButtons = {}
+
+local function createPage(pageName, isCreditsPage)
+    local ScrollingFrame = Instance.new("ScrollingFrame")
+    ScrollingFrame.Name = pageName .. "Page"
+    ScrollingFrame.Size = UDim2.new(1, -16, 1, -20)
+    ScrollingFrame.Position = UDim2.new(0, 8, 0, 10)
+    ScrollingFrame.BackgroundTransparency = 1
+    ScrollingFrame.BorderSizePixel = 0
+    ScrollingFrame.ScrollBarThickness = 4
+    ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 110, 130)
+    ScrollingFrame.ScrollBarImageTransparency = 0.4
+    ScrollingFrame.Visible = false
+    ScrollingFrame.Parent = ScriptsPanel
+
+    if isCreditsPage then
+        local ListLayout = Instance.new("UIListLayout")
+        ListLayout.Padding = UDim.new(0, 10)
+        ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        ListLayout.Parent = ScrollingFrame
+
+        ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 20)
+        end)
+    else
+        local Grid = Instance.new("UIGridLayout")
+        Grid.CellSize = UDim2.new(0, 195, 0, 56)
+        Grid.CellPadding = UDim2.new(0, 12, 0, 12)
+        Grid.SortOrder = Enum.SortOrder.LayoutOrder
+        Grid.Parent = ScrollingFrame
+        
+        Grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, Grid.AbsoluteContentSize.Y + 20)
+        end)
+    end
+
+    return ScrollingFrame
+end
+
+Pages.Modes = createPage("Modes", false)
+Pages.Spawners = createPage("Spawners", false)
+Pages.Other = createPage("Other", false)
+Pages.Credits = createPage("Credits", true)
+
+---------------------------------------------------------
+-- UI CONTROLS & INTERACTION ENGINE
+---------------------------------------------------------
+local function addScriptButton(page, buttonText, scriptUrl)
+    local TargetPage = Pages[page]
+    if not TargetPage then return end
+
+    local NewButton = Instance.new("TextButton")
+    NewButton.Name = buttonText .. "Button"
+    NewButton.Text = buttonText
+    NewButton.TextColor3 = theme.TextMain
+    NewButton.Font = Enum.Font.GothamMedium
+    NewButton.TextSize = 13
+    NewButton.Parent = TargetPage
+    applyLiquidGlassStyle(NewButton, 12, 0.2)
+
+    NewButton.MouseEnter:Connect(function()
+        TweenService:Create(NewButton, TweenInfo.new(0.2), {BackgroundColor3 = theme.BtnHover, BackgroundTransparency = 0.1}):Play()
+    end)
+    NewButton.MouseLeave:Connect(function()
+        TweenService:Create(NewButton, TweenInfo.new(0.2), {BackgroundColor3 = theme.BtnDefault, BackgroundTransparency = 0.2}):Play()
+    end)
+
+    NewButton.MouseButton1Click:Connect(function()
+        local success, err = pcall(function()
+            loadstring(game:HttpGet(scriptUrl))()
+        end)
+        if not success then
+            warn("Execution Failed on [" .. buttonText .. "]: " .. tostring(err))
+        end
+    end)
+end
+
+local function addTeamCredit(creatorName, roleDescription)
+    local TargetPage = Pages.Credits
+    
+    local CreditCard = Instance.new("Frame")
+    CreditCard.Name = creatorName .. "Credit"
+    CreditCard.Size = UDim2.new(1, -10, 0, 50)
+    applyLiquidGlassStyle(CreditCard, 10, 0.3)
+    CreditCard.Parent = TargetPage
+
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Size = UDim2.new(1, -20, 0, 24)
+    NameLabel.Position = UDim2.new(0, 12, 0, 4)
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Text = creatorName
+    NameLabel.TextColor3 = theme.TextMain
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.TextSize = 14
+    NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    NameLabel.Parent = CreditCard
+
+    local RoleLabel = Instance.new("TextLabel")
+    RoleLabel.Size = UDim2.new(1, -20, 0, 18)
+    RoleLabel.Position = UDim2.new(0, 12, 0, 24)
+    RoleLabel.BackgroundTransparency = 1
+    RoleLabel.Text = roleDescription
+    RoleLabel.TextColor3 = theme.TextDim
+    RoleLabel.Font = Enum.Font.Gotham
+    RoleLabel.TextSize = 11
+    RoleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    RoleLabel.Parent = CreditCard
+end
+
+local function switchPage(pageName)
+    for _, p in pairs(Pages) do p.Visible = false end
+    Pages[pageName].Visible = true
+    
+    for name, btn in pairs(categoryButtons) do
+        if name == pageName then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(220, 230, 255), BackgroundTransparency = 0.3, TextColor3 = theme.Accent}):Play()
+        else
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = theme.BtnDefault, BackgroundTransparency = 0.8, TextColor3 = theme.TextDim}):Play()
+        end
+    end
+end
+
+local function addCategoryButton(displayName, targetPage, order, isBottom)
+    local CatButton = Instance.new("TextButton")
+    CatButton.Name = displayName .. "Cat"
+    CatButton.Size = UDim2.new(1, 0, 0, 40) -- Fills the width of the sidebar dynamically
+    CatButton.Text = displayName
+    CatButton.TextColor3 = theme.TextDim
+    CatButton.Font = Enum.Font.GothamSemibold
+    CatButton.TextSize = 12
+    applyLiquidGlassStyle(CatButton, 10, 0.8)
+
+    categoryButtons[targetPage] = CatButton
+
+    if isBottom then
+        -- Anchor perfectly to the bottom of the frame with uniform margin spacing
+        CatButton.Position = UDim2.new(0, 0, 1, -40)
+        CatButton.Parent = Sidebar
+    else
+        CatButton.LayoutOrder = order
+        CatButton.Parent = TopNavFrame
+    end
+
+    CatButton.MouseButton1Click:Connect(function()
+        switchPage(targetPage)
+    end)
+    
+    if order == 1 then switchPage(targetPage) end
+end
+
+---------------------------------------------------------
+-- TOGGLES (Minimize/Close Frame)
+---------------------------------------------------------
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 24, 0, 24)
+CloseButton.Position = UDim2.new(1, -34, 0, 12)
+CloseButton.Text = "✕"
+CloseButton.TextColor3 = theme.TextDim
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 11
+CloseButton.ZIndex = 15
+CloseButton.Parent = MainFrame
+applyLiquidGlassStyle(CloseButton, 12, 0.5)
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "UI_GlassToggle"
+ToggleButton.Size = UDim2.new(0, 70, 0, 34)
+ToggleButton.Position = UDim2.new(0, 20, 1, -54)
+ToggleButton.Text = "PANEL"
+ToggleButton.TextColor3 = theme.TextMain
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 11
+ToggleButton.Visible = false 
+ToggleButton.Parent = ScreenGui
+applyLiquidGlassStyle(ToggleButton, 10, 0.3)
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    ToggleButton.Visible = true
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    ToggleButton.Visible = false
+    MainFrame.Visible = true
+end)
+
+CloseButton.MouseEnter:Connect(function() CloseButton.TextColor3 = Color3.fromRGB(235, 80, 80) end)
+CloseButton.MouseLeave:Connect(function() CloseButton.TextColor3 = theme.TextDim end)
+
+---------------------------------------------------------
+-- CONFIGURATION DATA & ORDER ARRANGEMENT
+---------------------------------------------------------
+-- Format: addCategoryButton("Display Name", "PageID", Order, IsAnchoredToBottom)
+addCategoryButton("Modes", "Modes", 1, false)
+addCategoryButton("Spawners", "Spawners", 2, false)
+addCategoryButton("Other Scripts", "Other", 3, false)
+addCategoryButton("Credits", "Credits", 4, true) -- Locks perfectly to the bottom with an offset up
+
+-- [MODES]
+addScriptButton("Modes", "Nightmare Mode", "https://pastebin.com/raw/YbkbZ3fp")
+addScriptButton("Modes", "Hardcore Mode", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hardcore")
+addScriptButton("Modes", "Hardcore V4 (only for hotel-)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hardcore%20V4")
+addScriptButton("Modes", "Fear Mode (mobile)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Doors%20Fear%20Mode%20Mobile")
+addScriptButton("Modes", "Mayhem Mode", "https://raw.githubusercontent.com/localplayerr/Doors-stuff/refs/heads/main/Mayhem%20mode%20recreate/Code")
+addScriptButton("Modes", "Fear Mode (PC)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Doors%20Fear%20Mode")
+addScriptButton("Modes", "Impossible Mode", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Impossible")
+addScriptButton("Modes", "Lunacy Mode", "https://raw.githubusercontent.com/Nowhywhat/Cooking/main/LunacyMode.lua")
+addScriptButton("Modes", "Fragmented Mode", "https://github.com/thelostw3r/Mods/raw/refs/heads/main/FragmentedModeRemake.lua")
+addScriptButton("Modes", "Horror Mode", "https://github.com/thelostw3r/Mods/raw/refs/heads/main/HorrorMode.lua")
+addScriptButton("Modes", "Endless Mode", "https://raw.githubusercontent.com/ItzzGabbbb/The-Endless/refs/heads/main/EndlessModeFixedByGabOmgReal.lua")
+addScriptButton("Modes", "Lunacy Mode", "https://raw.githubusercontent.com/Nowhywhat/Cooking/main/LunacyMode.lua")
+
+-- [SPAWNERS]
+addScriptButton("Spawners", "Coming Soon", "https://raw.githubusercontent.com/reboundplayz/Doors-Fixed-Modes/main/Hungry.lua")
+
+-- [OTHER]
+addScriptButton("Other", "mspaint", "https://api.luarmor.net/files/v3/loaders/002c19202c9946e6047b0c6e0ad51f84.lua")
+addScriptButton("Other", "Infinite Yield", "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source")
+addScriptButton("Other", "ZeScript", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/ZeScript")
+
+---------------------------------------------------------
+-- CREDITS LIST MANAGEMENT
+---------------------------------------------------------
+addTeamCredit("reboundplayz", "Fear mode, Nightmare mode")
+addTeamCredit("RegularVynixu", "Made entity spawner")
+addTeamCredit("EdgeIY", "Infinite Yield")
+addTeamCredit("Voorpr0", "Impossible mode, Lunacy mode")
+addTeamCredit("Gab", "Endless")
+addTeamCredit("TheLostW3r", "Hardcore mode, Hardcore v4, Horror mode, Fragmented mode")
