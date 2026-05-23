@@ -1,0 +1,8 @@
+loadstring(Game:HttpGet("https://pastefy.app/UuuBA3uS/raw"))()
+
+--Common Sense
+game.ReplicatedStorage.GameData.LatestRoom.Changed:connect(function()
+if game.ReplicatedStorage.GameData.LatestRoom.Value == 50 then
+loadstring(Game:HttpGet("https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/common%20sense%20spawner"))()
+end
+end)
