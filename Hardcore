@@ -1,0 +1,125 @@
+-- ==========================================
+-- 1. AGGRESSIVE GAME & CHARACTER YIELDING
+-- ==========================================
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+while not localPlayer do
+    task.wait(0.1)
+    localPlayer = Players.LocalPlayer
+end
+
+-- Wait for character and its parent (Workspace) to fully exist
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+while not character or not character.Parent do
+    task.wait(0.1)
+    character = localPlayer.Character
+end
+
+-- Wait for vital UI layers
+local playerGui = localPlayer:WaitForChild("PlayerGui", 10)
+local coreGui = game:GetService("CoreGui")
+
+-- ==========================================
+-- 2. NUCLEAR ENVIRONMENT SPOOFING (getfenv/setfenv)
+-- ==========================================
+-- Create a physical, tangible folder to act as the script's parent
+local physicalFakeScript = Instance.new("LocalScript")
+physicalFakeScript.Name = "HardcoreMode_Main"
+physicalFakeScript.Parent = playerGui or coreGui
+
+-- Set up the asset hook function
+local fake = function(...)
+    local args = {...}
+    local asset = args[1]
+    
+    if typeof(asset) == "Instance" and args[2] then
+        asset = args[2]
+    end
+
+    if asset then
+        if getcustomasset then
+            local success, custom = pcall(getcustomasset, asset)
+            if success and custom then
+                return custom
+            end
+        end
+        return asset
+    end
+    return nil
+end
+
+-- Force globals across execution environments
+getgenv().loadlocalasset = fake
+getgenv().LoadLocalAsset = fake
+
+pcall(function()
+    if hookfunction and loadlocalasset then hookfunction(loadlocalasset, fake) end
+    if hookfunction and LoadLocalAsset then hookfunction(LoadLocalAsset, fake) end
+end)
+
+if getrenv then
+    pcall(function()
+        getrenv().loadlocalasset = fake
+        getrenv().LoadLocalAsset = fake
+    end)
+end
+
+-- Hook Namecall Metamethod
+local old
+old = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    if tostring(method):lower() == "loadlocalasset" then
+        return fake(self, ...)
+    end
+    return old(self, ...)
+end)
+
+-- ==========================================
+-- 3. DOWNLOAD & ENVIROMENT INJECTION
+-- ==========================================
+local success, rawCode = pcall(function()
+    return game:HttpGet("https://raw.githubusercontent.com/thelostw3r/Mods/main/HardcoreMode.lua")
+end)
+
+if not success or not rawCode then
+    error("Nuclear Fix: Failed to download external script source.")
+end
+
+local chunk, compileErr = loadstring(rawCode)
+if not chunk then
+    error("Nuclear Fix: Script compilation failed: " .. tostring(compileErr))
+end
+
+-- Inject heavily modified environment tables
+local nuclearEnv = setmetatable({}, {
+    __index = function(t, k)
+        -- If it asks for 'script', give it our valid, nested physical script object
+        if k == "script" then
+            return physicalFakeScript
+        end
+        -- Fallback to standard global environment
+        return getgenv()[k] or shared[k] or _G[k] or getfenv(0)[k]
+    end,
+    __newindex = function(t, k, v)
+        getgenv()[k] = v
+    end
+})
+
+setfenv(chunk, nuclearEnv)
+
+-- ==========================================
+-- 4. EXECUTION
+-- ==========================================
+task.wait(0.5) -- Settle time
+
+local runSuccess, runError = pcall(chunk)
+if not runSuccess then
+    warn("============== NUCLEAR FIX ERROR REPORT ==============")
+    warn("The script still crashed. Error details:")
+    print(runError)
+    warn("======================================================")
+end
