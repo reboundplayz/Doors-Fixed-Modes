@@ -326,7 +326,6 @@ addScriptButton("Modes", "Lunacy Mode", "https://raw.githubusercontent.com/Nowhy
 addScriptButton("Modes", "Fragmented Mode", "https://github.com/thelostw3r/Mods/raw/refs/heads/main/FragmentedModeRemake.lua")
 addScriptButton("Modes", "Horror Mode", "https://github.com/thelostw3r/Mods/raw/refs/heads/main/HorrorMode.lua")
 addScriptButton("Modes", "Endless Mode", "https://raw.githubusercontent.com/ItzzGabbbb/The-Endless/refs/heads/main/EndlessModeFixedByGabOmgReal.lua")
-addScriptButton("Modes", "Lunacy Mode", "https://raw.githubusercontent.com/Nowhywhat/Cooking/main/LunacyMode.lua")
 
 -- [SPAWNERS]
 addScriptButton("Spawners", "Coming Soon", "https://raw.githubusercontent.com/reboundplayz/Doors-Fixed-Modes/main/Hungry.lua")
