@@ -1,0 +1,4 @@
+getgenv().SCRIPT_KEY = "im sorry for the lag when you load this lol"
+--Copy this ^^^^^^^^^^^^^^^^^^^^^^^^^^^ (you can change the key's name to what ever you want)
+
+loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/4192419a355cd0233b7416f498b78b91eb87bfb6123a4d214a2aa1e9243c6c72/download"))()
