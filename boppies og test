@@ -1,0 +1,211 @@
+local Creator = loadstring(game:HttpGet("https://pastebin.com/raw/0fSnvfGt"))()
+
+-- Create entity
+local entity = Creator.createEntity({
+    CustomName = "Boppies",
+    Model = "rbxassetid:////16846474416",
+    Speed = 700,
+    DelayTime = 2,
+    HeightOffset = 0,
+    CanKill = true,
+    KillRange = 50,
+    BreakLights = true,
+    BackwardsMovement = false,
+
+    FlickerLights = {
+        true,
+        7,
+    },
+
+    Cycles = {
+        Min = 1,
+        Max = 3,
+        WaitTime = 0.5,
+    },
+
+    CamShake = {
+        true,
+        {3.5, 20, 0.1, 1},
+        100,
+    },
+
+    Jumpscare = {
+        false,
+        {
+            Image1 = "rbxassetid://12093393126",
+            Image2 = "rbxassetid://12093393126",
+            Shake = true,
+
+            Sound1 = {
+                nil,
+                { Volume = 0.5 },
+            },
+
+            Sound2 = {
+                nil,
+                { Volume = 0.5 },
+            },
+
+            Flashing = {
+                true,
+                Color3.fromRGB(217, 0, 0),
+            },
+
+            Tease = {
+                false,
+                Min = 4,
+                Max = 4,
+            },
+        },
+    },
+
+    CustomDialog = {
+        "You Died To Entity Designated As B-60",
+        "She Will Make Loud Sound",
+        "You Only Have Small Amount Of Time Before She Catches you",
+        "Try You Best To Avoid Her!"
+    },
+})
+
+-----[[ Advanced ]]-----
+entity.Debug.OnEntitySpawned = function(entityTable)
+    print("Entity has spawned")
+
+    local url = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/Boppies2077.mp3"
+    local file = "sound.mp3"
+
+    if not isfile(file) then
+        writefile(file, game:HttpGet(url))
+    end
+
+    local model
+    repeat
+        model = workspace:FindFirstChild("Boppies")
+        task.wait()
+    until model
+
+    local part = model:FindFirstChildWhichIsA("BasePart")
+
+    if part then
+        local sound = Instance.new("Sound")
+        sound.SoundId = getcustomasset(file)
+        sound.Parent = part
+
+        sound.RollOffMode = Enum.RollOffMode.Inverse
+        sound.RollOffMaxDistance = 500
+        sound.Volume = 2
+        sound.Looped = true
+
+        task.wait()
+        sound:Play()
+    end
+end
+
+entity.Debug.OnEntityDespawned = function(entityTable)
+    print("Entity has despawned:", entityTable.Model)
+end
+
+entity.Debug.OnEntityStartMoving = function(entityTable)
+    print("Entity has started moving:", entityTable.Model)
+end
+
+entity.Debug.OnEntityFinishedRebound = function(entityTable)
+    print("Entity has finished rebound:", entityTable.Model)
+end
+
+entity.Debug.OnEntityEnteredRoom = function(entityTable, room)
+    print("Entity:", entityTable.Model, "has entered room:", room)
+end
+
+entity.Debug.OnLookAtEntity = function(entityTable)
+    print("Player has looked at entity:", entityTable.Model)
+end
+
+entity.Debug.OnDeath = function(entityTable)
+    warn("Player has died.")
+	local Players = game:GetService("Players")
+	local TweenService = game:GetService("TweenService")
+
+	local player = Players.LocalPlayer
+	local playerGui = player:WaitForChild("PlayerGui")
+
+	-- GUI
+	local gui = Instance.new("ScreenGui")
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 999999
+	gui.ResetOnSpawn = false
+	gui.Parent = playerGui
+
+	-- FLASH
+	local flash = Instance.new("Frame")
+	flash.Size = UDim2.new(1,0,1,0)
+	flash.BorderSizePixel = 0
+	flash.BackgroundColor3 = Color3.new(0,0,0)
+	flash.ZIndex = 10
+	flash.Parent = gui
+
+	-- IMAGE
+	local image = Instance.new("ImageLabel")
+	image.AnchorPoint = Vector2.new(0.5, 0.5)
+	image.Position = UDim2.new(0.5, 0, 0.5, 0)
+	image.Size = UDim2.new(0, 300, 0, 420)
+	image.BackgroundTransparency = 1
+	image.Image = "rbxassetid://12093393126"
+	image.ZIndex = 11
+	image.Parent = gui
+
+	-- 🔊 GITHUB SOUND (YOUR ORIGINAL SYSTEM, BUT SAFE)
+	local url = "https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/Video-Proje.mp3"
+	local file = "boppiesjumpscare.mp3"
+
+	if not isfile(file) then
+		writefile(file, game:HttpGet(url))
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset(file)
+	sound.Volume = 10
+	sound.Parent = gui
+	task.spawn(function()
+		sound:Play()
+	end)
+
+	-- ZOOM
+	TweenService:Create(
+		image,
+		TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+		{Size = UDim2.new(0, 3500, 0, 3500)}
+	):Play()
+
+	-- LOOP (mobile stable)
+	task.spawn(function()
+		local duration = 1.2
+		local start = os.clock()
+
+		while true do
+			local t = os.clock() - start
+			if t >= duration then break end
+
+			-- FLASH
+			if math.random(1,2) == 1 then
+				flash.BackgroundColor3 = Color3.fromRGB(255,0,0)
+			else
+				flash.BackgroundColor3 = Color3.fromRGB(0,0,0)
+			end
+
+			-- SHAKE
+			image.Rotation = math.random(-5,5)
+
+			local offsetX = math.random(-25,25)
+			local offsetY = math.random(-25,25)
+
+			image.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
+
+			task.wait(0.01)
+		end
+
+		gui:Destroy()
+	end)
+end
+-- Run the entity
+Creator.runEntity(entity)
