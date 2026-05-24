@@ -326,6 +326,11 @@ addScriptButton("Modes", "Lunacy Mode", "https://raw.githubusercontent.com/Nowhy
 addScriptButton("Modes", "Fragmented Mode", "https://github.com/thelostw3r/Mods/raw/refs/heads/main/FragmentedModeRemake.lua")
 addScriptButton("Modes", "Horror Mode", "https://github.com/thelostw3r/Mods/raw/refs/heads/main/HorrorMode.lua")
 addScriptButton("Modes", "Endless Mode", "https://raw.githubusercontent.com/ItzzGabbbb/The-Endless/refs/heads/main/EndlessModeFixedByGabOmgReal.lua")
+addScriptButton("Modes", "Fog Mode", "https://raw.githubusercontent.com/Ganyu06112/Fog-Mode/refs/heads/main/Fog-Mode.lua")
+addScriptButton("Modes", "Furry Mode", "https://pastefy.app/US91TWoT/raw")
+addScriptButton("Modes", "Hazy Mode", "https://raw.githubusercontent.com/GuestlyTheGreatestGuest/Modes/refs/heads/main/Hazy-Mode-Recreated-made-by-Guestly-(Celestian)-on-Discord")
+addScriptButton("Modes", "Extreme Mode", "https://raw.githubusercontent.com/GuestlyTheGreatestGuest/Modes/refs/heads/main/Extreme-Mode-Recreated-made-by-Guestly")
+addScriptButton("Modes", "Forbidden Mode", "https://raw.githubusercontent.com/GuestlyTheGreatestGuest/Modes/refs/heads/main/Forbidden-Mode-recreated-by-Guestly")
 
 -- [SPAWNERS]
 addScriptButton("Spawners", "Coming Soon", "https://raw.githubusercontent.com/reboundplayz/Doors-Fixed-Modes/main/Hungry.lua")
@@ -341,7 +346,8 @@ addScriptButton("Other", "ZeScript", "https://github.com/reboundplayz/Doors-Fixe
 addTeamCredit("reboundplayz", "Fear mode, Nightmare mode")
 addTeamCredit("RegularVynixu", "Made entity spawner")
 addTeamCredit("EdgeIY", "Infinite Yield")
-addTeamCredit("Voorpr0", "Impossible mode, Lunacy mode")
+addTeamCredit("Voorpr0", "Impossible mode, Lunacy mode, Fog mode, Furry mode")
 addTeamCredit("Gab", "Endless mode")
 addTeamCredit("TheLostW3r", "Hardcore mode, Hardcore v4, Horror mode, Fragmented mode")
 addTeamCredit("LocalPlayer", "Mayhem mode")
+addTeamCredit("Guestly", "Hazy mode, Extreme mode, Forbidden mode")
