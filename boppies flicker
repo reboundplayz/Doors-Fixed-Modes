@@ -70,35 +70,8 @@ local entity = Creator.createEntity({
 -----[[ Advanced ]]-----
 entity.Debug.OnEntitySpawned = function(entityTable)
     print("Entity has spawned")
-
-    local url = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/Boppies2077.mp3"
-    local file = "sound.mp3"
-
-    if not isfile(file) then
-        writefile(file, game:HttpGet(url))
-    end
-
-    local model
-    repeat
-        model = workspace:FindFirstChild("Boppies")
-        task.wait()
-    until model
-
-    local part = model:FindFirstChildWhichIsA("BasePart")
-
-    if part then
-        local sound = Instance.new("Sound")
-        sound.SoundId = getcustomasset(file)
-        sound.Parent = part
-
-        sound.RollOffMode = Enum.RollOffMode.Inverse
-        sound.RollOffMaxDistance = 500
-        sound.Volume = 2
-        sound.Looped = true
-
-        task.wait()
-        sound:Play()
-    end
+    wait(0.01)
+    entity:Destroy()
 end
 
 entity.Debug.OnEntityDespawned = function(entityTable)
@@ -207,5 +180,7 @@ entity.Debug.OnDeath = function(entityTable)
 		gui:Destroy()
 	end)
 end
+
 -- Run the entity
 Creator.runEntity(entity)
+
