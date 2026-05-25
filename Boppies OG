@@ -3,7 +3,7 @@ local Creator = loadstring(game:HttpGet("https://pastebin.com/raw/0fSnvfGt"))()
 -- Create entity
 local entity = Creator.createEntity({
     CustomName = "Boppies",
-    Model = "rbxassetid://136770257106851",
+    Model = "rbxassetid://137080625936049",
     Speed = 700,
     DelayTime = 9,
     HeightOffset = 0,
@@ -80,7 +80,7 @@ entity.Debug.OnEntitySpawned = function(entityTable)
 
     local model
     repeat
-        model = workspace:FindFirstChild("BoppiesNew")
+        model = workspace:FindFirstChild("Boppies")
         task.wait()
     until model
 
