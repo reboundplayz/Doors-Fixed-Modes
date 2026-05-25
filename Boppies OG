@@ -72,7 +72,7 @@ entity.Debug.OnEntitySpawned = function(entityTable)
     print("Entity has spawned")
 
     local url = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/Boppies2077.mp3"
-    local file = "sound.mp3"
+    local file = "boppiessound.mp3"
 
     if not isfile(file) then
         writefile(file, game:HttpGet(url))
