@@ -96,7 +96,7 @@ entity.Debug.OnEntitySpawned = function(entityTable)
         sound.Volume = 2
         sound.Looped = true
 
-        task.wait(8)
+        task.wait(9)
         sound:Play()
     end
 end
