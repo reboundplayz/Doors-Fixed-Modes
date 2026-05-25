@@ -3,7 +3,7 @@ local Creator = loadstring(game:HttpGet("https://pastebin.com/raw/0fSnvfGt"))()
 -- Create entity
 local entity = Creator.createEntity({
     CustomName = "Boppies",
-    Model = "rbxassetid:////16846474416",
+    Model = "rbxassetid://136770257106851",
     Speed = 700,
     DelayTime = 9,
     HeightOffset = 0,
