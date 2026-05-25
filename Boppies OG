@@ -5,7 +5,7 @@ local entity = Creator.createEntity({
     CustomName = "Boppies",
     Model = "rbxassetid://137080625936049",
     Speed = 700,
-    DelayTime = 9,
+    DelayTime = 1,
     HeightOffset = 0,
     CanKill = true,
     KillRange = 50,
@@ -96,7 +96,7 @@ entity.Debug.OnEntitySpawned = function(entityTable)
         sound.Volume = 2
         sound.Looped = true
 
-        task.wait(9)
+        task.wait(7)
         sound:Play()
     end
 end
