@@ -1,0 +1,215 @@
+local Creator = loadstring(game:HttpGet("https://pastebin.com/raw/0fSnvfGt"))()
+local RunService = game:GetService("RunService")
+local brokenSpots = {}
+local currentThreadID = 0
+
+-- Create entity
+local entity = Creator.createEntity({
+    CustomName = "SY3T4M",
+    Model = "rbxassetid://130088369054565",
+    Speed = 65,
+    DelayTime = 2,
+    HeightOffset = 0,
+    CanKill = true,
+    KillRange = 50,
+    BreakLights = true,
+    BackwardsMovement = false,
+    FlickerLights = {true, 1},
+    Cycles = {Min = 1, Max = 1, WaitTime = 0},
+    CamShake = {true, {3.5, 20, 0.1, 1}, 100},
+    Jumpscare = {false, {
+        Image1 = "rbxassetid://10483855823",
+        Image2 = "rbxassetid://10483999903",
+        Shake = true,
+        Sound1 = {nil, {Volume = 0.5}},
+        Sound2 = {nil, {Volume = 0.5}},
+        Flashing = {true, Color3.fromRGB(255, 255, 255)},
+        Tease = {false, Min = 1, Max = 3},
+    }},
+    CustomDialog = {"You cannot hide from SY3T4M.", "The closets are no longer safe.", "Try your best to avoid the noise!"},
+})
+
+---====== Breaking Logic Functions ======---
+local function explodeHidingSpot(model)
+    if not model or brokenSpots[model] then return end
+    brokenSpots[model] = true 
+
+    -- Distance-based kill check: 
+    -- If the player is within 5 studs of the closet when it breaks, kill them.
+    local player = game.Players.LocalPlayer
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        local modelPos = model:GetModelCFrame().Position
+        
+        if (hrp.Position - modelPos).Magnitude < 8 then
+            -- Trigger death logic
+            entity.Debug.OnDeath(entity)
+            if player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid.Health = 0
+            end
+        end
+    end
+
+    -- Visual break logic remains the same
+    local breakSound = Instance.new("Sound")
+    breakSound.SoundId = "rbxassetid://9125584819"
+    breakSound.Volume = 5
+    breakSound.Parent = workspace
+    breakSound:Play()
+    game:GetService("Debris"):AddItem(breakSound, 5)
+
+    for _, obj in pairs(model:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") or obj.Name:find("HidePrompt") then
+            obj:Destroy()
+        elseif obj:IsA("BasePart") then
+            obj.Anchored = false
+            obj.CanCollide = true
+            obj.AssemblyLinearVelocity = Vector3.new(math.random(-50,50), 100, math.random(-50,50))
+        end
+    end
+end
+
+local function smoothMove(targetPos, travelSpeed, isCloset, myID)
+    local model = workspace:FindFirstChild("SY3T4M")
+    if not model or not model.PrimaryPart then return end
+    local root = model.PrimaryPart
+    local finalTarget = isCloset and (targetPos - (targetPos - root.Position).Unit * 8.5) or targetPos
+    
+    local duration = (root.Position - finalTarget).Magnitude / travelSpeed
+    local startTick = tick()
+    
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        if myID ~= currentThreadID or not model.Parent then conn:Disconnect() return end
+        local alpha = math.min((tick() - startTick) / duration, 1)
+        model:PivotTo(CFrame.new(root.Position:Lerp(finalTarget, 1 - math.pow(1 - alpha, 3)), targetPos))
+        if alpha >= 1 then conn:Disconnect() end
+    end)
+    repeat task.wait() until not conn.Connected
+end
+
+local function processRoom(room)
+    currentThreadID += 1
+    local myID = currentThreadID
+    for _, obj in pairs(room:GetDescendants()) do
+        if (obj.Name == "HidePrompt" or obj:IsA("ProximityPrompt")) and obj.Parent:IsA("Model") then
+            smoothMove(obj.Parent:GetModelCFrame().Position, 230, true, myID)
+            task.wait(0.3)
+            explodeHidingSpot(obj.Parent)
+        end
+    end
+end
+
+-----[[ Advanced ]]-----
+entity.Debug.OnEntitySpawned = function(entityTable)
+    local url = "https://github.com/TheendisnearDonotfear/FearmodeDoors/raw/refs/heads/main/Syst3m_P909.mp3"
+    local file = "SY3T4Msound.mp3"
+    if not isfile(file) then writefile(file, game:HttpGet(url)) end
+
+    task.spawn(function()
+        local model = workspace:WaitForChild("SY3T4M", 15)
+        local part = model and model:FindFirstChildWhichIsA("BasePart", true)
+        if part then
+            local sound = Instance.new("Sound", part)
+            sound.SoundId = getcustomasset(file)
+            sound.RollOffMaxDistance = 500
+            sound.Volume = 2
+            sound.Looped = true
+            task.wait(0)
+            sound:Play()
+        end
+    end)
+end
+
+-- Hook the room breaking logic
+entity.Debug.OnEntityEnteredRoom = function(entityTable, room)
+    task.spawn(function() processRoom(room) end)
+end
+
+entity.Debug.OnDeath = function(entityTable)
+    warn("Player has died.")
+	local Players = game:GetService("Players")
+	local TweenService = game:GetService("TweenService")
+
+	local player = Players.LocalPlayer
+	local playerGui = player:WaitForChild("PlayerGui")
+
+	-- GUI
+	local gui = Instance.new("ScreenGui")
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 999999
+	gui.ResetOnSpawn = false
+	gui.Parent = playerGui
+
+	-- FLASH
+	local flash = Instance.new("Frame")
+	flash.Size = UDim2.new(1,0,1,0)
+	flash.BorderSizePixel = 0
+	flash.BackgroundColor3 = Color3.new(0,0,0)
+	flash.ZIndex = 10
+	flash.Parent = gui
+
+	-- IMAGE
+	local image = Instance.new("ImageLabel")
+	image.AnchorPoint = Vector2.new(0.5, 0.5)
+	image.Position = UDim2.new(0.5, 0, 0.5, 0)
+	image.Size = UDim2.new(0, 300, 0, 420)
+	image.BackgroundTransparency = 1
+	image.Image = "rbxassetid://12591366737"
+	image.ZIndex = 11
+	image.Parent = gui
+
+	-- 🔊 GITHUB SOUND (YOUR ORIGINAL SYSTEM, BUT SAFE)
+	local url = "https://github.com/TheendisnearDonotfear/FearmodeDoors/raw/refs/heads/main/Syst3m_jumP03_1.mp3"
+	local file = "SY3T4Mjumpscare.mp3"
+
+	if not isfile(file) then
+		writefile(file, game:HttpGet(url))
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset(file)
+	sound.Volume = 10
+	sound.Parent = gui
+	task.spawn(function()
+		sound:Play()
+	end)
+
+	-- ZOOM
+	TweenService:Create(
+		image,
+		TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+		{Size = UDim2.new(0, 3500, 0, 3500)}
+	):Play()
+
+	-- LOOP (mobile stable)
+	task.spawn(function()
+		local duration = 1.2
+		local start = os.clock()
+
+		while true do
+			local t = os.clock() - start
+			if t >= duration then break end
+
+			-- FLASH
+			if math.random(1,2) == 1 then
+				flash.BackgroundColor3 = Color3.fromRGB(255,0,0)
+			else
+				flash.BackgroundColor3 = Color3.fromRGB(0,0,0)
+			end
+
+			-- SHAKE
+			image.Rotation = math.random(-5,5)
+
+			local offsetX = math.random(-25,25)
+			local offsetY = math.random(-25,25)
+
+			image.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
+
+			task.wait(0.01)
+		end
+
+		gui:Destroy()
+	end)
+end
+Creator.runEntity(entity)
