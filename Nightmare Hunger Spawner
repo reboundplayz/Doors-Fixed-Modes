@@ -89,7 +89,7 @@ local function PlayKickSound()
     local sound = Instance.new("Sound")
     sound.Parent = workspace
     sound.Volume = 5
-    sound.Looped = true
+    sound.Looped = false
 
     local success, asset = pcall(function()
         return GitAud(
@@ -138,6 +138,8 @@ task.spawn(function()
         -- if next door opened stop everything instantly
         if game.ReplicatedStorage.GameData.LatestRoom.Value ~= latestRoom then
             Kill = false
+
+            depthsTer:Destroy()
 
             if workspace:FindFirstChild("Attacking1") then
                 workspace.Attacking1:Stop()
