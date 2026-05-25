@@ -80,7 +80,7 @@ entity.Debug.OnEntitySpawned = function(entityTable)
 
     local model
     repeat
-        model = workspace:FindFirstChild("Boppies")
+        model = workspace:FindFirstChild("BoppiesNew")
         task.wait()
     until model
 
