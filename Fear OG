@@ -1,0 +1,87 @@
+local Creator = loadstring(game:HttpGet("https://pastebin.com/raw/0fSnvfGt"))()
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local LocalPlayer = Players.LocalPlayer
+
+-- Create entity
+local entity = Creator.createEntity({
+    CustomName = 'Fear',
+    Model = 'https://github.com/TheendisnearDonotfear/FearmodeDoors/raw/main/Fear3.rbxm',
+    Speed = 17.5,
+    DelayTime = 0,
+    HeightOffset = 0,
+    CanKill = true,
+    KillRange = 50,
+})
+
+-- Blur setup
+local blur = Instance.new("BlurEffect", Lighting)
+blur.Size = 0
+blur.Enabled = true
+
+---====== Fear Logic ======->
+local isEntityActive = false
+
+entity.Debug.OnEntitySpawned = function()
+    isEntityActive = true
+    
+    local MainUI = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("MainUI")
+    require(MainUI.Initiator.Main_Game).caption("I'm scared... should I run?", true)
+
+    task.spawn(function()
+        while isEntityActive do
+            task.wait(math.random(5, 10))
+            if not isEntityActive then break end
+
+            -- 1. Apply Blur to warn the player
+            blur.Size = 24
+            
+            -- 2. Play Heartbeat
+            local hb = Instance.new("Sound", workspace)
+            hb.SoundId = "rbxassetid://136926364647386"
+            hb.Volume = 10
+            hb:Play()
+            
+            -- 3. Movement check
+            local pulseStartTime = tick()
+            while tick() - pulseStartTime < 2.0 and isEntityActive do
+                -- Grace period: Only check movement after 0.5s reaction time
+                if tick() - pulseStartTime > 0.5 then
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        if char.HumanoidRootPart.Velocity.Magnitude > 0.5 then
+                            isEntityActive = false
+                            entity.Debug.OnDeath()
+                            break
+                        end
+                    end
+                end
+                RunService.Heartbeat:wait()
+            end
+            
+            -- Cleanup
+            blur.Size = 0
+            hb:Destroy()
+        end
+    end)
+end
+
+entity.Debug.OnDeath = function()
+    if isEntityActive then
+        isEntityActive = false
+        blur.Size = 0
+        
+        -- Set Death Cause
+        local statsPath = game:GetService("ReplicatedStorage"):FindFirstChild("GameStats")
+        if statsPath and statsPath:FindFirstChild("Player_" .. LocalPlayer.Name) then
+            statsPath["Player_" .. LocalPlayer.Name].Total.DeathCause.Value = "Fear [moved during heartbeat]"
+        end
+        
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.Health = 0
+        end
+    end
+end
+
+Creator.runEntity(entity)
