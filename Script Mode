@@ -331,6 +331,7 @@ addScriptButton("Modes", "Furry Mode", "https://pastefy.app/US91TWoT/raw")
 addScriptButton("Modes", "Hazy Mode", "https://raw.githubusercontent.com/GuestlyTheGreatestGuest/Modes/refs/heads/main/Hazy-Mode-Recreated-made-by-Guestly-(Celestian)-on-Discord")
 addScriptButton("Modes", "Extreme Mode", "https://raw.githubusercontent.com/GuestlyTheGreatestGuest/Modes/refs/heads/main/Extreme-Mode-Recreated-made-by-Guestly")
 addScriptButton("Modes", "Forbidden Mode", "https://raw.githubusercontent.com/GuestlyTheGreatestGuest/Modes/refs/heads/main/Forbidden-Mode-recreated-by-Guestly")
+addScriptButton("Modes", "Fear Mode Legacy (Hotel-)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fear%20Mode%20LEGACY")
 
 -- [SPAWNERS]
 addScriptButton("Spawners", "Coming Soon", "https://raw.githubusercontent.com/reboundplayz/Doors-Fixed-Modes/main/Hungry.lua")
@@ -343,7 +344,7 @@ addScriptButton("Other", "ZeScript", "https://github.com/reboundplayz/Doors-Fixe
 ---------------------------------------------------------
 -- CREDITS LIST MANAGEMENT
 ---------------------------------------------------------
-addTeamCredit("reboundplayz", "Fear mode, Nightmare mode")
+addTeamCredit("reboundplayz", "Fear mode, Nightmare mode, Fear mode legacy")
 addTeamCredit("RegularVynixu", "Made entity spawner")
 addTeamCredit("EdgeIY", "Infinite Yield")
 addTeamCredit("Voorpr0", "Impossible mode, Lunacy mode, Fog mode, Furry mode")
