@@ -6,7 +6,7 @@ local Debris = game:GetService("Debris")
 local PASSIVE_MODEL_ID = "rbxassetid://121139293194536"
 local ENRAGED_MODEL_ID = "rbxassetid://128985287053192"
 
-local URL_SPAWN = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-332Spawn.mp3.mpeg"
+local URL_SPAWN = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300Spawn.mp3.mpeg"
 local URL_STATIC = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300_Static.mp3.mpeg"
 local URL_SCREAM = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300Effected.mp3.mpeg"
 local URL_BASS = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300_Entity_Spawning.mp3.mpeg"
@@ -144,7 +144,7 @@ local function spawnA300()
     
     -- Setup initial audio elements on passive part container
     rootPart = activeModel.PrimaryPart or activeModel:FindFirstChildWhichIsA("BasePart")
-    local spawnSound = createCustomSound("a300_spawn.mp3", URL_SPAWN, rootPart)
+    local spawnSound = createCustomSound("a300_spawnyes.mp3", URL_SPAWN, rootPart)
     local staticSound = createCustomSound("a300_static.mp3", URL_STATIC, rootPart)
     
     if spawnSound then
