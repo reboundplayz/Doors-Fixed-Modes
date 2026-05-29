@@ -1,0 +1,360 @@
+--// Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+--// ====== CONFIGURATION ====== --
+local ASSET_ID = "rbxassetid://76684075125848"
+local ENTITY_SPEED = 165
+local SPAWN_DELAY = 2
+local KILL_RADIUS = 100 
+
+-- Camera Shake Configuration
+local SHAKE_MAX_RADIUS = 200 
+local SHAKE_MAX_INTENSITY = 0.45 
+
+local SPAWN_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/X-60Spawn.mp3.mpeg"
+local JUMPSCARE_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/X-60_(IF)_Jumpscare.mp3.mpeg"
+local DESPAWN_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/X-60_New_Despawn.wav"
+--// =========================== --
+
+--// Safe Room Detection
+local latestRoomNum = ReplicatedStorage.GameData.LatestRoom.Value
+if workspace:FindFirstChild("SeekMovingNewClone") 
+   or latestRoomNum == 50 
+   or latestRoomNum == 100 
+   or (latestRoomNum >= 90 and latestRoomNum <= 100) then
+    return
+end
+
+--// Load Asset Safely
+local assets = game:GetObjects(ASSET_ID)
+if not assets or #assets == 0 then
+    warn("X-60 asset failed to load")
+    return
+end
+
+local root = assets[1]
+local model = root:IsA("Model") and root or nil
+if not model then
+    for _, vmix in ipairs(root:GetDescendants()) do
+        if vmix:IsA("Model") then model = vmix; break end
+    end
+end
+
+if not model then
+    warn("No model container found!")
+    return
+end
+
+model.Name = "X-60"
+model.Parent = workspace
+
+-- 1. Grab HumanoidRootPart based on your exact hierarchy
+local hrp = model:WaitForChild("HumanoidRootPart", 10)
+if not hrp then 
+    warn("HumanoidRootPart missing!")
+    return 
+end
+
+-- 2. Turn off collision properties across all parts
+for _, part in ipairs(model:GetDescendants()) do
+    if part:IsA("BasePart") then
+        part.CanCollide = false
+    end
+end
+
+--// ========================================== --
+--//    PLAY CUSTOM SPAWN AUDIO ON SCREEN       --
+--// ========================================== --
+-- Bypasses model elements completely, hosting and firing audio directly onto the client viewport UI space
+pcall(function()
+    if not isfile("x60_spawn.mp3") then
+        writefile("x60_spawn.mp3", game:HttpGet(SPAWN_SOUND_URL))
+    end
+    
+    local screenSpawnSound = Instance.new("Sound")
+    screenSpawnSound.SoundId = getcustomasset("x60_spawn.mp3")
+    screenSpawnSound.Volume = 5
+    screenSpawnSound.Parent = SoundService
+    screenSpawnSound:Play()
+    
+    -- Autoclean local file tracking once finished playing
+    game:GetService("Debris"):AddItem(screenSpawnSound, 10)
+end)
+
+--// ========================================== --
+--//      FIXED NATIVE STATIC SOUND SCRIPT      --
+--// ========================================== --
+local staticSound = hrp:WaitForChild("Static", 5)
+if staticSound and staticSound:IsA("Sound") then
+    task.spawn(function()
+        local rng = Random.new()
+        while model.Parent and staticSound and staticSound.Parent do
+            staticSound.PlaybackSpeed = rng:NextNumber(3, 8)
+            task.wait(0.125)
+        end
+    end)
+end
+
+--// ========================================== --
+--//   FORCE NATIVE SCRIPTS TO EXECUTE ON CLIENT--
+--// ========================================== --
+for _, scriptObj in ipairs(model:GetDescendants()) do
+    if scriptObj:IsA("LuaSourceContainer") and scriptObj.Name ~= "Code" and scriptObj.Name ~= "Script" then
+        task.spawn(function()
+            local success, err = pcall(function()
+                local scriptFunction = loadstring(scriptObj.Source)
+                if scriptFunction then
+                    getfenv(scriptFunction).script = scriptObj
+                    scriptFunction()
+                end
+            end)
+            if not success then
+                warn("Failed to execute native script " .. scriptObj.Name .. ": " .. tostring(err))
+            end
+        end)
+    end
+end
+
+--// ========================================== --
+--//         DYNAMIC CAMERA SHAKE SYSTEM        --
+--// ========================================== --
+local shakeConnection
+shakeConnection = RunService.RenderStepped:Connect(function()
+    if not model.Parent or not hrp or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        if shakeConnection then shakeConnection:Disconnect() end
+        return
+    end
+    
+    local charHRP = player.Character.HumanoidRootPart
+    local distance = (hrp.Position - charHRP.Position).Magnitude
+    
+    if distance <= SHAKE_MAX_RADIUS then
+        local proximityScale = 1 - (distance / SHAKE_MAX_RADIUS)
+        local currentIntensity = SHAKE_MAX_INTENSITY * proximityScale
+        
+        local shakeX = math.random(-100, 100) / 100 * currentIntensity
+        local shakeY = math.random(-100, 100) / 100 * currentIntensity
+        local shakeZ = math.random(-100, 100) / 100 * currentIntensity
+        
+        camera.CFrame = camera.CFrame * CFrame.Angles(math.rad(shakeX), math.rad(shakeY), math.rad(shakeZ))
+    end
+end)
+
+--// ========================================== --
+--//    MASSIVE KILL RANGE & JUMPSCARE HAZARD   --
+--// ========================================== --
+local function triggerJumpscare()
+    if shakeConnection then shakeConnection:Disconnect() end
+    
+    local playerGui = player:WaitForChild("PlayerGui")
+    local gui = Instance.new("ScreenGui", playerGui)
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999999
+
+    local flash = Instance.new("Frame", gui)
+    flash.Size = UDim2.new(1, 0, 1, 0)
+    flash.BorderSizePixel = 0
+    flash.BackgroundColor3 = Color3.fromRGB(255, 235, 40)
+    flash.ZIndex = 10
+
+    local image = Instance.new("ImageLabel", gui)
+    image.AnchorPoint = Vector2.new(0.5, 0.5)
+    image.Position = UDim2.new(0.5, 0, 0.5, 0)
+    image.Size = UDim2.new(0, 350, 0, 350)
+    image.BackgroundTransparency = 1
+    image.Image = "rbxassetid://8960526619"
+    image.ZIndex = 11
+
+    pcall(function()
+        if not isfile("x60_jumpscare.mp3") then
+            writefile("x60_jumpscare.mp3", game:HttpGet(JUMPSCARE_SOUND_URL))
+        end
+        local sound = Instance.new("Sound", gui)
+        sound.SoundId = getcustomasset("x60_jumpscare.mp3")
+        sound.Volume = 8
+        sound:Play()
+    end)
+
+    TweenService:Create(image, TweenInfo.new(1.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, 2800, 0, 2800)}):Play()
+
+    task.spawn(function()
+        local start = os.clock()
+        while (os.clock() - start) < 1.4 do
+            flash.BackgroundColor3 = (math.random(1, 2) == 1) and Color3.fromRGB(240, 200, 0) or Color3.fromRGB(0, 0, 0)
+            image.Rotation = math.random(-8, 8)
+            image.Position = UDim2.new(0.5, math.random(-30, 30), 0.5, math.random(-30, 30))
+            task.wait(0.01)
+        end
+        gui:Destroy()
+    end)
+end
+
+local damageDebounce = false
+
+task.spawn(function()
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    while model.Parent and not damageDebounce do
+        task.wait(0.02)
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+            local pRoot = char.HumanoidRootPart
+            local distance = (hrp.Position - pRoot.Position).Magnitude
+            
+            if distance <= KILL_RADIUS and char.Humanoid.Health > 0 then
+                raycastParams.FilterDescendantsInstances = {model, char}
+                
+                local origin = hrp.Position
+                local direction = (pRoot.Position - origin)
+                local rayResult = workspace:Raycast(origin, direction, raycastParams)
+                
+                if not rayResult then
+                    damageDebounce = true
+                    
+                    firesignal(ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {
+                        "You encountered X-60...",
+                        "It rushes from the very beginning of the hotel.",
+                        "Hide before its distortions catch up to you!"
+                    }, "Blue")
+                    
+                    pcall(function()
+                        ReplicatedStorage.GameStats["Player_" .. player.Name].Total.DeathCause.Value = "X-60"
+                    end)
+                    
+                    char.Humanoid.Health = 0
+                    triggerJumpscare()
+                    break
+                end
+            end
+        end
+    end
+end)
+
+--// ========================================== --
+--//            DOORS PATHFINDING               --
+--// ========================================== --
+task.wait(SPAWN_DELAY)
+
+local roomsFolder = workspace:WaitForChild("CurrentRooms")
+local orderedRooms = {}
+
+for _, room in ipairs(roomsFolder:GetChildren()) do
+    local roomNum = tonumber(room.Name)
+    if roomNum then
+        table.insert(orderedRooms, {Number = roomNum, Instance = room})
+    end
+end
+table.sort(orderedRooms, function(a, b) return a.Number < b.Number end)
+
+if #orderedRooms == 0 then return end
+
+local startingRoom = orderedRooms[1].Instance
+local startPart = startingRoom:FindFirstChild("RoomStart") or (startingRoom:FindFirstChild("Parts") and startingRoom.Parts:FindFirstChild("Floor"))
+if startPart then
+    hrp.CFrame = startPart.CFrame + Vector3.new(0, 3.5, 0)
+end
+
+local targetPlayerRoomInstance = nil
+
+for idx, roomData in ipairs(orderedRooms) do
+    local roomObj = roomData.Instance
+    
+    if roomData.Number == latestRoomNum then
+        targetPlayerRoomInstance = roomObj
+    end
+    
+    if roomData.Number <= latestRoomNum then
+        local targets = {}
+        local rStart = roomObj:FindFirstChild("RoomStart")
+        local rEnd = roomObj:FindFirstChild("RoomEnd") or (roomObj:FindFirstChild("Parts") and roomObj.Parts:FindFirstChild("Door"))
+        
+        if rStart then table.insert(targets, rStart) end
+        if rEnd then table.insert(targets, rEnd) end
+        
+        if #targets == 0 and roomObj:FindFirstChild("Parts") and roomObj.Parts:FindFirstChild("Floor") then
+            table.insert(targets, roomObj.Parts.Floor)
+        end
+
+        for _, point in ipairs(targets) do
+            local targetCFrame = point.CFrame + Vector3.new(0, 3.5, 0)
+            local distance = (hrp.Position - targetCFrame.Position).Magnitude
+            
+            if distance > 1 then
+                local moveTween = TweenService:Create(
+                    hrp,
+                    TweenInfo.new(distance / ENTITY_SPEED, Enum.EasingStyle.Linear),
+                    {CFrame = targetCFrame}
+                )
+                moveTween:Play()
+                moveTween.Completed:Wait()
+            end
+        end
+    end
+end
+
+--// ========================================== --
+--//       GUARANTEED DESPAWN SEQUENCING        --
+--// ========================================== --
+if targetPlayerRoomInstance then
+    local finalDespawnPoint = targetPlayerRoomInstance:FindFirstChild("RoomEnd") 
+        or (targetPlayerRoomInstance:FindFirstChild("Parts") and targetPlayerRoomInstance.Parts:FindFirstChild("Door"))
+        or targetPlayerRoomInstance:FindFirstChild("RoomStart")
+    
+    if not finalDespawnPoint and targetPlayerRoomInstance:FindFirstChild("Parts") then
+        finalDespawnPoint = targetPlayerRoomInstance.Parts:FindFirstChild("Floor")
+    end
+    
+    if finalDespawnPoint then
+        local finalCFrame = finalDespawnPoint.CFrame + Vector3.new(0, 3.5, 0)
+        local endMoveTween = TweenService:Create(
+            hrp, 
+            TweenInfo.new((hrp.Position - finalCFrame.Position).Magnitude / ENTITY_SPEED, Enum.EasingStyle.Linear), 
+            {CFrame = finalCFrame}
+        )
+        endMoveTween:Play()
+        endMoveTween.Completed:Wait()
+
+        -- Pause completely at the door frame line before descending
+        task.wait(2.5)
+
+        if shakeConnection then shakeConnection:Disconnect() end
+
+        -- Completely delete the model's native static sound loop right when descending starts
+        if staticSound then
+            staticSound:Destroy()
+        end
+
+        -- Execute loud despawn audio simultaneously with the sink animation
+        pcall(function()
+            if not isfile("x60_despawn.wav") then
+                writefile("x60_despawn.wav", game:HttpGet(DESPAWN_SOUND_URL))
+            end
+            
+            local despawnSound = Instance.new("Sound")
+            despawnSound.SoundId = getcustomasset("x60_despawn.wav")
+            despawnSound.Volume = 10 
+            despawnSound.Parent = hrp
+            despawnSound:Play()
+        end)
+
+        -- Extended 7-second linear downward descent animation so the full audio track can complete
+        local descendTween = TweenService:Create(
+            hrp,
+            TweenInfo.new(7.0, Enum.EasingStyle.Linear, Enum.EasingDirection.In),
+            {CFrame = hrp.CFrame * CFrame.new(0, -60, 0)}
+        )
+        descendTween:Play()
+        descendTween.Completed:Wait()
+    end
+end
+
+if shakeConnection then shakeConnection:Disconnect() end
+model:Destroy()
