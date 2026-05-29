@@ -68,7 +68,7 @@ local EntityPool = {
         Name = "X-60",
         Color = Color3.fromRGB(255, 215, 0), -- Yellow
         SpawnFunction = function()
-            print("[A-300] Template: Spawn X-60 via custom loadstring executor here.")
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/X-60%20Spawner"))()
         end
     },
     {
