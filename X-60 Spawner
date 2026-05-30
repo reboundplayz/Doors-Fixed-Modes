@@ -16,7 +16,7 @@ local KILL_RADIUS = 100
 
 -- Camera Shake Configuration
 local SHAKE_MAX_RADIUS = 200 
-local SHAKE_MAX_INTENSITY = 0.45 
+local SHAKE_MAX_INTENSITY = 10
 
 local SPAWN_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/X-60Spawn.mp3.mpeg"
 local JUMPSCARE_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/X-60_(IF)_Jumpscare.mp3.mpeg"
