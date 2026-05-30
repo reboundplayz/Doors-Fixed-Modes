@@ -1,0 +1,257 @@
+local function wh1t3spawn()
+    local _TweenService = game:GetService('TweenService')
+    local v2 = TweenInfo.new(2)
+    
+    -- 1. Create and configure the sound
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://131489490"
+    sound.Volume = 1
+    sound.Parent = game.Workspace
+    
+    -- SKIPS THE DELAY: Starts the audio 1 second into the file
+    sound.TimePosition = 0.67
+    sound:Play()
+
+    -- 2. Create the color correction effect
+    local _ColorCorrectionEffect = Instance.new('ColorCorrectionEffect')
+    _ColorCorrectionEffect.Parent = game.Lighting
+    _ColorCorrectionEffect.Brightness = 0.05
+    _ColorCorrectionEffect.Contrast = 0
+    _ColorCorrectionEffect.Name = 'Jen'
+    _ColorCorrectionEffect.Enabled = true
+    _ColorCorrectionEffect.TintColor = Color3.fromRGB(255, 255, 255)
+    _ColorCorrectionEffect.Saturation = 0
+
+    -- 3. First flash to red (Takes 2 seconds)
+    local tween1 = _TweenService:Create(_ColorCorrectionEffect, v2, {
+        Contrast = 1,
+        Saturation = 1,
+        TintColor = Color3.fromRGB(255, 0, 0),
+    })
+    tween1:Play()
+    tween1.Completed:Wait() 
+
+    -- 4. Fade back to normal (Takes 2 seconds)
+    local tween2 = _TweenService:Create(_ColorCorrectionEffect, v2, {
+        Contrast = 0,
+        Saturation = 0,
+        TintColor = Color3.fromRGB(255, 255, 255),
+        Brightness = 0,
+    })
+    tween2:Play()
+    tween2.Completed:Wait() 
+    
+    -- 5. Delete the color effect immediately because it's done
+    _ColorCorrectionEffect:Destroy()
+    
+    -- 6. Wait for the sound to finish its full length before destroying it
+    if sound.TimeLength > 0 then
+        sound.Ended:Wait()
+    else
+        task.wait(2)
+    end
+    
+    sound:Destroy()
+end
+
+-- Run the function
+wh1t3spawn()
+
+local Creator = loadstring(game:HttpGet("https://pastebin.com/raw/0fSnvfGt"))() 
+-- Create entity
+local entity = Creator.createEntity({
+    CustomName = "WH1T3", -- Custom name of your entity
+    Model = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/white_part1.rbxm", -- Can be GitHub file or rbxassetid
+    Speed = 350, -- Percentage, 100 = default Rush speed
+    DelayTime = 0, -- Time before starting cycles (seconds)
+    HeightOffset = 0,
+    CanKill = true,
+    KillRange = 74,
+    BreakLights = true,
+    BackwardsMovement = false,
+    FlickerLights = {
+        false, -- Enabled/Disabled
+        1, -- Time (seconds)
+    },
+    Cycles = {
+        Min = 2,
+        Max = 2,
+        WaitTime = 0,
+    },
+    CamShake = {
+        true, -- Enabled/Disabled
+        {10.5, 30, 1.1, 5}, -- Shake values (don't change if you don't know)
+        100, -- Shake start distance (from Entity to you)
+    },
+    Jumpscare = {
+        false, -- Enabled/Disabled
+        {
+            Image1 = "rbxassetid://10483855823", -- Image1 url
+            Image2 = "rbxassetid://10483999903", -- Image2 url
+            Shake = true,
+            Sound1 = {
+                10483790459, -- SoundId
+                { Volume = 0.5 }, -- Sound properties
+            },
+            Sound2 = {
+                10483837590, -- SoundId
+                { Volume = 0.5 }, -- Sound properties
+            },
+            Flashing = {
+                true, -- Enabled/Disabled
+                Color3.fromRGB(0, 0, 255), -- Color
+            },
+            Tease = {
+                true, -- Enabled/Disabled
+                Min = 4,
+                Max = 4,
+            },
+        },
+    },
+    CustomDialog = ("H0W"), -- Custom death message
+})
+
+-----[[ Advanced ]]-----
+entity.Debug.OnEntitySpawned = function(entityTable)
+    print("Entity has spawned:", entityTable.Model)
+end
+
+entity.Debug.OnEntityDespawned = function(entityTable)
+    print("Entity has despawned:", entityTable.Model)
+end
+
+entity.Debug.OnEntityStartMoving = function(entityTable)
+    print("Entity has started moving:", entityTable.Model)
+end
+
+entity.Debug.OnEntityFinishedRebound = function(entityTable)
+    print("Entity has finished rebound:", entityTable.Model)
+end
+
+entity.Debug.OnEntityEnteredRoom = function(entityTable, room)
+    print("Entity:", entityTable.Model, "has entered room:", room)
+end
+
+entity.Debug.OnLookAtEntity = function(entityTable)
+    print("Player has looked at entity:", entityTable.Model)
+end
+
+entity.Debug.OnDeath = function(entityTable)
+    warn("Player has died.")
+    
+    -- --- CONFIGURATION OPTIONS FROM ENTITYTABLE ---
+    local githubAudioUrl = entityTable.GithubAudioUrl or nil
+    local fileName = entityTable.AudioFileName or "WH1T3IMPjumpscare.mp3"
+    local rbxSoundId = entityTable.RbxSoundId or "rbxassetid://5263560896" 
+    local entityImage = entityTable.ImageId or "rbxassetid://11678966779"
+    -- ----------------------------------------------
+
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+
+    local player = Players.LocalPlayer
+    local playerGui = player:WaitForChild("PlayerGui")
+
+    -- GUI
+    local gui = Instance.new("ScreenGui")
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999999
+    gui.ResetOnSpawn = false
+    gui.Parent = playerGui
+
+    -- FLASH
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(1,0,1,0)
+    flash.BorderSizePixel = 0
+    flash.BackgroundColor3 = Color3.new(0,0,0)
+    flash.ZIndex = 10
+    flash.Parent = gui
+
+    -- IMAGE
+    local image = Instance.new("ImageLabel")
+    image.AnchorPoint = Vector2.new(0.5, 0.5)
+    image.Position = UDim2.new(0.5, 0, 0.5, 0)
+    image.Size = UDim2.new(0, 300, 0, 420)
+    image.BackgroundTransparency = 1
+    image.Image = entityImage
+    image.ZIndex = 11
+    image.Parent = gui
+
+    -- SOUND HANDLING
+    local sound = Instance.new("Sound")
+    sound.Volume = 10
+    sound.Parent = gui
+
+    local success = false
+    
+    -- Only try downloading if a valid GitHub URL is provided
+    if githubAudioUrl and githubAudioUrl ~= "nil" then
+        success, _ = pcall(function()
+            if not isfile(fileName) then
+                writefile(fileName, game:HttpGet(githubAudioUrl))
+            end
+            sound.SoundId = getcustomasset(fileName)
+        end)
+    end
+
+    -- Fallback handler
+    if not success or sound.SoundId == "" then
+        if rbxSoundId then
+            -- Clean check: If it already has "rbxassetid://", use it directly. Otherwise, add the prefix.
+            if string.match(tostring(rbxSoundId), "^rbxassetid://") then
+                sound.SoundId = tostring(rbxSoundId)
+            else
+                sound.SoundId = "rbxassetid://" .. tostring(rbxSoundId)
+            end
+        else
+            warn("Jumpscare audio failed setup.")
+        end
+    end
+
+    task.spawn(function()
+        if sound.SoundId ~= "" then
+            sound:Play()
+        end
+    end)
+
+    -- ZOOM
+    TweenService:Create(
+        image,
+        TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        {Size = UDim2.new(0, 3500, 0, 3500)}
+    ):Play()
+
+    -- LOOP (mobile stable)
+    task.spawn(function()
+        local duration = 1.2
+        local start = os.clock()
+
+        while true do
+            local t = os.clock() - start
+            if t >= duration then break end
+
+            -- FLASH
+            if math.random(1,2) == 1 then
+                flash.BackgroundColor3 = Color3.fromRGB(0,0,255)
+            else
+                flash.BackgroundColor3 = Color3.fromRGB(0,0,0)
+            end
+
+            -- SHAKE
+            image.Rotation = math.random(-5,5)
+
+            local offsetX = math.random(-25,25)
+            local offsetY = math.random(-25,25)
+
+            image.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
+
+            task.wait(0.01)
+        end
+
+        gui:Destroy()
+    end)
+end
+------------------------
+
+-- Run the created entity
+Creator.runEntity(entity)
