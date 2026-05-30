@@ -1,0 +1,155 @@
+--// Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+--// Load Asset (Using your requested asset ID)
+local customModel = ({
+    Functions = loadstring(game:HttpGet('https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Functions.lua'))(),
+}).Functions.LoadCustomInstance('rbxassetid://121835538093724')
+
+if not customModel or typeof(customModel) ~= 'Instance' then
+    warn("Silence asset failed to load")
+    return
+end
+
+customModel.Parent = workspace
+customModel.Name = "Silence"
+
+local silence = workspace:WaitForChild("Silence")
+
+-- --- 1. SHATTER LIGHTS SEQUENCE ---
+local function shatterRoomLights(room)
+    pcall(function()
+        -- Overlay effect: Spawn multiple instances of the sound with slight variations
+        local soundCount = 3
+        
+        for i = 1, soundCount do
+            task.spawn(function()
+                -- Stagger the start times slightly for a realistic multi-shatter overlay
+                if i > 1 then
+                    task.wait(math.random(2, 8) / 100) 
+                end
+                
+                local breakSound = Instance.new("Sound")
+                breakSound.SoundId = "rbxassetid://8828938165"
+                breakSound.Volume = 0.5
+                -- Slightly randomize pitch so the overlay sounds rich, not metallic
+                breakSound.Pitch = math.random(90, 110) / 100 
+                breakSound.Parent = workspace
+                breakSound:Play()
+                
+                -- Track and cut off this specific layer after exactly 2 seconds
+                task.delay(2, function()
+                    if breakSound then
+                        breakSound:Stop()
+                        breakSound:Destroy()
+                    end
+                end)
+            end)
+        end
+
+        -- Traditional game event trigger
+        local useEvent = game.ReplicatedStorage:FindFirstChild("EntityInfo") 
+            and game.ReplicatedStorage.EntityInfo:FindFirstChild("UseEventModule")
+        if useEvent and firesignal then
+            firesignal(useEvent.OnClientEvent, 'shatter', room)
+        end
+
+        -- Manual sweep fallback to darken room textures
+        for _, v in ipairs(room:GetDescendants()) do
+            if v:IsA("Light") then
+                v.Enabled = false
+            end
+            if v.Name == "Glow" or v.Name == "Neon" or v.Name == "LightFixture" then
+                v.Material = Enum.Material.Glass
+                v.Color = Color3.fromRGB(50, 50, 50)
+            end
+        end
+    end)
+end
+
+--// Find a valid part inside the model to shift CFrame on
+local part
+for _, v in ipairs(silence:GetDescendants()) do
+    if v:IsA("BasePart") then
+        part = v
+        break
+    end
+end
+
+if not part then
+    warn("Silence has no BasePart")
+    return
+end
+
+--// Position in room safely using your precise Greed index logic
+task.wait(0.5)
+
+local rooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
+local lastRoom = rooms[#rooms - 1] -- Targets your exact room block
+
+if lastRoom then
+    -- Run the light shattering pass on this targeted room space
+    shatterRoomLights(lastRoom)
+
+    -- Teleportation alignment logic: Center CFrame + Ceiling Elevation (13.5 studs up)
+    if lastRoom:FindFirstChild("Parts") and lastRoom.Parts:FindFirstChild("Floor") then
+        part.CFrame = lastRoom.Parts.Floor.CFrame + Vector3.new(0, 13.5, 0)
+    else
+        -- Bounding box layout fallback if Parts.Floor misses
+        local roomCFrame, roomSize = lastRoom:GetBoundingBox()
+        part.CFrame = CFrame.new(roomCFrame.X, roomCFrame.Y + (roomSize.Y / 2) - 1.5, roomCFrame.Z)
+    end
+end
+
+-- Ensure all elements inside the model remain anchored up high
+for _, bp in ipairs(silence:GetDescendants()) do
+    if bp:IsA("BasePart") then
+        bp.Anchored = true
+    end
+end
+
+-- Set required target configurations
+silence:SetAttribute('IsCustomEntity', true)
+silence:SetAttribute('NoAI', false)
+
+--// Main Mechanic Running Logic Loop
+local SilenceActive = true
+local character = player.Character or player.CharacterAdded:Wait()
+local _Humanoid = character:WaitForChild('Humanoid')
+
+local function isNotCrouching()
+    return _Humanoid.WalkSpeed == 15
+end
+
+task.spawn(function()
+    while SilenceActive do
+        task.wait(1)
+
+        local targetSilence = workspace:FindFirstChild("Silence")
+        if targetSilence then
+            if isNotCrouching() then
+                pcall(function()
+                    require(player.PlayerGui.MainUI.Initiator.Main_Game).caption('I must crouch.', true)
+                end)
+                if player.Character and player.Character:FindFirstChild("Humanoid") then
+                    player.Character.Humanoid.Health = player.Character.Humanoid.Health - 10
+                end
+            end
+        else
+            break
+        end
+    end
+end)
+
+--// Cleanup tracking whenever a brand new room is opened up
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    SilenceActive = false
+
+    local g = workspace:FindFirstChild("Silence")
+    if g then
+        g:Destroy()
+    end
+end)
