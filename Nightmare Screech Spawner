@@ -1,256 +1,200 @@
---// Nightmare Screech Entity
-
-local Players = game:GetService("Players")
+local player = game.Players.LocalPlayer
+local mainGame = require(player.PlayerGui.MainUI.Initiator.Main_Game)
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local root = character:WaitForChild("HumanoidRootPart")
-local head = character:WaitForChild("Head")
+-- This replaces the original screechModule function completely
+local customScreech = function(p1, p2, p3)
+	-- BYPASS INSERT_SERVICE RESTRICTIONS USING GETOBJECTS
+	local success, objects = pcall(function()
+		return game:GetObjects("rbxassetid://12803018561")
+	end)
+	
+	local v12
+	if success and objects and objects[1] then
+		v12 = objects[1]
+		v12.Parent = workspace -- Temporarily parent it to wake up physics/rendering
+	else
+		warn("Failed to load Nightmare Screech via GetObjects! Falling back.")
+		v12 = game.ReplicatedStorage.Entities.Screech:Clone()
+	end
 
---// SETTINGS
-local MODEL_ID = "rbxassetid://12803018561"
-local ATTACK_SOUND_ID = "rbxassetid://135968179377207"
-local LOOK_TIME = 4
-local DAMAGE = 35
-local FOLLOW_DISTANCE = 2.5
+	-- Dynamically secure the PointLight setup
+	local PointLight = v12:FindFirstChild("Base") and v12.Base:FindFirstChild("Attachment") and v12.Base.Attachment:FindFirstChild("PointLight")
+	if not PointLight then
+		local attach = v12:FindFirstChild("Base") and v12.Base:FindFirstChild("Attachment") or Instance.new("Attachment", v12.PrimaryPart or v12:FindFirstChildWhichIsA("BasePart"))
+		PointLight = Instance.new("PointLight", attach)
+		PointLight.Brightness = 1
+	end
 
---// Load model
-local model = game:GetObjects(MODEL_ID)[1]
-model.Parent = workspace
+	local v2 = math.random(-1, 1) * 2
+	if v2 < 0 then
+		v2 = -1.1
+	end
+	
+	local unit = (p1.finalCamCFrame.LookVector * Vector3.new(-1, 0, -1) + Vector3.new(0, v2, 0)).unit
+	local p = p1.finalCamCFrame.p
+	v12:SetPrimaryPartCFrame(CFrame.new(p + unit * 4, p) * CFrame.new(0, 0.5, 0))
+	v12.Parent = p1.cam
+	
+	local t = {}
+	local animController = v12:FindFirstChildOfClass("AnimationController") or Instance.new("AnimationController", v12)
+	local animFolder = v12:FindFirstChild("Animations")
+	
+	if animFolder then
+		for k, v in pairs(animFolder:GetChildren()) do
+			if v:IsA("Animation") then
+				t[v.Name] = animController:LoadAnimation(v)
+			end
+		end
+	end
+	
+	-- Fail-safes so the engine doesn't break if animations are named differently
+	if not t.Idle then t.Idle = {Play = function() end} end
+	if not t.Caught then t.Caught = {Play = function() end} end
+	if not t.Attack then t.Attack = {Play = function() end} end
 
---// Spawn close
-local randomDir = Vector3.new(
-	math.random(-100,100),
-	math.random(-40,40),
-	math.random(-100,100)
-).Unit
-
-local spawnPos = root.Position + (randomDir * FOLLOW_DISTANCE)
-
-local spawnCF = CFrame.lookAt(spawnPos, root.Position)
-
-if model.PrimaryPart then
-	model:SetPrimaryPartCFrame(spawnCF)
-else
-	model:PivotTo(spawnCF)
-end
-
---// References
-local animFolder = model:WaitForChild("Animations")
-
-local idleAnim = animFolder:WaitForChild("Idle")
-local attackAnim = animFolder:WaitForChild("Attack")
-local caughtAnim = animFolder:WaitForChild("Caught")
-
-local animController = model:FindFirstChildOfClass("AnimationController")
-
-if not animController then
-	error("AnimationController missing!")
-end
-
-local animator = animController:FindFirstChildOfClass("Animator")
-
-if not animator then
-	animator = Instance.new("Animator")
-	animator.Parent = animController
-end
-
---// Smooth follow
-local following = true
-
-task.spawn(function()
-	while model.Parent and following do
-		local currentCF
-
-		if model.PrimaryPart then
-			currentCF = model.PrimaryPart.CFrame
+	t.Idle:Play()
+	
+	-- PLAY THE MODEL'S INTERNAL "PSST" SOUND FROM THE ROOT PART
+	delay(math.random(1, 10) / 5, function()
+		local modelSound = v12:FindFirstChild("Root") and v12.Root:FindFirstChild("Sound")
+		if modelSound and modelSound:IsA("Sound") then
+			modelSound:Play()
 		else
-			currentCF = model:GetPivot()
+			-- Secondary check just in case it's in the Base part instead
+			local backupSound = v12:FindFirstChild("Base") and v12.Base:FindFirstChild("Sound")
+			if backupSound and backupSound:IsA("Sound") then
+				backupSound:Play()
+			end
 		end
-
-		local currentPos = currentCF.Position
-
-		local offsetDir = (currentPos - root.Position).Unit
-		local targetPos = root.Position + (offsetDir * FOLLOW_DISTANCE)
-
-		local newPos = currentPos:Lerp(targetPos, 0.25)
-
-		local lookCF = CFrame.lookAt(newPos, root.Position)
-
-		if model.PrimaryPart then
-			model:SetPrimaryPartCFrame(lookCF)
+	end)
+	
+	local v4 = tick()
+	local v5 = 5 + math.random(1, 10) / 5
+	local v6 = v12.PrimaryPart.CFrame
+	local v7 = true
+	local v8 = false 
+	local v9 = false
+	local v10 = 0
+    
+	local uniqueId = math.random(1, 100000)
+	game:GetService("RunService"):BindToRenderStep("screechStuff" .. uniqueId, 100, function(p12)
+		if v9 then
+			game:GetService("RunService"):UnbindFromRenderStep("screechStuff" .. uniqueId)
 		else
-			model:PivotTo(lookCF)
+			v12.PrimaryPart.CFrame = v6
 		end
-
-		RunService.RenderStepped:Wait()
-	end
-end)
-
---// Animation helper
-local function playAnim(anim)
-	local track = animator:LoadAnimation(anim)
-	track:Play()
-	return track
-end
-
---// Built-in sound
-local builtInSound = model:FindFirstChild("Sound", true)
-
-if builtInSound and builtInSound:IsA("Sound") then
-	builtInSound:Play()
-end
-
---// Idle
-local idleTrack = playAnim(idleAnim)
-
---// Look detection
-local lookedAt = false
-local startTime = tick()
-
-local function isLookingAtModel()
-	local camera = workspace.CurrentCamera
-	local camPos = camera.CFrame.Position
-
-	local targetPart =
-		model:FindFirstChild("Root")
-		or model.PrimaryPart
-		or model:FindFirstChildWhichIsA("BasePart")
-
-	if not targetPart then
-		return false
-	end
-
-	local direction = (targetPart.Position - camPos).Unit
-	local dot = camera.CFrame.LookVector:Dot(direction)
-
-	return dot > 0.75
-end
-
-while tick() - startTime < LOOK_TIME do
-	if isLookingAtModel() then
-		lookedAt = true
-		break
-	end
-
-	RunService.RenderStepped:Wait()
-end
-
-idleTrack:Stop()
-following = false
-
-if lookedAt then
-	--// CAUGHT
-	playAnim(caughtAnim)
-
-	if not isfile("ScreechKill.mp3") then
-		writefile(
-			"ScreechKill.mp3",
-			game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/ScreechKill.mp3")
-		)
-	end
-
-	local caughtSound = Instance.new("Sound")
-	caughtSound.SoundId = getcustomasset("ScreechKill.mp3")
-	caughtSound.Volume = 1
-	caughtSound.Parent = workspace
-	caughtSound:Play()
-
-	task.wait(2.5)
-
-	--// Fade out
-	for _, v in pairs(model:GetDescendants()) do
-		if v:IsA("BasePart") then
-			TweenService:Create(
-				v,
-				TweenInfo.new(1),
-				{Transparency = 1}
-			):Play()
-		elseif v:IsA("Decal") then
-			TweenService:Create(
-				v,
-				TweenInfo.new(1),
-				{Transparency = 1}
-			):Play()
+		if not v7 then
+			return
+		end
+		local v1 = (p1.finalCamCFrame.LookVector.unit - unit).Magnitude * 100
+		PointLight.Brightness = math.clamp(50 - v1, 0, 50) / 50
+		if v1 < 35 then
+			v10 = v10 + p12
+		end
+		if not (v10 >= 0.1) then
+			return
+		end
+		v8 = true 
+	end)
+    
+	p1.camShaker:ShakeOnce(0.5, 12, 3, 1)
+	for i = 1, 1000000 do
+		task.wait()
+		local p_2 = p1.finalCamCFrame.p
+		v6 = CFrame.new(p_2 + unit * 3.5, p_2) * CFrame.new(0, 0.5, 0)
+		if v4 + v5 < tick() or v8 then
+			break
 		end
 	end
-
-	task.wait(1.2)
-	model:Destroy()
-
-else
-	--// ATTACK
-	playAnim(attackAnim)
-
-	--// Move to front of player's face like biting
-	local bitePos =
-		head.Position
-		+ (workspace.CurrentCamera.CFrame.LookVector * 1.2)
-
-	local biteCF = CFrame.lookAt(
-		bitePos,
-		head.Position
-	)
-
-	if model.PrimaryPart then
-		local tween = TweenService:Create(
-			model.PrimaryPart,
-			TweenInfo.new(0.18, Enum.EasingStyle.Quad),
-			{CFrame = biteCF}
-		)
-
-		tween:Play()
-	end
-
-	local attackSound = Instance.new("Sound")
-	attackSound.SoundId = ATTACK_SOUND_ID
-	attackSound.PlaybackSpeed = 0.75
-	attackSound.Volume = 1
-	attackSound.Parent = workspace
-	attackSound:Play()
-
-	humanoid:TakeDamage(DAMAGE)
-
-	--// Camera shake
-	local camera = workspace.CurrentCamera
-	local original = camera.CFrame
-
-	for i = 1,12 do
-		camera.CFrame =
-			original *
-			CFrame.new(
-				math.random(-10,10)/120,
-				math.random(-10,10)/120,
-				0
-			)
-
-		task.wait(0.03)
-	end
-
-	camera.CFrame = original
-
-	task.wait(2)
-
-	--// Fade out
-	for _, v in pairs(model:GetDescendants()) do
-		if v:IsA("BasePart") then
-			TweenService:Create(
-				v,
-				TweenInfo.new(1),
-				{Transparency = 1}
-			):Play()
-		elseif v:IsA("Decal") then
-			TweenService:Create(
-				v,
-				TweenInfo.new(1),
-				{Transparency = 1}
-			):Play()
+	local v11 = tick()
+	local v122 = v12.PrimaryPart.CFrame
+    
+	if v8 then
+		-- ==========================================
+		-- CAUGHT (PLAY SLOWED SOUND @ 0.7 SPEED)
+		-- ==========================================
+		t.Caught:Play()
+		p1.camShaker:ShakeOnce(6, 42, 0, 1)
+		
+		local caughtSound = Instance.new("Sound")
+		caughtSound.SoundId = "rbxassetid://10494286066"
+		caughtSound.Volume = 1
+		caughtSound.Parent = game:GetService("SoundService")
+		
+		local pitchShift = Instance.new("PitchShiftSoundEffect")
+		pitchShift.Octave = 0.7
+		pitchShift.Parent = caughtSound
+		
+		caughtSound:Play()
+		game:GetService("Debris"):AddItem(caughtSound, 4) 
+	else
+		-- ==========================================
+		-- ATTACK (PLAY SLOWED SOUND @ 0.7 SPEED + DAMAGE)
+		-- ==========================================
+		t.Attack:Play()
+		p1.camShaker:ShakeOnce(8, 42, 0, 1)
+		
+		local attackSound = Instance.new("Sound")
+		attackSound.SoundId = "rbxassetid://10494285863"
+		attackSound.Volume = 1
+		attackSound.Parent = game:GetService("SoundService")
+		
+		local pitchShift = Instance.new("PitchShiftSoundEffect")
+		pitchShift.Octave = 0.7
+		pitchShift.Parent = attackSound
+		
+		attackSound:Play()
+		game:GetService("Debris"):AddItem(attackSound, 4) 
+		
+		-- Take 40 damage
+		if player.Character then
+			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid:TakeDamage(40)
+			end
 		end
 	end
+    
+	-- Stop the background whisper sound cleanly
+	pcall(function()
+		if v12.Root.Sound then v12.Root.Sound:Stop() end
+		if v12.Base.Sound then v12.Base.Sound:Stop() end
+	end)
 
-	task.wait(1.2)
-	model:Destroy()
+	PointLight.Brightness = 1
+	local v13, v14, _ = CFrame.new(Vector3.new(0, 0, 0), unit):ToOrientation()
+	if math.abs(p1.ax - math.deg(v14)) > 180 then
+		p1.ax_t = p1.ax_t - 360
+	end
+	p1.ax_t = math.deg(v14)
+	p1.ay_t = math.deg(v13)
+	
+	pcall(function()
+		game.ReplicatedStorage.Bricks.Screech:FireServer(v8)
+	end)
+	
+	v7 = false
+	for j = 1, 1000000 do
+		task.wait()
+		local p_2 = p1.finalCamCFrame.p
+		v6 = v122:Lerp(CFrame.new(p_2 + unit * 3.5, p_2) * CFrame.new(0, 0.5, 0), (TweenService:GetValue((tick() - v11) / 0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In)))
+		if v11 + 0.1 < tick() then
+			break
+		end
+	end
+	local v16 = tick()
+	for k = 1, 1000000 do
+		task.wait()
+		v6 = CFrame.new(p1.finalCamCFrame.Position + p1.finalCamCFrame.LookVector * 3, p1.finalCamCFrame.Position) * CFrame.new(0, 0.5, 0)
+		if v16 + 2 < tick() then
+			break
+		end
+	end
+	v9 = true
+	v12:Destroy()
+	game:GetService("RunService"):UnbindFromRenderStep("screechStuff" .. uniqueId)
 end
+
+-- Run it
+customScreech(mainGame)
