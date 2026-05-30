@@ -1,6 +1,7 @@
 --[[ 
-    MANUAL PIVOT ENTITY: OVERKILL (DEEP LIGHT SHATTER EDITION)
-    Targeting specific hierarchy paths inside Model "50" with complete attachment lighting removal.
+    MANUAL PIVOT ENTITY: OVERKILL (CRUCIFIX ANIMATION FIXED)
+    Targeting specific hierarchy paths inside Model "50" with complete deep lighting removal,
+    automatic local-character framework protection, and strict PrimaryPart assignment.
 ]]--
 
 local RunService = game:GetService("RunService")
@@ -34,12 +35,18 @@ local function LoadEntity()
         part.Color = Color3.fromRGB(255, 0, 0)
         part.Material = Enum.Material.Neon
         part.Parent = model
-        model.PrimaryPart = part
     end
     
-    -- Configure properties and attributes
+    -- FIX: Manually locate and assign PrimaryPart so the Crucifix Distance Engine doesn't break!
+    local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+    if hrp then
+        model.PrimaryPart = hrp
+        print("[Overkill] Successfully bound PrimaryPart to: " .. hrp.Name)
+    else
+        warn("[Overkill] Warning: No valid RootPart found to map as PrimaryPart!")
+    end
+    
     model.Name = entityName
-    model:SetAttribute("IsCustomEntity", true)
     model.Parent = workspace
     return model
 end
@@ -47,9 +54,12 @@ end
 local entity = LoadEntity()
 if not entity then return end
 
+-- ====== Exact Attribute Formatting ======
+entity:SetAttribute('IsCustomEntity', true)
+entity:SetAttribute('NoAI', false)
+
 for _, v in ipairs(entity:GetDescendants()) do
     if v:IsA("BasePart") then
-        v.Transparency = 0
         v.Anchored = true
         v.CanCollide = false
     end
@@ -62,7 +72,7 @@ function EntityMoveTo(targetCFrame)
     local connection
     
     connection = RunService.Stepped:Connect(function(_, step)
-        if not entity or not entity.Parent then 
+        if not entity or not entity.Parent or entity:GetAttribute("NoAI") == true then 
             if connection then connection:Disconnect() end
             reached = true 
             return 
@@ -84,7 +94,7 @@ function EntityMoveTo(targetCFrame)
     end)
     
     local start = tick()
-    repeat RunService.Stepped:Wait() until reached or (tick() - start > 15)
+    repeat RunService.Stepped:Wait() until reached or (tick() - start > 15) or (entity and entity:GetAttribute("NoAI") == true)
     if connection then connection:Disconnect() end
 end
 
@@ -99,20 +109,16 @@ local function getRoom50()
     return nil
 end
 
--- ====== Enhanced Deep Light Shatter Logic ======
+-- ====== Deep Light Shatter Logic ======
 local function shatterRoomLights(room)
     if not room then return end
     print("[Overkill] Deep shattering room lights for: " .. room.Name)
     
     pcall(function()
-        -- Overlay effect: Spawn multiple instances of the sound with slight variations
         local soundCount = 3
-        
         for i = 1, soundCount do
             task.spawn(function()
-                if i > 1 then
-                    task.wait(math.random(2, 8) / 100) 
-                end
+                if i > 1 then task.wait(math.random(2, 8) / 100) end
                 
                 local breakSound = Instance.new("Sound")
                 breakSound.SoundId = "rbxassetid://8828938165"
@@ -130,25 +136,20 @@ local function shatterRoomLights(room)
             end)
         end
 
-        -- Traditional game event trigger
         local useEvent = game.ReplicatedStorage:FindFirstChild("EntityInfo") 
             and game.ReplicatedStorage.EntityInfo:FindFirstChild("UseEventModule")
         if useEvent and firesignal then
             firesignal(useEvent.OnClientEvent, 'shatter', room)
         end
 
-        -- Deep hierarchy loop to catch nested lights and disable neon glows
         for _, v in ipairs(room:GetDescendants()) do
-            -- Disable any type of Light object anywhere (attached to parts or inside Attachments)
             if v:IsA("Light") or v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
                 v.Enabled = false
             end
-            
-            -- Turn off material glow for relevant parts
             if v:IsA("BasePart") then
                 if v.Name == "Glow" or v.Name == "Neon" or v.Name == "LightFixture" or v.Material == Enum.Material.Neon then
                     v.Material = Enum.Material.Glass
-                    v.Color = Color3.fromRGB(40, 40, 40) -- Dark, broken look
+                    v.Color = Color3.fromRGB(40, 40, 40)
                 end
             end
         end
@@ -158,14 +159,10 @@ end
 -- ====== Spawn Logic ======
 local function spawnAtExit()
     local room50 = getRoom50()
-    
     if room50 then
         local spawnTarget = room50:FindFirstChild("Door") or room50:FindFirstChild("RoomStart") or room50:FindFirstChild("RoomEnd")
-        
         if spawnTarget then
             print("[Overkill] Room 50 structure located. Spawning at: " .. spawnTarget.Name)
-            
-            -- Trigger the updated deep light shatter logic
             shatterRoomLights(room50)
             
             if spawnTarget:IsA("Model") then
@@ -188,8 +185,20 @@ local isDead = false
 task.spawn(function()
     while entity and entity.Parent do
         RunService.Heartbeat:Wait()
+        
+        if entity:GetAttribute("NoAI") == true or entity:GetAttribute("GoingToHell") == true then
+            continue
+        end
+        
         local character = LocalPlayer.Character
         if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid") and not isDead then
+            
+            -- Tool check safety
+            local activeTool = character:FindFirstChildOfClass("Tool")
+            if activeTool and string.find(string.lower(activeTool.Name), "crucifix") then
+                continue
+            end
+            
             local root = character.HumanoidRootPart
             local distance = (entity:GetPivot().Position - root.Position).Magnitude
             
@@ -258,8 +267,30 @@ end
 task.spawn(function()
     print("[Overkill] Starting proximity patrol loop.")
     while entity and entity.Parent do
+        if entity:GetAttribute("NoAI") == true then 
+            task.wait(0.5)
+            continue 
+        end
         patrol()
         task.wait(0.1)
+    end
+end)
+
+-- ====== Hand-off to Crucifix Clone Engine ======
+script.Parent = entity
+
+entity.AncestryChanged:Connect(function(_, parent)
+    if parent == nil then
+        task.delay(0.02, function()
+            local fakeEntity = workspace:FindFirstChild("Fake" .. entityName)
+            if fakeEntity and not fakeEntity:FindFirstChild(script.Name) then
+                print("[Overkill] Handing script brains over to the Crucifix Fake clone...")
+                local scriptClone = script:Clone()
+                scriptClone.Parent = fakeEntity
+                fakeEntity:SetAttribute("NoAI", true) 
+                scriptClone.Disabled = false
+            end
+        end)
     end
 end)
 
@@ -271,9 +302,7 @@ task.spawn(function()
         local latestRoom = gameData:WaitForChild("LatestRoom", 5)
         if latestRoom then
             latestRoom.Changed:Connect(function()
-                if entity then 
-                    entity:Destroy() 
-                end
+                if entity then entity:Destroy() end
             end)
         end
     end
