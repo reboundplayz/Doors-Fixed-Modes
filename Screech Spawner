@@ -1,0 +1,144 @@
+local player = game.Players.LocalPlayer
+local mainGame = require(player.PlayerGui.MainUI.Initiator.Main_Game)
+local TweenService = game:GetService("TweenService")
+
+-- This replaces the original screechModule function completely
+local customScreech = function(p1, p2, p3)
+	local v12 = game.ReplicatedStorage.Entities.Screech:Clone()
+	local PointLight = v12.Base.Attachment.PointLight
+	local v2 = math.random(-1, 1) * 2
+	if v2 < 0 then
+		v2 = -1.1
+	end
+	
+	local unit = (p1.finalCamCFrame.LookVector * Vector3.new(-1, 0, -1) + Vector3.new(0, v2, 0)).unit
+	local p = p1.finalCamCFrame.p
+	v12:SetPrimaryPartCFrame(CFrame.new(p + unit * 4, p) * CFrame.new(0, 0.5, 0))
+	v12.Parent = p1.cam
+	local t = {}
+	for k, v in pairs(v12.Animations:GetChildren()) do
+		if v:IsA("Animation") then
+			t[v.Name] = v12.AnimationController:LoadAnimation(v)
+		end
+	end
+	tick()
+	t.Idle:Play()
+	delay(math.random(1, 10) / 5, function()
+		v12.Root.Sound:Play()
+	end)
+	local v4 = tick()
+	local v5 = 5 + math.random(1, 10) / 5
+	local v6 = v12.PrimaryPart.CFrame
+	local v7 = true
+	local v8 = false -- This tracks if Screech was "Caught" by your camera
+	local v9 = false
+	local v10 = 0
+    
+	local uniqueId = math.random(1, 100000)
+	game:GetService("RunService"):BindToRenderStep("screechStuff" .. uniqueId, 100, function(p12)
+		if v9 then
+			game:GetService("RunService"):UnbindFromRenderStep("screechStuff" .. uniqueId)
+		else
+			v12.PrimaryPart.CFrame = v6
+		end
+		if not v7 then
+			return
+		end
+		local v1 = (p1.finalCamCFrame.LookVector.unit - unit).Magnitude * 100
+		PointLight.Brightness = math.clamp(50 - v1, 0, 50) / 50
+		if v1 < 35 then
+			v10 = v10 + p12
+		end
+		if not (v10 >= 0.1) then
+			return
+		end
+		v8 = true -- You looked at him!
+	end)
+    
+	p1.camShaker:ShakeOnce(0.5, 12, 3, 1)
+	for i = 1, 1000000 do
+		task.wait()
+		local p_2 = p1.finalCamCFrame.p
+		v6 = CFrame.new(p_2 + unit * 3.5, p_2) * CFrame.new(0, 0.5, 0)
+		if v4 + v5 < tick() or v8 then
+			break
+		end
+	end
+	local v11 = tick()
+	local v122 = v12.PrimaryPart.CFrame
+    
+	if v8 then
+		-- ==========================================
+		-- YOU CAUGHT SCREECH (SAFE)
+		-- ==========================================
+		t.Caught:Play()
+		p1.camShaker:ShakeOnce(6, 42, 0, 1)
+		
+		-- Play the custom caught sound
+		local caughtSound = Instance.new("Sound")
+		caughtSound.SoundId = "rbxassetid://10494286066"
+		caughtSound.Volume = 1
+		caughtSound.Parent = game:GetService("SoundService")
+		caughtSound:Play()
+		game:GetService("Debris"):AddItem(caughtSound, 3) -- Cleans up sound after it plays
+	else
+		-- ==========================================
+		-- SCREECH ATTACKS YOU (TAKE DAMAGE)
+		-- ==========================================
+		t.Attack:Play()
+		p1.camShaker:ShakeOnce(8, 42, 0, 1)
+		
+		-- Play the custom attack sound
+		local attackSound = Instance.new("Sound")
+		attackSound.SoundId = "rbxassetid://10494285863"
+		attackSound.Volume = 1
+		attackSound.Parent = game:GetService("SoundService")
+		attackSound:Play()
+		game:GetService("Debris"):AddItem(attackSound, 3) -- Cleans up sound after it plays
+		
+		-- Forced 40 damage
+		if player.Character then
+			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid:TakeDamage(40)
+			end
+		end
+	end
+    
+	v12.Root.Sound:Stop()
+	PointLight.Brightness = 1
+	local v13, v14, _ = CFrame.new(Vector3.new(0, 0, 0), unit):ToOrientation()
+	if math.abs(p1.ax - math.deg(v14)) > 180 then
+		p1.ax_t = p1.ax_t - 360
+	end
+	p1.ax_t = math.deg(v14)
+	p1.ay_t = math.deg(v13)
+	
+	pcall(function()
+		game.ReplicatedStorage.Bricks.Screech:FireServer(v8)
+	end)
+	
+	v7 = false
+	for j = 1, 1000000 do
+		task.wait()
+		local p_2 = p1.finalCamCFrame.p
+		v6 = v122:Lerp(CFrame.new(p_2 + unit * 3.5, p_2) * CFrame.new(0, 0.5, 0), (TweenService:GetValue((tick() - v11) / 0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In)))
+		if v11 + 0.1 < tick() then
+			break
+		end
+	end
+	local v16 = tick()
+	for k = 1, 1000000 do
+		task.wait()
+		v6 = CFrame.new(p1.finalCamCFrame.Position + p1.finalCamCFrame.LookVector * 3, p1.finalCamCFrame.Position) * CFrame.new(0, 0.5, 0)
+		if v16 + 2 < tick() then
+			break
+		end
+	end
+	v9 = true
+	v12:Destroy()
+	game:GetService("RunService"):UnbindFromRenderStep("screechStuff" .. uniqueId)
+end
+
+-- Run it
+customScreech(mainGame)
