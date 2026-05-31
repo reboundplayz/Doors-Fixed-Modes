@@ -1,0 +1,150 @@
+local hunger = game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    game.Players.LocalPlayer.Character.Humanoid:TakeDamage(1000)
+    game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Hunger [Opened Door]"
+end)
+
+local cue = Instance.new("Sound")
+cue.Parent = game.Workspace 
+cue.Name = "HungerScream"
+cue.SoundId = "rbxassetid://933230732"
+cue.Volume = 10
+cue.PlaybackSpeed = 1
+cue:Play()
+
+wait(17)
+hunger:Disconnect()
+
+-- Check current room
+local entityModel = true
+local latestRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+
+-- If in Seek, Figure, or Room 90+
+if game.Workspace:FindFirstChild("SeekMovingNewClone") or 
+   latestRoom == 50 or latestRoom == 100 or  
+   (latestRoom >= 90 and latestRoom <= 100) then
+    entityModel = false
+end
+
+local Kill = true
+local depthsTer = game:GetObjects("rbxassetid://131209583147049")[1] -- Load DepthsTer from the ID
+
+-- Match name layout expected by Crucifix Color config
+depthsTer.Name = "HungerMoving" 
+depthsTer.Parent = game.Workspace
+
+--// Find a valid base part inside the model to shift CFrame on (Silence script logic)
+local part
+for _, v in ipairs(depthsTer:GetDescendants()) do
+    if v:IsA("BasePart") then
+        part = v
+        break
+    end
+end
+
+if not part then
+    warn("HungerMoving has no BasePart")
+    return
+end
+
+-- CRITICAL CRUCIFIX STRUCTURAL FIX: Setup tracking points
+part.Name = "Entity"
+depthsTer.PrimaryPart = part 
+
+-- Set required target configurations
+depthsTer:SetAttribute('IsCustomEntity', true)
+depthsTer:SetAttribute('NoAI', false)
+
+-- Position in room safely using your precise Silence script alignment pass
+local rooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
+local lastRoom = rooms[#rooms - 1]
+
+if lastRoom then
+    if lastRoom:FindFirstChild("Parts") and lastRoom.Parts:FindFirstChild("Floor") then
+        -- Direct CFrame transformation on the visual basepart instead of model pivot
+        part.CFrame = lastRoom.Parts.Floor.CFrame + Vector3.new(0, 6, 0)
+    else
+        local roomCFrame, roomSize = lastRoom:GetBoundingBox()
+        part.CFrame = CFrame.new(roomCFrame.X, roomCFrame.Y + 6, roomCFrame.Z)
+    end
+end
+
+-- Ensure ALL elements inside the model remain anchored up high (Silence script physics fix)
+for _, bp in ipairs(depthsTer:GetDescendants()) do
+    if bp:IsA("BasePart") then
+        bp.Anchored = true
+    end
+end
+
+-- Create the attacking hunger sound ahead of time
+local attackingSound = Instance.new("Sound")
+attackingSound.SoundId = "rbxassetid://6664373487"
+attackingSound.Name = "hungerattacking"
+attackingSound.Volume = 3
+attackingSound.Looped = false 
+attackingSound.Parent = workspace
+
+wait(3)
+
+task.spawn(function()
+    while Kill == true do
+        task.wait(0) 
+        
+        -- Break loop cleanly if entity has been targeted by the Crucifix
+        local targetHunger = workspace:FindFirstChild("HungerMoving")
+        if not targetHunger or targetHunger:GetAttribute("GoingToHell") == true then
+            attackingSound:Stop()
+            Kill = false
+            break
+        end
+
+        local _, camera = game.Workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+        
+        -- If the player is NOT looking at HungerMoving, they take damage and sound stutters
+        if not camera then
+            -- Force reset the audio to the beginning and play the burst
+            attackingSound.TimePosition = 0
+            attackingSound:Play()
+            
+            -- Let it play for exactly 0.2 seconds
+            task.wait(0.2)
+            attackingSound:Stop()
+
+            -- Lag/tick calculation from your original script
+            local FPS = 5
+            local clock = tick()
+            while clock + 1.6 / FPS > tick() do end
+            task.wait()
+            clock = tick()
+
+            -- Deal damage if loop wasn't interrupted mid-wait by a crucifix snap
+            if Kill and targetHunger:GetAttribute("GoingToHell") ~= true then
+                game.Players.LocalPlayer.Character.Humanoid:TakeDamage(10)
+            end
+        else
+            -- Ensure the sound is absolutely stopped if they look back instantly
+            if attackingSound.IsPlaying then
+                attackingSound:Stop()
+            end
+        end
+        
+        -- If the player dies, update the death cause and show the death hint
+        if game.Players.LocalPlayer.Character.Humanoid.Health <= 0 then
+            attackingSound:Stop()
+            firesignal(game.ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {"You died to who you call Hunger...","He spawns in center of room and he will damage you if you dont look at him","He doesnt like to be ignored"},"Blue")
+            task.wait(0.01)
+            game:GetService("ReplicatedStorage").GameStats["Player_".. game.Players.LocalPlayer.Name].Total.DeathCause.Value = "Hunger"
+        end
+    end
+end)
+
+-- Cleanup tracking whenever a brand new room is opened up
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    Kill = false
+    attackingSound:Stop()
+    attackingSound:Destroy()
+
+    local g = workspace:FindFirstChild("HungerMoving")
+    if g then
+        g:Destroy()
+    end
+end)
