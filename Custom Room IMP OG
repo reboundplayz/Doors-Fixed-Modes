@@ -81,6 +81,8 @@ local function GetEntityColor(entityName)
         return Color3.fromRGB(128, 128, 128)     
     elseif entityName == "HungerMoving" then
         return Color3.fromRGB(79, 0, 0)
+    elseif entityName == "Silence" then
+        return Color3.fromRGB(255, 255, 255)
     else
         return Color3.fromRGB(79, 0, 0)        
     end
