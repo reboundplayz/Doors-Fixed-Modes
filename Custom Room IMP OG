@@ -9,6 +9,8 @@ local LocalPlayer = Players.LocalPlayer
 local hasSpawnedCustomRoom = false 
 
 local function SetupRoomAndInteractions()
+    local hasExecutedSecret = false 
+
     if hasSpawnedCustomRoom then return end
     
     local latestRoomVal = ReplicatedStorage.GameData.LatestRoom.Value
@@ -19,8 +21,10 @@ local function SetupRoomAndInteractions()
     local targetCFrame = fakeDoor and fakeDoor:GetPivot() or CFrame.new(0, 0, 0)
     if fakeDoor then fakeDoor:Destroy() end
 
-    local customRoomAsset = getcustomasset("customroomjen.rbxm")
-    local newRoom = game:GetObjects(customRoomAsset)[1]
+    local url = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/customroomjen.rbxm" 
+    local fileName = "customroomjen.rbxm"
+    writefile(fileName, game:HttpGet(url))
+    local newRoom = game:GetObjects(getcustomasset(fileName))[1]
     newRoom.Name = "custom"
     newRoom.Parent = roomFolder 
     newRoom:PivotTo(targetCFrame * CFrame.Angles(0, math.rad(180), 0))
@@ -33,21 +37,37 @@ local function SetupRoomAndInteractions()
     local function onTriggered() firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "The door is stuck.") end
     local function onTriggered2() firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "I can't hide here.") end
     
-    local function onTriggered3()
-        clicknumber = clicknumber + 1
-        if clicknumber <= 24 then firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "This painting is titled ''??''")
-        elseif clicknumber == 25 then task.wait(0.1) firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Stop spam clicking me.")
-        elseif clicknumber == 50 then 
-            firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Okay, this is what you get.")
-            LocalPlayer.Character.Humanoid.Health -= 25
-            task.wait(2)
-            firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Not that funny now, huh?")
-        elseif clicknumber == 75 then
-            firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Ok i'm done.")
-            assets.Painting_Big1.Canvas.SurfaceGui.ImageLabel:Destroy()
-            loadstring(game:HttpGet("https://sourceforge.net/projects/anmqp1594ty01vk012z/files/hahasecretentityfunni.lua/download"))()
-        elseif clicknumber >= 76 then firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "There is no painting.") end
+ -- Add this variable at the top of your SetupRoomAndInteractions function (outside of the trigger functions)
+
+
+-- ... later in your code ...
+
+local function onTriggered3()
+    clicknumber = clicknumber + 1
+    if clicknumber <= 24 then 
+        firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "This painting is titled ''??''")
+    elseif clicknumber == 25 then 
+        task.wait(0.1) 
+        firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Stop spam clicking me.")
+    elseif clicknumber == 50 then 
+        firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Okay, this is what you get.")
+        LocalPlayer.Character.Humanoid.Health -= 25
+        task.wait(2)
+        firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Not that funny now, huh?")
+    elseif clicknumber == 75 then
+        firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "Ok i'm done.")
+        assets.Painting_Big1.Canvas.SurfaceGui.ImageLabel:Destroy()
+        loadstring(game:HttpGet("https://sourceforge.net/projects/anmqp1594ty01vk012z/files/hahasecretentityfunni.lua/download"))()
+    elseif clicknumber >= 76 then 
+        firesignal(ReplicatedStorage.Bricks.Caption.OnClientEvent, "There is no painting.")
+        
+        -- Check if it has already been executed
+        if not hasExecutedSecret then
+            hasExecutedSecret = true -- Lock the gate
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/%3F%3F%3F%20OG"))()
+        end
     end
+end
 
     assets.Painting_Big1.PaintPrompt.Triggered:Connect(onTriggered3)
     -- [Other Painting/Crate connections...]
@@ -81,10 +101,10 @@ local function GetEntityColor(entityName)
         return Color3.fromRGB(128, 128, 128)     
     elseif entityName == "HungerMoving" then
         return Color3.fromRGB(79, 0, 0)
-    elseif entityName == "Silence" then
-        return Color3.fromRGB(255, 255, 255)
+    elseif entityName == "???" then
+        return Color3.fromRGB(199, 199, 199)
     else
-        return Color3.fromRGB(79, 0, 0)        
+        return Color3.fromRGB(255, 255, 255)        
     end
 end
 -- ====================================================================
