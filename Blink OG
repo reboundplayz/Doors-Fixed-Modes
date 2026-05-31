@@ -1,0 +1,179 @@
+--// Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+-- --- [ CONFIGURATION SETUP ] ---
+local ENTITY_NAME = "Blink"
+local MODEL_URL = "https://github.com/beanzjsjwj/doors-monsters-models/raw/refs/heads/main/Blink.rbxm"
+local FILE_NAME = "Blink_Model_Cache.rbxm"
+
+-- --- [ ASSET DOWNLOADER & MODEL CONVERSION FIX ] ---
+local rawAsset = nil
+pcall(function()
+    if not isfile(FILE_NAME) then
+        writefile(FILE_NAME, game:HttpGet(MODEL_URL))
+    end
+    rawAsset = game:GetObjects(getcustomasset(FILE_NAME))[1]
+end)
+
+if not rawAsset then
+    warn(ENTITY_NAME .. " asset failed to load. Trying utility fallback...")
+    rawAsset = ({
+        Functions = loadstring(game:HttpGet('https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Functions.lua'))(),
+    }).Functions.LoadCustomInstance(MODEL_URL)
+end
+
+if not rawAsset then
+    warn(ENTITY_NAME .. " model initialization failed entirely.")
+    return
+end
+
+-- Force create a fresh, real Model instance to avoid property errors
+local entity = Instance.new("Model")
+entity.Name = ENTITY_NAME
+
+-- Move everything from the downloaded asset safely into our new guaranteed Model
+if rawAsset:IsA("Model") then
+    for _, child in ipairs(rawAsset:GetChildren()) do
+        child.Parent = entity
+    end
+    rawAsset:Destroy()
+else
+    rawAsset.Parent = entity
+end
+
+entity.Parent = workspace
+
+-- Locate a core BasePart inside the actual model setup
+local part = entity:IsA("BasePart") and entity or entity:FindFirstChildWhichIsA("BasePart", true)
+if not part then
+    -- Fallback part creation if the downloaded asset structure is loose
+    part = Instance.new("Part")
+    part.Size = Vector3.new(2, 2, 2)
+    part.Transparency = 1
+    part.CanCollide = false
+    part.Anchored = true
+    part.Name = "CustomPrimaryPartFallback"
+    part.Parent = entity
+end
+
+-- Now it is guaranteed to be a real Model, so this property will never error
+entity.PrimaryPart = part
+
+-- --- [ ORIENTATION & ELEVATED CENTER TELEPORT ] ---
+task.wait(0.5)
+
+local rooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
+local lastRoom = rooms[#rooms - 1] 
+
+if lastRoom then
+    if lastRoom:FindFirstChild("Parts") and lastRoom.Parts:FindFirstChild("Floor") then
+        entity:PivotTo(lastRoom.Parts.Floor.CFrame + Vector3.new(0, 5, 0))
+    else
+        local roomCFrame, _ = lastRoom:GetBoundingBox()
+        entity:PivotTo(roomCFrame + Vector3.new(0, 2, 0))
+    end
+end
+
+for _, bp in ipairs(entity:GetDescendants()) do
+    if bp:IsA("BasePart") then
+        bp.Anchored = true
+    end
+end
+
+-- --- [ REQUIRED SILENCE ATTRIBUTES ] ---
+entity:SetAttribute('IsCustomEntity', true)
+entity:SetAttribute('NoAI', false)
+entity:SetAttribute('GoingToHell', false)
+
+-- --- [ CUSTOM STATE & BEHAVIOR SYSTEM ] ---
+local EntityActive = true
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild('Humanoid')
+local rootPart = character:WaitForChild('HumanoidRootPart')
+
+local blinkState = "Open" 
+
+local spawnSound = entity:FindFirstChild("Spawn", true)
+if spawnSound and spawnSound:IsA("Sound") then
+    spawnSound:Play()
+end
+
+local lastPosition = rootPart.Position
+local function isPlayerMoving()
+    local currentPos = rootPart.Position
+    local distance = (Vector3.new(currentPos.X, 0, currentPos.Z) - Vector3.new(lastPosition.X, 0, lastPosition.Z)).Magnitude
+    lastPosition = currentPos
+    return distance > 0.1
+end
+
+task.spawn(function()
+    while EntityActive do
+        if entity:GetAttribute("GoingToHell") == true then
+            EntityActive = false
+            break
+        end
+
+        local openPart = entity:FindFirstChild("OpenParticle", true)
+        local closePart = entity:FindFirstChild("ClosedParticle", true)
+        
+        if openPart and openPart:IsA("ParticleEmitter") then openPart.Enabled = true end
+        if closePart and closePart:IsA("ParticleEmitter") then closePart.Enabled = false end
+        blinkState = "Open"
+        
+        task.wait(5)
+        if not EntityActive or entity:GetAttribute("GoingToHell") == true then break end
+        
+        if openPart and openPart:IsA("ParticleEmitter") then openPart.Enabled = false end
+        if closePart and closePart:IsA("ParticleEmitter") then closePart.Enabled = true end
+        blinkState = "Closed"
+        
+        local sBlink = entity:FindFirstChild("Blink", true)
+        local sForeshadow = entity:FindFirstChild("BlinkForeshadow", true)
+        if sBlink and sBlink:IsA("Sound") then sBlink:Play() end
+        if sForeshadow and sForeshadow:IsA("Sound") then sForeshadow:Play() end
+        
+        task.wait(5)
+    end
+end)
+
+task.spawn(function()
+    while EntityActive do
+        task.wait(1)
+        
+        if entity:GetAttribute("GoingToHell") == true then
+            EntityActive = false
+            break
+        end
+        
+        if workspace:FindFirstChild(ENTITY_NAME) then
+            if character and humanoid and humanoid.Health > 0 then
+                if blinkState == "Open" and isPlayerMoving() then
+                    humanoid.Health = humanoid.Health - 10
+                    
+                    if humanoid.Health <= 0 then
+                        local killSound = entity:FindFirstChild("Kill", true)
+                        if killSound and killSound:IsA("Sound") then
+                            killSound:Play()
+                        end
+                    end
+                else
+                    lastPosition = rootPart.Position
+                end
+            end
+        else
+            break
+        end
+    end
+end)
+
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    EntityActive = false
+
+    local targetEntity = workspace:FindFirstChild(ENTITY_NAME)
+    if targetEntity then
+        targetEntity:Destroy()
+    end
+end)
