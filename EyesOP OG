@@ -1,0 +1,184 @@
+--// Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+
+--// Custom Audio Downloader (Using writefile / getcustomasset)
+local fileName = "NewDamageNoise.mp3"
+local customSoundUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/NewDamageNoise.mp3.mpeg"
+
+-- Check if executor supports required functions
+if not writefile or not getcustomasset then
+    warn("Executor does not support writefile or getcustomasset! Custom damage sound will not play.")
+end
+
+-- Download the file if it doesn't already exist in your workspace folder
+if writefile and getcustomasset and not isfile(fileName) then
+    local success, result = pcall(function()
+        return game:HttpGet(customSoundUrl)
+    end)
+    if success and result then
+        writefile(fileName, result)
+    else
+        warn("Failed to download custom damage sound from GitHub.")
+    end
+end
+
+-- Create the custom damage sound instance
+local customDamageSound = Instance.new("Sound")
+customDamageSound.Name = "CustomDamageSound"
+customDamageSound.Volume = 2
+customDamageSound.Parent = game:GetService("SoundService")
+
+if isfile(fileName) and getcustomasset then
+    customDamageSound.SoundId = getcustomasset(fileName)
+end
+
+--// Check current room conditions
+local latestRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+if game.Workspace:FindFirstChild("SeekMovingNewClone")
+or latestRoom == 50
+or latestRoom == 100
+or (latestRoom >= 90 and latestRoom <= 100) then
+    return
+end
+
+--// Load asset safely
+local assets = game:GetObjects("rbxassetid://95251680091231")
+if not assets or #assets == 0 then
+    warn("Eyes asset failed to load")
+    return
+end
+
+local root = assets[1]
+
+-- Find Model inside asset
+local model = nil
+if root:IsA("Model") then
+    model = root
+else
+    for _, v in ipairs(root:GetDescendants()) do
+        if v:IsA("Model") then
+            model = v
+            break
+        end
+    end
+end
+
+if not model then
+    warn("No model found inside Eyes asset")
+    return
+end
+
+model.Parent = workspace
+model.Name = "Eyes"
+
+local eyesEntity = workspace:WaitForChild("Eyes")
+
+--// Safely handle visuals/audio
+if eyesEntity:FindFirstChild("Ambience") then 
+    eyesEntity.Ambience:Play() 
+end
+
+if eyesEntity:FindFirstChild("Attachment") and eyesEntity.Attachment:FindFirstChild("Eyes") then
+    eyesEntity.Attachment.Eyes.Enabled = true
+end
+
+--// Find a valid base part for CFrame tracking
+local part
+for _, v in ipairs(eyesEntity:GetDescendants()) do
+    if v:IsA("BasePart") then
+        part = v
+        break
+    end
+end
+
+if not part then
+    warn("Eyes has no BasePart to calculate positioning/view tracking")
+    return
+end
+
+--// Position in room using Greed's logic
+task.wait(0.2)
+
+local rooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
+local currentRoom = workspace.CurrentRooms:FindFirstChild(tostring(latestRoom)) or rooms[#rooms]
+
+if currentRoom and currentRoom:FindFirstChild("Parts") and currentRoom.Parts:FindFirstChild("Floor") then
+    eyesEntity:PivotTo(currentRoom.Parts.Floor.CFrame + Vector3.new(0, 7, 0))
+else
+    local base = currentRoom:FindFirstChild("Base") or currentRoom:FindFirstChildAt(1)
+    if base and base:IsA("BasePart") then
+        eyesEntity:PivotTo(base.CFrame + Vector3.new(0, 7, 0))
+    end
+end
+
+--// Main Look/Damage Logic
+local EyesActive = true
+
+task.spawn(function()
+    while EyesActive do
+        task.wait(0.1)
+
+        local char = player.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        local cam = workspace.CurrentCamera
+
+        if hum and hum.Health > 0 and cam and part then
+            local direction = (part.Position - cam.CFrame.Position).Unit
+            local look = cam.CFrame.LookVector
+
+            local dot = look:Dot(direction)
+
+            -- EYES LOGIC: If looking AT it, take damage
+            if dot > 0.45 then
+                hum.Health = math.max(0, hum.Health - 0.25)
+
+                -- Play your custom downloaded damage noise
+                if customDamageSound.SoundId ~= "" then
+                    customDamageSound:Play()
+                end
+
+                if eyesEntity:FindFirstChild("Attack") and not eyesEntity.Attack.IsPlaying then 
+                    eyesEntity.Attack:Play() 
+                end
+            end
+
+            -- Death handling
+            if hum.Health <= 0 then
+                local deathHint = game.ReplicatedStorage:FindFirstChild("RemotesFolder") and game.ReplicatedStorage.RemotesFolder:FindFirstChild("DeathHint")
+                if deathHint then
+                    firesignal(
+                        deathHint.OnClientEvent,
+                        {
+                            "You died to the Eyes...",
+                            "They don't like to be stared at."
+                        },
+                        "Blue"
+                    )
+                end
+
+                local stats = game:GetService("ReplicatedStorage"):FindFirstChild("GameStats")
+                if stats then
+                    local pStats = stats:FindFirstChild("Player_" .. player.Name)
+                    if pStats and pStats:FindFirstChild("Total") and pStats.Total:FindFirstChild("DeathCause") then
+                        pStats.Total.DeathCause.Value = "Eyes"
+                    end
+                end
+                break
+            end
+        end
+    end
+end)
+
+--// Cleanup on room change
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    EyesActive = false
+
+    local e = workspace:FindFirstChild("Eyes")
+    if e then
+        e:Destroy()
+    end
+end)
