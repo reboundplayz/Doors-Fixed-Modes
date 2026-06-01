@@ -318,9 +318,9 @@ addCategoryButton("Credits", "Credits", 4, true) -- Locks perfectly to the botto
 addScriptButton("Modes", "Nightmare Mode", "https://pastebin.com/raw/YbkbZ3fp")
 addScriptButton("Modes", "Hardcore Mode", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hardcore")
 addScriptButton("Modes", "Hardcore V4 (only for hotel-)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hardcore%20V4")
-addScriptButton("Modes", "Fear Mode (mobile)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Doors%20Fear%20Mode%20Mobile")
+addScriptButton("Modes", "Fear Mode", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Doors%20Fear%20Mode")
 addScriptButton("Modes", "Mayhem Mode", "https://raw.githubusercontent.com/localplayerr/Doors-stuff/refs/heads/main/Mayhem%20mode%20recreate/Code")
-addScriptButton("Modes", "Fear Mode (PC)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Doors%20Fear%20Mode")
+addScriptButton("Modes", "Impossible Mode Legacy (hotel-)", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Impossible%20OG")
 addScriptButton("Modes", "Impossible Mode", "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Impossible")
 addScriptButton("Modes", "Lunacy Mode", "https://raw.githubusercontent.com/Nowhywhat/Cooking/main/LunacyMode.lua")
 addScriptButton("Modes", "Fragmented Mode", "https://github.com/thelostw3r/Mods/raw/refs/heads/main/FragmentedModeRemake.lua")
@@ -344,7 +344,7 @@ addScriptButton("Other", "ZeScript", "https://github.com/reboundplayz/Doors-Fixe
 ---------------------------------------------------------
 -- CREDITS LIST MANAGEMENT
 ---------------------------------------------------------
-addTeamCredit("reboundplayz", "Fear mode, Nightmare mode, Fear mode legacy")
+addTeamCredit("reboundplayz", "Fear mode, Nightmare mode, Fear mode legacy, Impossible mode legacy")
 addTeamCredit("RegularVynixu", "Made entity spawner")
 addTeamCredit("EdgeIY", "Infinite Yield")
 addTeamCredit("Voorpr0", "Impossible mode, Lunacy mode, Fog mode, Furry mode")
