@@ -80,7 +80,6 @@ game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function(roomValue)
 	if checkForHerb(currentRoom) then
 		local soundAsset = getOrCreateSound("https://github.com/Sosnen/Ping-s-Dumbass-projects-/blob/main/Ambience_Infirmary_Entrence.mp3?raw=true", "InfirmaryEntrance")
 		playCustomSound(soundAsset)
-        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
 		task.spawn(message2, "The Infirmary", 5)
 	end
 end)
