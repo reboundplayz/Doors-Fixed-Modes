@@ -57,7 +57,7 @@ game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function(roomValue)
 		playCustomSound(soundAsset)
 		task.spawn(message2, "The Library", 5)
 		
-	elseif roomValue == 54 then
+	elseif roomValue == 52 then
 		playCustomSound("rbxassetid://126711047271197", nil, 0.5, 3.5)
 		task.spawn(message2, "The Darkness", 5)
 		
