@@ -125,7 +125,7 @@ local function LoadEntity()
     return nil
 end
 
--- Initial intro effects
+-- Run initial intro effects (Lasts ~4.5 seconds)
 forceRedTint(Color3.fromRGB(255, 0, 0), 4.5)
 smoothEarthquake(4.5, 15)
 
@@ -254,8 +254,10 @@ end
 -- ====== Main Execution Loop (3 Complete Cycles) ======
 
 task.spawn(function()
+    -- GIVES PLAYER TIME TO REACT: 5 second delay while the intro screenshake finishes
+    task.wait(5)
+
     local completedLoops = 0
-    
     while entity and entity.Parent and completedLoops < 3 do
         local success = runPatrolSequence()
         if success then
@@ -268,7 +270,6 @@ task.spawn(function()
     -- Triggers when natural path loops finish successfully
     if entity and entity.Parent then
         entity:Destroy()
-        -- The big red shake from your old script (Intensity 55, 8 Seconds duration)
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
         smoothEarthquake(8, 55)
     end
