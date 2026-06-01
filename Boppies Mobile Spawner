@@ -161,13 +161,13 @@ entity:SetCallback("OnDamagePlayer", function(newHealth: number)
 	image.Position = UDim2.new(0.5, 0, 0.5, 0)
 	image.Size = UDim2.new(0, 300, 0, 420)
 	image.BackgroundTransparency = 1
-	image.Image = "rbxassetid://135404087814479"
+	image.Image = "rbxassetid://12093393126"
 	image.ZIndex = 11
 	image.Parent = gui
 
 	-- 🔊 GITHUB SOUND (YOUR ORIGINAL SYSTEM, BUT SAFE)
 	local url = "https://github.com/reboundplayz/doors-fear-mode/raw/refs/heads/main/Video-Proje.mp3"
-	local file = "jumpscare.mp3"
+	local file = "boppiesjumpscare.mp3"
 
 	if not isfile(file) then
 		writefile(file, game:HttpGet(url))
@@ -185,7 +185,7 @@ entity:SetCallback("OnDamagePlayer", function(newHealth: number)
 	TweenService:Create(
 		image,
 		TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-		{Size = UDim2.new(0, 2500, 0, 3500)}
+		{Size = UDim2.new(0, 3500, 0, 3500)}
 	):Play()
 
 	-- LOOP (mobile stable)
