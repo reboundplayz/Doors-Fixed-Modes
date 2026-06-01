@@ -5,11 +5,15 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Asset Configuration
 local ASSETS = {
-    A278   = "rbxassetid://12731800555",
-    ULB278 = "rbxassetid://82318075149007",
-    TLAB   = "rbxassetid://12731861571",
-    Portal = "rbxassetid://14304343274",
-    JumpscareImg = "rbxassetid://11945909450"
+    A278         = "rbxassetid://12731800555",
+    ULB278       = "rbxassetid://82318075149007",
+    TLAB         = "rbxassetid://12731861571",
+    JumpscareImg = "rbxassetid://11945909450",
+    
+    -- Dynamic Variant Portal Mappings
+    A278_Portal  = "rbxassetid://111163328859735",
+    TLAB_Portal  = "rbxassetid://122019150116718",
+    ULB_Portal   = "rbxassetid://82868855643582"
 }
 
 local JUMP_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-278Jumpscare.mp3.mpeg"
@@ -187,7 +191,6 @@ local function checkHidingSafety(entityPart, variantType)
 
     -- INDEPENDENT BEHAVIOR MECHANICS BASED ON WHO IS ATTACKING
     if variantType == "ULB" then
-        -- ULB-278 kills players out in the open OR inside Closets. Beds are completely safe!
         if isHidingInCloset or (not isHidingInCloset and not isHidingInBed) then
             local hum = char:FindFirstChildOfClass("Humanoid")
             triggerCustomJumpscare()
@@ -195,7 +198,6 @@ local function checkHidingSafety(entityPart, variantType)
             if hum then hum.Health = 0 else char:BreakJoints() end
         end
     elseif variantType == "TLAB" then
-        -- TLAB-278 kills players out in the open OR inside Beds. Closets are completely safe!
         if isHidingInBed or (not isHidingInCloset and not isHidingInBed) then
             local hum = char:FindFirstChildOfClass("Humanoid")
             triggerCustomJumpscare()
@@ -203,7 +205,6 @@ local function checkHidingSafety(entityPart, variantType)
             if hum then hum.Health = 0 else char:BreakJoints() end
         end
     else
-        -- Base A-278 kills players out in the open. All closets and beds are safe.
         if not isHidingInCloset and not isHidingInBed then
             local hum = char:FindFirstChildOfClass("Humanoid")
             triggerCustomJumpscare()
@@ -252,7 +253,6 @@ local function setupPathing(model, startRoom, variantType, isClone)
                 end
             end
 
-            -- Gather specific room targets depending on individual clone variant profile
             local targetNodes = {}
             for _, item in ipairs(targetRoom:GetDescendants()) do
                 if item:IsA("Model") then
@@ -264,7 +264,6 @@ local function setupPathing(model, startRoom, variantType, isClone)
                 end
             end
             
-            -- Scramble pathing nodes for independent tracking patterns
             if isClone and #targetNodes > 1 then
                 for i = #targetNodes, 2, -1 do
                     local j = math.random(1, i)
@@ -272,7 +271,6 @@ local function setupPathing(model, startRoom, variantType, isClone)
                 end
             end
             
-            -- Always append center room navigation line
             table.insert(targetNodes, targetRoom:GetPivot().Position + Vector3.new(0, 3, 0))
 
             for _, targetPos in ipairs(targetNodes) do
@@ -300,7 +298,7 @@ local function setupPathing(model, startRoom, variantType, isClone)
 end
 
 -----------------------------------------
--- PORTAL EMITTER (EQUAL 3-WAY VARIANT ROLLING)
+-- PORTAL EMITTER (DYNAMIC PORTAL ASSIGNMENT)
 -----------------------------------------
 local function createPortalSpawn(originPosition, currentRoom)
     local rayParams = RaycastParams.new()
@@ -321,29 +319,33 @@ local function createPortalSpawn(originPosition, currentRoom)
         end
     end
 
-    local portal = loadRealRobloxModel(ASSETS.Portal, "A278Portal", "BASE")
-    portal:PivotTo(CFrame.new(portalPosition) * portalRotation)
-    portal.Parent = workspace
-    
-    task.wait(0.4)
-
-    -- EQUAL SELECTION SYSTEM (1 in 3 chance for each)
+    -- EQUAL SELECTION SYSTEM (1 in 3 chance for each variant)
     local roll = math.random(1, 3)
-    local chosenId, chosenName, chosenVariant
+    local chosenId, chosenName, chosenVariant, chosenPortalId
     
     if roll == 1 then
         chosenId = ASSETS.ULB278
         chosenName = "ULB-278"
         chosenVariant = "ULB"
+        chosenPortalId = ASSETS.ULB_Portal
     elseif roll == 2 then
         chosenId = ASSETS.TLAB
         chosenName = "TLAB-278"
         chosenVariant = "TLAB"
+        chosenPortalId = ASSETS.TLAB_Portal
     else
         chosenId = ASSETS.A278
         chosenName = "A-278 Clone"
         chosenVariant = "BASE"
+        chosenPortalId = ASSETS.A278_Portal
     end
+
+    -- Dynamically generate the portal matching the exact rolled variant's needs
+    local portal = loadRealRobloxModel(chosenPortalId, "A278Portal", "BASE")
+    portal:PivotTo(CFrame.new(portalPosition) * portalRotation)
+    portal.Parent = workspace
+    
+    task.wait(0.4)
     
     local subClone = loadRealRobloxModel(chosenId, chosenName, chosenVariant)
     subClone:PivotTo(CFrame.new(portalPosition))
@@ -361,7 +363,6 @@ local function executeAttackSequence(spawnRoom)
     task.wait(1.5)
 
     local success, err = pcall(function()
-        -- The primary master entity always spawns as Base A-278
         local masterEntity = loadRealRobloxModel(ASSETS.A278, "A-278", "BASE")
         masterEntity:PivotTo(spawnRoom:GetPivot() * CFrame.new(0, 4, 0))
 
@@ -373,7 +374,6 @@ local function executeAttackSequence(spawnRoom)
 
         setupPathing(masterEntity, spawnRoom, "BASE", false)
 
-        -- Portal loop runs high-density spawns with rolling variants
         task.spawn(function()
             local startSpawnTrack = os.clock()
             while os.clock() - startSpawnTrack < ATTACK_DURATION do
