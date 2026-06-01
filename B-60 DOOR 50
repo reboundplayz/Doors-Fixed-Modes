@@ -1,0 +1,284 @@
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ====== Configuration ======
+local entityspeed = 200
+local killRange = 55 
+local entityName = "B-60"
+local assetId = "rbxassetid://126201090853359"
+local KillSoundID = "rbxassetid://132942725846535"
+
+local FaceIDs = {
+    "rbxassetid://132608289829623",
+    "rbxassetid://132598758780611",
+    "rbxassetid://103365774502046", 
+    "rbxassetid://120065678981246",
+    "rbxassetid://14303506455"
+}
+
+-- ====== Logic Functions (Visuals & Screenshake) ======
+
+local function forceRedTint(color, duration)
+    local rooms = game.Workspace:FindFirstChild("CurrentRooms")
+    if not rooms then return end
+    for _, room in pairs(rooms:GetChildren()) do
+        for _, v in pairs(room:GetDescendants()) do
+            if v:IsA("Light") then
+                local oldCol = v.Color
+                v.Color = color
+                task.delay(duration, function() v.Color = oldCol end)
+            end
+        end
+    end
+end
+
+local function smoothEarthquake(duration, maxIntensity)
+    local camera = game.Workspace.CurrentCamera
+    local start = tick()
+    local connection
+    
+    connection = RunService.RenderStepped:Connect(function()
+        local elapsed = tick() - start
+        if elapsed >= duration then
+            connection:Disconnect()
+            return
+        end
+        
+        local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+        
+        camera.CFrame = camera.CFrame * CFrame.Angles(
+            math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+            math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+            math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+        )
+    end)
+end
+
+-- ====== Hardcore Jumpscare Logic ======
+
+local isKilling = false
+local function runHardJumpscare()
+    if isKilling then return end
+    isKilling = true
+    
+    local char = LocalPlayer.Character
+    local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 1000
+
+    local s = Instance.new("Sound", game:GetService("SoundService"))
+    s.SoundId = KillSoundID
+    s.Volume = 3 
+    s:Play()
+
+    for i = 1, 14 do
+        local img = Instance.new("ImageLabel", gui)
+        img.BackgroundTransparency = 1
+        img.Image = FaceIDs[math.random(1, #FaceIDs)]
+        img.ImageColor3 = Color3.fromRGB(255, 0, 0)
+        img.Size = UDim2.new(0.8, 0, 0.8, 0)
+        img.AnchorPoint = Vector2.new(0.5, 0.5)
+        img.Position = UDim2.new(0.5 + math.random(-15, 15)/100, 0, 0.5 + math.random(-15, 15)/100, 0)
+        img.Rotation = math.random(-45, 45)
+        task.wait(0.05)
+        img:Destroy()
+    end
+
+    local finalFace = Instance.new("ImageLabel", gui)
+    finalFace.Image = "rbxassetid://103365774502046" 
+    finalFace.ImageColor3 = Color3.fromRGB(200, 0, 0) 
+    finalFace.BackgroundTransparency = 1
+    finalFace.AnchorPoint = Vector2.new(0.5, 0.5)
+    finalFace.Position = UDim2.new(0.5, 0, 0.5, 0)
+    
+    local zoomStart = tick()
+    while tick() - zoomStart < 1.3 do
+        local size = 0.5 + ((tick() - zoomStart) * 6.5) 
+        finalFace.Size = UDim2.new(size, 0, size, 0)
+        finalFace.Position = UDim2.new(0.5, math.random(-80, 80), 0.5, math.random(-80, 80))
+        task.wait()
+    end
+    
+    if char and char:FindFirstChildOfClass("Humanoid") then 
+        char:FindFirstChildOfClass("Humanoid").Health = 0 
+    end
+    if char then char:BreakJoints() end
+    
+    task.wait(0.5)
+    gui:Destroy()
+    isKilling = false
+end
+
+-- ====== Setup Model ======
+
+local function LoadEntity()
+    local success, objects = pcall(function()
+        return game:GetObjects(assetId)
+    end)
+    if success and objects and objects[1] then
+        local model = objects[1]
+        model.Name = entityName
+        model.Parent = workspace
+        return model
+    end
+    return nil
+end
+
+-- Initial intro effects
+forceRedTint(Color3.fromRGB(255, 0, 0), 4.5)
+smoothEarthquake(4.5, 15)
+
+local entity = LoadEntity()
+if not entity then return end
+
+for _, v in ipairs(entity:GetDescendants()) do
+    if v:IsA("BasePart") then
+        v.Transparency = 0
+        v.Anchored = true
+        v.CanCollide = false
+    end
+end
+
+-- ====== Movement Core ======
+
+function EntityMoveTo(targetCFrame)
+    if not entity or not entity.Parent then return end
+    local reached = false
+    local connection
+    
+    connection = RunService.Stepped:Connect(function(_, step)
+        if not entity or not entity.Parent then 
+            if connection then connection:Disconnect() end
+            reached = true 
+            return 
+        end
+        
+        local pivot = entity:GetPivot()
+        local difference = (targetCFrame.Position - pivot.Position)
+        
+        if difference.Magnitude > 0.5 then
+            local unit = difference.Unit
+            entity:PivotTo(pivot + unit * math.min(step * entityspeed, difference.Magnitude))
+        else
+            connection:Disconnect()
+            reached = true
+        end
+    end)
+    
+    local start = tick()
+    repeat RunService.Stepped:Wait() until reached or (tick() - start > 15)
+    if connection then connection:Disconnect() end
+end
+
+-- ====== Helper Room Functions ======
+
+local function getRoomEntranceCFrame()
+    local room50 = workspace.CurrentRooms:FindFirstChild("50")
+    if room50 and room50:FindFirstChild("RoomEntrance") then
+        return room50.RoomEntrance.CFrame + Vector3.new(0, 5, 0)
+    end
+    return CFrame.new(841.8, 10, -468.3) -- Fallback
+end
+
+-- Spawn initially at RoomEntrance
+entity:PivotTo(getRoomEntranceCFrame())
+
+-- ====== Kill Logic (Active Raycast & Collision Check) ======
+
+task.spawn(function()
+    while RunService.Heartbeat:Wait() and entity and entity.Parent do
+        if not isKilling then
+            local character = LocalPlayer.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            
+            local isHiding = LocalPlayer:GetAttribute("Hiding") == true 
+                or (character and character:GetAttribute("Hiding") == true)
+                or (character and character:FindFirstChild("Hidden"))
+            
+            if root and not isHiding then
+                local entityPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
+                if entityPart then
+                    local distance = (entityPart.Position - root.Position).Magnitude
+                    
+                    if distance < killRange then
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterDescendantsInstances = {character, entity}
+                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                        
+                        local direction = (root.Position - entityPart.Position)
+                        local rayResult = workspace:Raycast(entityPart.Position, direction, rayParams)
+                        
+                        if not rayResult then
+                            runHardJumpscare()
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ====== Pathing & Loops Logic ======
+
+local function runPatrolSequence()
+    local pathFolder = workspace:FindFirstChild("FigureNodes", true)
+    if not pathFolder then 
+        task.wait(1)
+        return false
+    end
+    
+    local nodes = pathFolder:GetChildren()
+    
+    table.sort(nodes, function(a, b)
+        local numA = tonumber(a.Name:match("%d+")) or 0
+        local numB = tonumber(b.Name:match("%d+")) or 0
+        return numA < numB
+    end)
+
+    -- Loop Part 1: Through all 22 nodes
+    for _, node in ipairs(nodes) do
+        if not entity or not entity.Parent then return false end
+        if node:IsA("BasePart") then
+            EntityMoveTo(node.CFrame + Vector3.new(0, 4, 0))
+        end
+    end
+    
+    -- Loop Part 2: Return back to RoomEntrance
+    if not entity or not entity.Parent then return false end
+    EntityMoveTo(getRoomEntranceCFrame())
+    
+    return true
+end
+
+-- ====== Main Execution Loop (3 Complete Cycles) ======
+
+task.spawn(function()
+    local completedLoops = 0
+    
+    while entity and entity.Parent and completedLoops < 3 do
+        local success = runPatrolSequence()
+        if success then
+            completedLoops = completedLoops + 1
+            print("B-60 finished sequence path loop: " .. tostring(completedLoops) .. "/3")
+        end
+        task.wait(0.1)
+    end
+    
+    -- Triggers when natural path loops finish successfully
+    if entity and entity.Parent then
+        entity:Destroy()
+        -- The big red shake from your old script (Intensity 55, 8 Seconds duration)
+        forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
+        smoothEarthquake(8, 55)
+    end
+end)
+
+-- Cleanup & Finale Outro on unexpected Room Change
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
+    if entity then 
+        entity:Destroy() 
+        forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
+        smoothEarthquake(8, 55) 
+    end
+end)
