@@ -8,6 +8,7 @@ local killRange = 55
 local entityName = "B-60"
 local assetId = "rbxassetid://126201090853359"
 local KillSoundID = "rbxassetid://132942725846535"
+local SpawnSoundID = "rbxassetid://132942725846535" -- Make sure this is your correct spawn sound ID!
 
 local FaceIDs = {
     "rbxassetid://132608289829623",
@@ -17,7 +18,20 @@ local FaceIDs = {
     "rbxassetid://14303506455"
 }
 
--- ====== Logic Functions (Visuals & Screenshake) ======
+-- ====== Logic Functions (Visuals, Screenshake, Achievements) ======
+
+local function AwardB60Achievement()
+    if not getgenv().B60AchievementExecuted then
+        getgenv().B60AchievementExecuted = true
+
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()({
+            Title = "Born From Static",
+            Desc = "Its smile never changes..",
+            Reason = "Encounter B-60",
+            Image = "rbxassetid://117667968899219",
+        })
+    end
+end
 
 local function forceRedTint(color, duration)
     local rooms = game.Workspace:FindFirstChild("CurrentRooms")
@@ -110,7 +124,7 @@ local function runHardJumpscare()
     isKilling = false
 end
 
--- ====== Setup Model ======
+-- ====== Setup Model Function ======
 
 local function LoadEntity()
     local success, objects = pcall(function()
@@ -125,22 +139,19 @@ local function LoadEntity()
     return nil
 end
 
--- Run initial intro effects (Lasts ~4.5 seconds)
-forceRedTint(Color3.fromRGB(255, 0, 0), 4.5)
-smoothEarthquake(4.5, 15)
+-- ====== Helper Room Functions ======
 
-local entity = LoadEntity()
-if not entity then return end
-
-for _, v in ipairs(entity:GetDescendants()) do
-    if v:IsA("BasePart") then
-        v.Transparency = 0
-        v.Anchored = true
-        v.CanCollide = false
+local function getRoomEntranceCFrame()
+    local room50 = workspace.CurrentRooms:FindFirstChild("50")
+    if room50 and room50:FindFirstChild("RoomEntrance") then
+        return room50.RoomEntrance.CFrame + Vector3.new(0, 5, 0)
     end
+    return CFrame.new(841.8, 10, -468.3) -- Fallback
 end
 
 -- ====== Movement Core ======
+
+local entity = nil
 
 function EntityMoveTo(targetCFrame)
     if not entity or not entity.Parent then return end
@@ -170,54 +181,6 @@ function EntityMoveTo(targetCFrame)
     repeat RunService.Stepped:Wait() until reached or (tick() - start > 15)
     if connection then connection:Disconnect() end
 end
-
--- ====== Helper Room Functions ======
-
-local function getRoomEntranceCFrame()
-    local room50 = workspace.CurrentRooms:FindFirstChild("50")
-    if room50 and room50:FindFirstChild("RoomEntrance") then
-        return room50.RoomEntrance.CFrame + Vector3.new(0, 5, 0)
-    end
-    return CFrame.new(841.8, 10, -468.3) -- Fallback
-end
-
--- Spawn initially at RoomEntrance
-entity:PivotTo(getRoomEntranceCFrame())
-
--- ====== Kill Logic (Active Raycast & Collision Check) ======
-
-task.spawn(function()
-    while RunService.Heartbeat:Wait() and entity and entity.Parent do
-        if not isKilling then
-            local character = LocalPlayer.Character
-            local root = character and character:FindFirstChild("HumanoidRootPart")
-            
-            local isHiding = LocalPlayer:GetAttribute("Hiding") == true 
-                or (character and character:GetAttribute("Hiding") == true)
-                or (character and character:FindFirstChild("Hidden"))
-            
-            if root and not isHiding then
-                local entityPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
-                if entityPart then
-                    local distance = (entityPart.Position - root.Position).Magnitude
-                    
-                    if distance < killRange then
-                        local rayParams = RaycastParams.new()
-                        rayParams.FilterDescendantsInstances = {character, entity}
-                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                        
-                        local direction = (root.Position - entityPart.Position)
-                        local rayResult = workspace:Raycast(entityPart.Position, direction, rayParams)
-                        
-                        if not rayResult then
-                            runHardJumpscare()
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
 
 -- ====== Pathing & Loops Logic ======
 
@@ -251,12 +214,95 @@ local function runPatrolSequence()
     return true
 end
 
--- ====== Main Execution Loop (3 Complete Cycles) ======
+-- ====== START EXECUTION ======
 
+-- 1. Start intro visual/camera effects instantly
+forceRedTint(Color3.fromRGB(255, 0, 0), 4.5)
+smoothEarthquake(4.5, 15)
+
+-- 2. Main lifecycle thread handling loading, sound, and patrol timing
 task.spawn(function()
-    -- GIVES PLAYER TIME TO REACT: 5 second delay while the intro screenshake finishes
+    -- Instant loading so we can attachment-play the audio from it
+    entity = LoadEntity()
+    if not entity then return end
+
+    -- Make completely invisible and non-collidable initially
+    for _, v in ipairs(entity:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.Transparency = 1
+            v.Anchored = true
+            v.CanCollide = false
+        end
+    end
+
+    -- Position it 30 studs behind RoomEntrance so players don't see it spawn out of thin air
+    local spawnCF = getRoomEntranceCFrame()
+    entity:PivotTo(spawnCF * CFrame.new(0, 0, 30))
+
+    -- Create and instantly play the sound directly inside the entity model part
+    local soundPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
+    if soundPart then
+        local spawnSound = Instance.new("Sound", soundPart)
+        spawnSound.Name = "B60SpawnSound"
+        spawnSound.SoundId = SpawnSoundID
+        spawnSound.Volume = 3
+        spawnSound.RollOffMaxDistance = 150
+        spawnSound.RollOffMinDistance = 10
+        
+        if not spawnSound.IsLoaded then spawnSound.Loaded:Wait() end
+        spawnSound:Play()
+        
+        spawnSound.Ended:Connect(function()
+            spawnSound:Destroy()
+        end)
+    end
+
+    -- Wait 5 seconds while the environment shakes and the spawn sound echoes from behind the door
     task.wait(5)
 
+    -- Make the entity visible and instantly relocate it to the actual starting line
+    for _, v in ipairs(entity:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.Transparency = 1
+        end
+    end
+    entity:PivotTo(spawnCF)
+
+    -- 4. Spin up the Kill Detection tracking loop now that entity is active
+    task.spawn(function()
+        while RunService.Heartbeat:Wait() and entity and entity.Parent do
+            if not isKilling then
+                local character = LocalPlayer.Character
+                local root = character and character:FindFirstChild("HumanoidRootPart")
+                
+                local isHiding = LocalPlayer:GetAttribute("Hiding") == true 
+                    or (character and character:GetAttribute("Hiding") == true)
+                    or (character and character:FindFirstChild("Hidden"))
+                
+                if root and not isHiding then
+                    local entityPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
+                    if entityPart then
+                        local distance = (entityPart.Position - root.Position).Magnitude
+                        
+                        if distance < killRange then
+                            local rayParams = RaycastParams.new()
+                            rayParams.FilterDescendantsInstances = {character, entity}
+                            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                            
+                            local direction = (root.Position - entityPart.Position)
+                            local rayResult = workspace:Raycast(entityPart.Position, direction, rayParams)
+                            
+                            if not rayResult then
+                                runHardJumpscare()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- 5. Begin patrol cycles immediately upon un-hiding
     local completedLoops = 0
     while entity and entity.Parent and completedLoops < 3 do
         local success = runPatrolSequence()
@@ -270,6 +316,7 @@ task.spawn(function()
     -- Triggers when natural path loops finish successfully
     if entity and entity.Parent then
         entity:Destroy()
+        AwardB60Achievement() -- Fires when the entity naturally despawns
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
         smoothEarthquake(8, 55)
     end
@@ -279,6 +326,7 @@ end)
 game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
     if entity then 
         entity:Destroy() 
+        AwardB60Achievement() -- Fires if despawned early by moving rooms
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
         smoothEarthquake(8, 55) 
     end
