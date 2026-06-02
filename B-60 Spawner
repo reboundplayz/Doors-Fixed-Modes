@@ -15,6 +15,19 @@ local FaceIDs = {
 
 ---====== Logic Functions ======---
 
+local function AwardB60Achievement()
+    if not getgenv().B60AchievementExecuted then
+        getgenv().B60AchievementExecuted = true
+
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()({
+            Title = "Born From Static",
+            Desc = "Its smile never changes..",
+            Reason = "Encounter B-60",
+            Image = "rbxassetid://117667968899219",
+        })
+    end
+end
+
 local function forceRedTint(color, duration)
     local rooms = game.Workspace:FindFirstChild("CurrentRooms")
     if not rooms then return end
@@ -171,6 +184,7 @@ task.spawn(function()
         while eModel.Parent == game.Workspace do
             task.wait(0.1)
         end
+        AwardB60Achievement() -- Fires instantly when despawning/removed from workspace
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
         smoothEarthquake(8, 55) 
     end
