@@ -1,4 +1,4 @@
---// Hungry Entity (FINAL FIXED VERSION)
+--// Hungry Entity (FINAL UPDATED VERSION)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -14,6 +14,9 @@ local camera = workspace.CurrentCamera
 local DAMAGE = 20
 local ATTACK_DELAY = 2.5
 local LOOK_THRESHOLD = 0.65
+
+--// only once per executor/session
+getgenv().HungryBadgeGiven = getgenv().HungryBadgeGiven or false
 
 --// LOAD MODEL
 local fileName = "hungry.rbxm"
@@ -34,6 +37,11 @@ end
 
 local primary = entity.PrimaryPart
 
+if not primary then
+	warn("No PrimaryPart found for Hungry entity.")
+	return
+end
+
 --// freeze parts
 for _, v in pairs(entity:GetDescendants()) do
 	if v:IsA("BasePart") then
@@ -42,16 +50,16 @@ for _, v in pairs(entity:GetDescendants()) do
 	end
 end
 
--- Make OOGA BOOGAAAA collidable
+--// Make OOGA BOOGAAAA collidable
 local ooga = entity:FindFirstChild("OOGA BOOGAAAA", true)
 
 if ooga and ooga:IsA("BasePart") then
 	ooga.CanCollide = true
-	ooga.Anchored = true -- keep it stable unless you WANT it to fall
+	ooga.Anchored = true
 	ooga.Massless = false
 end
 
---// spawn closer in front of player
+--// spawn in front
 entity:PivotTo(root.CFrame * CFrame.new(0, 0, -8))
 
 --// scream
@@ -63,8 +71,12 @@ scream.Parent = primary
 
 local state = "alive"
 
---// LOOK CHECK (any part)
+--// LOOK CHECK
 local function IsLookingAtEntity()
+	if not entity or not entity.Parent then
+		return false
+	end
+
 	local camPos = camera.CFrame.Position
 	local lookDir = camera.CFrame.LookVector
 
@@ -94,9 +106,38 @@ local function IsLookingAtEntity()
 	return false
 end
 
---// FIXED FALL
-local function FallIntoVoid()
-	if state == "dead" then return end
+--// ACHIEVEMENT
+local function GiveHungryBadge()
+	if getgenv().HungryBadgeGiven then
+		return
+	end
+
+	getgenv().HungryBadgeGiven = true
+
+	local success, err = pcall(function()
+		local achievementGiver = loadstring(game:HttpGet(
+			"https://raw.githubusercontent.com/Voor-Pr00/Achivements/refs/heads/main/Voorpr0"
+		))()
+
+		achievementGiver({
+			Title = "Hungry Experience",
+			Desc = "I Will Eat You",
+			Reason = "Encounter Hungry",
+			Image = "rbxassetid://117960541847239"
+		})
+	end)
+
+	if not success then
+		warn("Achievement failed:", err)
+	end
+end
+
+--// DESPAWN
+local function DespawnEntity(giveBadge)
+	if state == "dead" then
+		return
+	end
+
 	state = "dead"
 
 	for _, v in pairs(entity:GetDescendants()) do
@@ -106,24 +147,61 @@ local function FallIntoVoid()
 		end
 	end
 
+	local badgeDone = false
+	local parentConn
+
+	--// badge fires EXACTLY when entity leaves workspace
+	if giveBadge then
+		parentConn = entity.AncestryChanged:Connect(function(_, parent)
+			if parent == nil and not badgeDone then
+				badgeDone = true
+
+				if parentConn then
+					parentConn:Disconnect()
+				end
+
+				GiveHungryBadge()
+			end
+		end)
+	end
+
 	local bv = Instance.new("BodyVelocity")
 	bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
 	bv.Velocity = Vector3.new(0, -160, 0)
 	bv.Parent = primary
 
 	task.wait(2)
-	entity:Destroy()
+
+	if entity and entity.Parent then
+		entity:Destroy()
+	end
+
+	--// fallback safety
+	if giveBadge and entity.Parent == nil and not badgeDone then
+		badgeDone = true
+
+		if parentConn then
+			parentConn:Disconnect()
+		end
+
+		GiveHungryBadge()
+	end
 end
 
---// FIXED ATTACK + BIG SMOOTH SHAKE
+--// ATTACK
 local function Attack()
-	if state ~= "alive" then return end
-	state = "attack"
+	if state ~= "alive" then
+		return
+	end
+
+	state = "attacking"
 
 	local tween = TweenService:Create(
 		primary,
 		TweenInfo.new(0.2, Enum.EasingStyle.Linear),
-		{ CFrame = root.CFrame }
+		{
+			CFrame = root.CFrame
+		}
 	)
 
 	tween:Play()
@@ -132,47 +210,46 @@ local function Attack()
 	humanoid:TakeDamage(DAMAGE)
 	scream:Play()
 
-	-- Screen drop + rebound impact shake (0.8s)
+	--// CAMERA SHAKE
+	local original = camera.CFrame
+	local duration = 0.8
+	local start = tick()
 
-local original = camera.CFrame
-local duration = 0.8
-local start = tick()
+	while true do
+		local t = tick() - start
+		local alpha = t / duration
 
-while true do
-	local t = tick() - start
-	local alpha = t / duration
+		if alpha >= 1 then
+			break
+		end
 
-	if alpha >= 1 then break end
+		local drop =
+			(-6 * math.exp(-t * 6)) +
+			(2.5 * math.exp(-t * 10) * math.sin(t * 25))
 
-	-- impact curve (fast drop, slower recovery)
-	-- negative = downwards screen movement feel
-	local drop =
-		(-6 * math.exp(-t * 6)) +
-		(2.5 * math.exp(-t * 10) * math.sin(t * 25))
+		local rebound =
+			2 * math.exp(-t * 4) * math.sin(t * 12)
 
-	-- slight secondary rebound bounce
-	local rebound =
-		2 * math.exp(-t * 4) * math.sin(t * 12)
+		local y = drop + rebound
 
-	local y = drop + rebound
+		camera.CFrame =
+			original *
+			CFrame.new(0, y, 0)
 
-	camera.CFrame =
-		original *
-		CFrame.new(0, y, 0)
+		RunService.RenderStepped:Wait()
+	end
 
-	RunService.RenderStepped:Wait()
+	camera.CFrame = original
+
+	--// CHANGED: Now passes true so you get the badge when attacked
+	DespawnEntity(true)
 end
 
-camera.CFrame = original
-
-	FallIntoVoid()
-end
-
---// instant look-away death loop
+--// LOOK-AWAY DESPAWN
 task.spawn(function()
-	while state == "alive" do
+	while state == "alive" and entity and entity.Parent do
 		if not IsLookingAtEntity() then
-			FallIntoVoid()
+			DespawnEntity(true)
 			break
 		end
 
@@ -180,13 +257,15 @@ task.spawn(function()
 	end
 end)
 
---// attack delay check
+--// ATTACK CHECK
 task.delay(ATTACK_DELAY, function()
-	if state ~= "alive" then return end
+	if state ~= "alive" then
+		return
+	end
 
 	if IsLookingAtEntity() then
 		Attack()
 	else
-		FallIntoVoid()
+		DespawnEntity(true)
 	end
 end)
