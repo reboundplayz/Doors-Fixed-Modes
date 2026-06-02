@@ -1,0 +1,75 @@
+-- Helper function to download and cache the asset locally
+local function cacheGitSound(GithubSoundPath: string, AssetName: string): string
+    local Url = GithubSoundPath
+    local fileName = AssetName..".mp3"
+
+    if not isfile(fileName) then 
+        writefile(fileName, game:HttpGet(Url)) 
+    end
+
+    return getcustomasset(fileName, true)
+end
+
+-- Fetch custom audio IDs
+local customAmbienceId = cacheGitSound("https://github.com/kodbolx/kodbolhub/blob/main/Nightmare%20Mode/Sounds/library1.mp3?raw=true", "library1")
+local customSeekId = cacheGitSound("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/SeekMoving.mp3", "SeekMusic")
+
+-- Volume configurations
+local FIGURE_VOLUME = 2.5 -- Increased from 1. Make this higher if you need it even louder!
+
+-- ==========================================
+-- AUTOMATION LOGIC
+-- ==========================================
+
+task.spawn(function()
+    while task.wait(0.3) do -- Slightly faster check loop
+        
+        -- 1. AUTOMATION A: Hijack Room 50 Ambience (Louder)
+        local currentRooms = workspace:FindFirstChild("CurrentRooms")
+        if currentRooms then
+            local room50 = currentRooms:FindFirstChild("50")
+            if room50 then
+                local figureSetup = room50:FindFirstChild("FigureSetup")
+                if figureSetup then
+                    local originalAmbience = figureSetup:FindFirstChild("Ambience")
+                    if originalAmbience and originalAmbience:IsA("Sound") then
+                        -- Apply custom volume
+                        if originalAmbience.Volume ~= FIGURE_VOLUME then
+                            originalAmbience.Volume = FIGURE_VOLUME
+                        end
+                        -- Apply custom audio ID
+                        if originalAmbience.SoundId ~= customAmbienceId then
+                            originalAmbience.SoundId = customAmbienceId
+                            if originalAmbience.IsPlaying then
+                                originalAmbience:Stop()
+                                originalAmbience:Play()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- 2. AUTOMATION B: Global Hijack for SeekMusic
+        -- This checks ReplicatedStorage AND any active clones the game makes anywhere else
+        local targets = {game:GetService("ReplicatedStorage"), workspace, game:GetService("Players").LocalPlayer}
+        
+        for _, parent in ipairs(targets) do
+            if parent then
+                for _, desc in ipairs(parent:GetDescendants()) do
+                    if desc:IsA("Sound") and desc.Name == "SeekMusic" then
+                        if desc.SoundId ~= customSeekId then
+                            desc.SoundId = customSeekId
+                            -- If the game already started playing the old sound, force a restart with the new ID
+                            if desc.IsPlaying then
+                                desc:Stop()
+                                desc:Play()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+    end
+end)
