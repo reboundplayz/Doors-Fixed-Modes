@@ -1,9 +1,23 @@
+--// Prevent multiple executions from overlapping or double-gifting
+if _G.AttractionScriptRunning then 
+    warn("Attraction script is already running!")
+    return 
+end
+_G.AttractionScriptRunning = true
+
+if _G.hasAttractionBadge == nil then
+    _G.hasAttractionBadge = false
+end
+
 --// Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
+
+--// Load Vynixu's Achievement Utility Safely
+local achievementGiver2 = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()
 
 --// Check current room
 local entityModel = true
@@ -23,6 +37,7 @@ end)
 
 if not success or not assets or #assets == 0 or not assets[1] then
     warn("Attraction asset failed to load or index was nil")
+    _G.AttractionScriptRunning = nil
     return
 end
 
@@ -43,6 +58,7 @@ end
 
 if not model then
     warn("No model found inside Attraction asset")
+    _G.AttractionScriptRunning = nil
     return
 end
 
@@ -110,6 +126,7 @@ end
 
 if not part then
     warn("Greed has no BasePart")
+    _G.AttractionScriptRunning = nil
     return
 end
 
@@ -159,10 +176,29 @@ task.spawn(function()
     end
 end)
 
---// Cleanup
+--// Cleanup & Despawn Logic
 game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
     GreedStatus = false
+    
+    -- Award the badge right as he despawns
+    if not _G.hasAttractionBadge then
+        _G.hasAttractionBadge = true
+        if achievementGiver2 then
+            task.spawn(function()
+                achievementGiver2({
+                    Title = "Fatal Addiction",
+                    Desc = "It saw you first.",
+                    Reason = "Encounter Attraction",
+                    Image = "rbxassetid://140132127736774"
+                })
+            end)
+        end
+    end
+
     if workspace:FindFirstChild("Greed") then
         workspace.Greed:Destroy()
     end
+    
+    -- Reset execution flag so it can spawn again on next execution
+    _G.AttractionScriptRunning = nil
 end)
