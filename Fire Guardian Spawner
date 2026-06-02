@@ -1,7 +1,63 @@
 ---====== Load spawner ======---
-local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Doors-Modes/refs/heads/main/Entity%20Spawner%20V2"))()
+
+---====== Achievement ======---
+
+local function onEntityGone()
+    print("Fire Guardian destroyed/despawned")
+
+    if not getgenv().FGAchievementExecuted then
+        getgenv().FGAchievementExecuted = true
+
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()({
+            Title = "Im Back",
+            Desc = "Why you hiding?",
+            Reason = "Encounter Fire Guardian",
+            Image = "rbxassetid://128422180137442",
+        })
+    end
+end
+
+---====== Room Coloring Logic ======---
+local function makeCurrentRoomRed()
+    local _TweenService = game:GetService('TweenService')
+    local v2 = TweenInfo.new(2)
+    
+    -- Dynamically create the custom effect
+    local _ColorCorrectionEffect = Instance.new('ColorCorrectionEffect')
+    _ColorCorrectionEffect.Parent = game.Lighting
+    _ColorCorrectionEffect.Brightness = 0.05
+    _ColorCorrectionEffect.Contrast = 0
+    _ColorCorrectionEffect.Name = 'Jen'
+    _ColorCorrectionEffect.Enabled = true
+    _ColorCorrectionEffect.TintColor = Color3.fromRGB(255, 255, 255)
+    _ColorCorrectionEffect.Saturation = 0
+
+    -- First flash to red (Takes 2 seconds)
+    local tween1 = _TweenService:Create(_ColorCorrectionEffect, v2, {
+        Contrast = 1,
+        Saturation = 1,
+        TintColor = Color3.fromRGB(255, 0, 0),
+    })
+    tween1:Play()
+    tween1.Completed:Wait() 
+
+    -- Fade back to normal (Takes 2 seconds)
+    local _tween2 = _TweenService:Create(_ColorCorrectionEffect, v2, {
+        Contrast = 0,
+        Saturation = 0,
+        TintColor = Color3.fromRGB(255, 255, 255),
+        Brightness = 0,
+    })
+    _tween2:Play() -- FIXED: Added play call
+    _tween2.Completed:Wait() -- Wait for the fade to finish completely
+    
+    _ColorCorrectionEffect:Destroy() -- Clean it up so it doesn't mess up original game colors!
+end
 
 ---====== Asset Handling ======---
+
 local fileName = "FireGuardianSpawn.mp3"
 local soundUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/main/Video%20Project%205.mp3"
 
@@ -28,29 +84,6 @@ local function playSpawnSound()
         end)
     else
         warn("Failed to play local asset: " .. fileName)
-    end
-end
-
----====== Room Coloring Logic ======---
-
-local function makeCurrentRoomRed()
-    local player = game.Players.LocalPlayer
-    local currentRoomNumber = player:GetAttribute("CurrentRoom")
-    local roomsFolder = game.Workspace:FindFirstChild("CurrentRooms")
-    
-    if roomsFolder then
-        local room = roomsFolder:FindFirstChild(tostring(currentRoomNumber))
-        if room then
-            for _, v in pairs(room:GetDescendants()) do
-                if v:IsA("Light") then
-                    v.Color = Color3.fromRGB(255, 0, 0)
-                    v.Brightness = v.Brightness * 2
-                elseif (v:IsA("Part") or v:IsA("MeshPart")) and (v.Material == Enum.Material.Neon or v.Name == "LightFixture") then
-                    v.Color = Color3.fromRGB(255, 0, 0)
-                end
-            end
-            print("Room " .. tostring(currentRoomNumber) .. " is now permanently red.")
-        end
     end
 end
 
@@ -91,7 +124,7 @@ local entity = Spawner:Create({
     },
     Death = {
         Type = "Guiding",
-        Hints = {"The room turns red when he arrives."},
+        Hints = {"The room turns red when he arrives. Just... Hide."},
         Cause = "Fire Guardian"
     }
 })
@@ -101,12 +134,20 @@ local entity = Spawner:Create({
 entity:SetCallback("OnSpawned", function()
     -- These run the moment the entity spawns
     task.spawn(playSpawnSound)
-    makeCurrentRoomRed()
+    task.spawn(makeCurrentRoomRed) -- Wrapped in task.spawn so it doesn't yield/freeze the rest of the script
 end)
 
 -- Ensure room stays red if entity enters it again during rebound
 entity:SetCallback("OnEnterRoom", function()
-    makeCurrentRoomRed()
+
+end)
+
+entity:SetCallback("OnDespawning", function()
+    -- uhhh
+end)
+
+entity:SetCallback("OnDespawned", function()
+    onEntityGone()
 end)
 
 ---====== Run Entity ======---
