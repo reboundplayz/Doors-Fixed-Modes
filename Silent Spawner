@@ -2,8 +2,8 @@
 local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
 
 ---====== Asset Handling ======---
-local fileName = "SilentSpawn.mp3"
-local soundUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Video%20Project%206.mp3"
+local fileName = "SilentArrivalSpawn.mp3"
+local soundUrl = "https://github.com/idkman60093/Audio/raw/refs/heads/main/Silent%20Arrival%20Sound.mp3"
 
 if not isfile(fileName) then
     writefile(fileName, game:HttpGet(soundUrl))
@@ -22,21 +22,98 @@ local function playSpawnSound()
 end
 
 local function makeCurrentRoomBlue()
-    local player = game.Players.LocalPlayer
-    local currentRoomNumber = player:GetAttribute("CurrentRoom")
-    local rooms = game.Workspace:FindFirstChild("CurrentRooms")
-    if rooms then
-        local room = rooms:FindFirstChild(tostring(currentRoomNumber))
-        if room then
-            for _, v in pairs(room:GetDescendants()) do
-                if v:IsA("Light") then
-                    v.Color = Color3.fromRGB(0, 0, 255)
-                    v.Brightness = v.Brightness * 2
-                elseif (v:IsA("Part") or v:IsA("MeshPart")) and (v.Material == Enum.Material.Neon or v.Name == "LightFixture") then
-                    v.Color = Color3.fromRGB(0, 0, 255)
+    -- Services
+    local TweenService = game:GetService("TweenService")
+    local Players = game:GetService("Players")
+
+    local localPlayer = Players.LocalPlayer
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    -- Configuration
+    local TWEEN_INFO = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local TARGET_COLOR = Color3.fromRGB(0, 0, 255) -- Pure Blue
+
+    -- Helper: Find the current room the player is in
+    local function getCurrentRoom()
+        local workspaceRooms = workspace:FindFirstChild("CurrentRooms") or workspace:FindFirstChild("Rooms")
+        if not workspaceRooms then return nil end
+        
+        -- Target Doors game structure specifically
+        local currentRoomValue = workspace:FindFirstChild("CurrentRoom")
+        if currentRoomValue and workspaceRooms:FindFirstChild(tostring(currentRoomValue.Value)) then
+            return workspaceRooms[tostring(currentRoomValue.Value)]
+        end
+        
+        -- Fallback: Find closest room based on distance
+        local closestRoom = nil
+        local shortestDistance = math.huge
+        
+        for _, room in ipairs(workspaceRooms:GetChildren()) do
+            local base = room:FindFirstChild("RoomStart") or room:FindFirstChild("PrimaryPart") or room:FindFirstChildWhichIsA("BasePart")
+            if base then
+                local distance = (hrp.Position - base.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestRoom = room
                 end
             end
         end
+        return closestRoom
+    end
+
+    -- Main Execution
+    local currentRoom = getCurrentRoom()
+
+    if currentRoom then
+        print("[Executor] Modifying LightStands for room: " .. currentRoom.Name)
+        
+        -- Search specifically for the LightStand models in the current room
+        for _, obj in ipairs(currentRoom:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name == "LightStand" then
+                
+                -- Go through absolutely everything inside this specific LightStand hierarchy
+                for _, item in ipairs(obj:GetDescendants()) do
+                    
+                    -- 1. Color all dynamic light objects (handles the ones in LightFixture, Neon, and Attachments)
+                    if item:IsA("Light") then
+                        local lightTween = TweenService:Create(item, TWEEN_INFO, {
+                            Color = TARGET_COLOR
+                        })
+                        lightTween:Play()
+                        
+                    -- 2. Color the physical visual glass/fixture parts (LightFixture and Neon)
+                    elseif item:IsA("BasePart") then
+                        if item.Name == "LightFixture" or item.Name == "Neon" or item.Material == Enum.Material.Neon then
+                            item.Material = Enum.Material.Neon
+                            
+                            local partTween = TweenService:Create(item, TWEEN_INFO, {
+                                Color = TARGET_COLOR
+                            })
+                            partTween:Play()
+                        end
+                    end
+                    
+                end
+            end
+        end
+    else
+        warn("[Executor] Could not detect the current room. Make sure you are spawned into the match.")
+    end
+end -- FIXED: Added missing end here to properly close makeCurrentRoomBlue
+
+local function onEntityGone()
+    print("Silent destroyed/despawned")
+
+    if not getgenv().SilentAchievementExecuted then
+        getgenv().SilentAchievementExecuted = true
+
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()({
+            Title = "Scared",
+            Desc = "I won't harm you",
+            Reason = "Encounter Silent",
+            Image = "rbxassetid://70697566673795",
+        })
     end
 end
 
@@ -157,7 +234,15 @@ entity:SetCallback("OnSpawned", function()
 end)
 
 entity:SetCallback("OnEnterRoom", function()
-    makeCurrentRoomBlue()
+
+end)
+
+entity:SetCallback("OnDespawning", function()
+    -- sjsj
+end)
+
+entity:SetCallback("OnDespawned", function()
+    onEntityGone()
 end)
 
 ---====== Run Entity ======---
