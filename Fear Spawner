@@ -7,66 +7,85 @@ local EntityAsset = "rbxassetid://115255506640233"
 local JumpscareImage= "rbxassetid://128068256827134"
 local isFirstSpawn = true
 
----====== Smooth Purple Lighting & Color Correction ======---
+---====== Exact Adapted Silent Room-Coloring Logic ======---
 
-local function tweenLight(light)
-    local goal = {
-        Color = Color3.fromRGB(150, 0, 255),
-        Brightness = light.Brightness * 1.5
-    }
+local function makeCurrentRoomPurple()
+    -- Services
+    local Players = game:GetService("Players")
 
-    local tween = TweenService:Create(
-        light,
-        TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        goal
-    )
-    tween:Play()
-end
+    local localPlayer = Players.LocalPlayer
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
 
-local function tweenPart(part)
-    local tween = TweenService:Create(
-        part,
-        TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        { Color = Color3.fromRGB(150, 0, 255) }
-    )
-    tween:Play()
-end
+    -- Configuration
+    local TWEEN_INFO = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local TARGET_COLOR = Color3.fromRGB(150, 0, 255) -- Purple
 
-local function colorPurple(num)
-    local roomsFolder = game.Workspace:FindFirstChild("CurrentRooms")
-    if not roomsFolder then return end
-
-    local r = roomsFolder:FindFirstChild(tostring(num))
-    if r then
-        for _, v in pairs(r:GetDescendants()) do
-            if v:IsA("Light") then
-                tweenLight(v)
-            elseif (v:IsA("Part") or v:IsA("MeshPart")) and (v.Material == Enum.Material.Neon or v.Name == "LightFixture") then
-                tweenPart(v)
+    -- Helper: Find the current room the player is in
+    local function getCurrentRoom()
+        local workspaceRooms = workspace:FindFirstChild("CurrentRooms") or workspace:FindFirstChild("Rooms")
+        if not workspaceRooms then return nil end
+        
+        -- Target Doors game structure specifically
+        local currentRoomValue = workspace:FindFirstChild("CurrentRoom")
+        if currentRoomValue and workspaceRooms:FindFirstChild(tostring(currentRoomValue.Value)) then
+            return workspaceRooms[tostring(currentRoomValue.Value)]
+        end
+        
+        -- Fallback: Find closest room based on distance
+        local closestRoom = nil
+        local shortestDistance = math.huge
+        
+        for _, room in ipairs(workspaceRooms:GetChildren()) do
+            local base = room:FindFirstChild("RoomStart") or room:FindFirstChild("PrimaryPart") or room:FindFirstChildWhichIsA("BasePart")
+            if base then
+                local distance = (hrp.Position - base.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestRoom = room
+                end
             end
         end
+        return closestRoom
     end
-end
 
-local function makeRoomsPurple()
-    local latest = game.ReplicatedStorage.GameData.LatestRoom.Value
-    colorPurple(latest)
-    colorPurple(latest - 1)
+    -- Main Execution
+    local currentRoom = getCurrentRoom()
 
-    local lighting = game.Lighting:FindFirstChild("MainColorCorrection") or game.Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
-    if lighting then
-        local fadeIn = TweenService:Create(lighting, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            TintColor = Color3.fromRGB(170, 0, 255),
-            Contrast = 0.2,
-            Saturation = -0.7
-        })
+    if currentRoom then
+        print("[Executor] Modifying LightStands to purple for room: " .. currentRoom.Name)
         
-        fadeIn:Play()
-        fadeIn.Completed:Connect(function()
-            TweenService:Create(lighting, TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Contrast = 0}):Play()
-            TweenService:Create(lighting, TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Saturation = 0}):Play()
-            TweenService:Create(lighting, TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {TintColor = Color3.fromRGB(255, 255, 255)}):Play()
-        end)
+        -- Search specifically for the LightStand models in the current room
+        for _, obj in ipairs(currentRoom:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name == "LightStand" then
+                
+                -- Go through absolutely everything inside this specific LightStand hierarchy
+                for _, item in ipairs(obj:GetDescendants()) do
+                    
+                    -- 1. Color all dynamic light objects (handles the ones in LightFixture, Neon, and Attachments)
+                    if item:IsA("Light") then
+                        local lightTween = TweenService:Create(item, TWEEN_INFO, {
+                            Color = TARGET_COLOR
+                        })
+                        lightTween:Play()
+                        
+                    -- 2. Color the physical visual glass/fixture parts (LightFixture and Neon)
+                    elseif item:IsA("BasePart") then
+                        if item.Name == "LightFixture" or item.Name == "Neon" or item.Material == Enum.Material.Neon then
+                            item.Material = Enum.Material.Neon
+                            
+                            local partTween = TweenService:Create(item, TWEEN_INFO, {
+                                Color = TARGET_COLOR
+                            })
+                            partTween:Play()
+                        end
+                    end
+                    
+                end
+            end
+        end
+    else
+        warn("[Executor] Could not detect the current room. Make sure you are spawned into the match.")
     end
 end
 
@@ -134,7 +153,7 @@ local function runJumpscare(targetModel)
             if t >= duration then break end
 
             if math.random(1,2) == 1 then
-                flash.BackgroundColor3 = Color3.fromRGB(120, 0, 255)
+                flash.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
             else
                 flash.BackgroundColor3 = Color3.fromRGB(0,0,0)
             end
@@ -283,25 +302,25 @@ local f4 = Spawner:Create({ Entity = { Name = "Fear4", Asset = EntityAsset, Heig
 
 task.spawn(function()
     -- ROOM 1
-    makeRoomsPurple()
+    makeCurrentRoomPurple()
     if f1 then f1:Run(true) end
 
     -- ROOM 2
     game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
     isFirstSpawn = false
     task.wait(2.5)
-    makeRoomsPurple()
+    makeCurrentRoomPurple()
     if f2 then f2:Run(true) end
 
     -- ROOM 3
     game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
     task.wait(2.5)
-    makeRoomsPurple()
+    makeCurrentRoomPurple()
     if f3 then f3:Run(true) end
 
     -- ROOM 4
     game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
     task.wait(2.5)
-    makeRoomsPurple()
+    makeCurrentRoomPurple()
     if f4 then f4:Run(true) end
 end)
