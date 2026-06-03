@@ -11,7 +11,7 @@ local function cacheGitSound(GithubSoundPath: string, AssetName: string): string
 end
 
 -- Fetch custom audio IDs
-local customLibraryId = cacheGitSound("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/941913_Portal-To-The-Other-Side-f.mp3", "portalSide")
+local customLibraryId = cacheGitSound("https://github.com/idkman60093/Audio/raw/refs/heads/main/CustomLibraryMusicRemake.mp3", "CustomLibraryMusicRemake")
 local customDoor100Id = cacheGitSound("https://github.com/kodbolx/kodbolhub/blob/main/Nightmare%20Mode/Sounds/library1.mp3?raw=true", "library1")
 local customSeekId = cacheGitSound("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/SeekMoving.mp3", "SeekMusic")
 
