@@ -28,18 +28,44 @@ local function AwardB60Achievement()
     end
 end
 
-local function forceRedTint(color, duration)
+local function forceRedTint(targetColor, duration)
     local rooms = game.Workspace:FindFirstChild("CurrentRooms")
     if not rooms then return end
+    
+    local originalColors = {}
+    local lights = {}
+    
     for _, room in pairs(rooms:GetChildren()) do
         for _, v in pairs(room:GetDescendants()) do
             if v:IsA("Light") then
-                local oldCol = v.Color
-                v.Color = color
-                task.delay(duration, function() v.Color = oldCol end)
+                table.insert(lights, v)
+                originalColors[v] = v.Color
+                v.Color = targetColor
             end
         end
     end
+    
+    task.spawn(function()
+        local start = tick()
+        while tick() - start < duration do
+            local elapsed = tick() - start
+            local progress = elapsed / duration
+            
+            for _, light in ipairs(lights) do
+                if light and light.Parent then
+                    local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                    light.Color = targetColor:Lerp(orig, progress)
+                end
+            end
+            task.wait()
+        end
+        
+        for _, light in ipairs(lights) do
+            if light and light.Parent then
+                light.Color = originalColors[light]
+            end
+        end
+    end)
 end
 
 local function smoothEarthquake(duration, maxIntensity)
@@ -71,11 +97,11 @@ local entity = Spawner:Create({
     Lights = { Flicker = { Enabled = true, Duration = 3 }, Shatter = true, Repair = false },
     Movement = { Speed = 250, Delay = 4.5, Reversed = false },
     Rebounding = { Enabled = true, Type = "Ambush", Min = 5, Max = 5, Delay = 1.2 },
-    Damage = { Enabled = false }, -- Handled by custom detection
+    Damage = { Enabled = false }, 
     CameraShake = {
         Enabled = true,
         Range = 150,
-        Values = {5, 45, 0.1, 1} --
+        Values = {5, 45, 0.1, 1}
     },
     Death = { Type = "Guiding", Hints = {"B-60 is fast. Hide and stay out of sight."}, Cause = EntityName }
 })
@@ -140,7 +166,6 @@ task.spawn(function()
             local char = player.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
             
-            -- Checks attributes or specific "Hidden" tags used by most Doors scripts
             local isHiding = player:GetAttribute("Hiding") == true 
                 or (char and char:GetAttribute("Hiding") == true)
                 or (char and char:FindFirstChild("Hidden"))
@@ -152,7 +177,6 @@ task.spawn(function()
                 if entityPart then
                     local dist = (root.Position - entityPart.Position).Magnitude
                     if dist < 55 then 
-                        -- RAYCAST CHECK: Ensure no walls/closets are between you and B-60
                         local rayParams = RaycastParams.new()
                         rayParams.FilterDescendantsInstances = {char, target}
                         rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -160,7 +184,6 @@ task.spawn(function()
                         local direction = (root.Position - entityPart.Position)
                         local rayResult = game.Workspace:Raycast(entityPart.Position, direction, rayParams)
                         
-                        -- If rayResult is nil, nothing blocked the line of sight
                         if not rayResult then
                             runHardJumpscare()
                         end
@@ -178,13 +201,40 @@ smoothEarthquake(4.5, 15)
 
 entity:Run(true)
 
+-- Targeted Face Animation Loop
+task.spawn(function()
+    local eModel = game.Workspace:WaitForChild(EntityName, 10)
+    if eModel then
+        local head = eModel:WaitForChild("Head", 5)
+        -- Targets the specific emitter named "ParticleEmitter" explicitly
+        local emitter = head and head:FindFirstChild("ParticleEmitter")
+        
+        if emitter and emitter:IsA("ParticleEmitter") then
+            while eModel.Parent == game.Workspace do
+                emitter.Texture = "rbxassetid://132608289829623"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://132598758780611"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://103365774502046"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://120065678981246"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://14303506455"
+                task.wait(0.05)
+            end
+        end
+    end
+end)
+
+-- Despawn and Achievement Listener
 task.spawn(function()
     local eModel = game.Workspace:WaitForChild(EntityName, 10)
     if eModel then
         while eModel.Parent == game.Workspace do
             task.wait(0.1)
         end
-        AwardB60Achievement() -- Fires instantly when despawning/removed from workspace
+        AwardB60Achievement() 
+        
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
         smoothEarthquake(8, 55) 
     end
