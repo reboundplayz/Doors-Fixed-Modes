@@ -494,7 +494,7 @@ local function UpdateFear(amount)
 end
 
 coroutine.wrap(function()
-    MainGame.caption("Oof's fearmode script successfully loaded", true)
+    MainGame.caption("This mode has been temporarily disabled due to extreme bugs.", true)
     
     ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
     
