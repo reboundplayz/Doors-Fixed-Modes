@@ -18,7 +18,7 @@ local FaceIDs = {
     "rbxassetid://14303506455"
 }
 
--- ====== Logic Functions (Visuals, Screenshake, Achievements) ======
+-- ====== Logic Functions ======
 
 local function AwardB60Achievement()
     if not getgenv().B60AchievementExecuted then
@@ -33,18 +33,44 @@ local function AwardB60Achievement()
     end
 end
 
-local function forceRedTint(color, duration)
+local function forceRedTint(targetColor, duration)
     local rooms = game.Workspace:FindFirstChild("CurrentRooms")
     if not rooms then return end
+    
+    local originalColors = {}
+    local lights = {}
+    
     for _, room in pairs(rooms:GetChildren()) do
         for _, v in pairs(room:GetDescendants()) do
             if v:IsA("Light") then
-                local oldCol = v.Color
-                v.Color = color
-                task.delay(duration, function() v.Color = oldCol end)
+                table.insert(lights, v)
+                originalColors[v] = v.Color
+                v.Color = targetColor
             end
         end
     end
+    
+    task.spawn(function()
+        local start = tick()
+        while tick() - start < duration do
+            local elapsed = tick() - start
+            local progress = elapsed / duration
+            
+            for _, light in ipairs(lights) do
+                if light and light.Parent then
+                    local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                    light.Color = targetColor:Lerp(orig, progress)
+                end
+            end
+            task.wait()
+        end
+        
+        for _, light in ipairs(lights) do
+            if light and light.Parent then
+                light.Color = originalColors[light]
+            end
+        end
+    end)
 end
 
 local function smoothEarthquake(duration, maxIntensity)
@@ -199,7 +225,6 @@ local function runPatrolSequence()
         return numA < numB
     end)
 
-    -- Loop Part 1: Through all 22 nodes
     for _, node in ipairs(nodes) do
         if not entity or not entity.Parent then return false end
         if node:IsA("BasePart") then
@@ -207,7 +232,6 @@ local function runPatrolSequence()
         end
     end
     
-    -- Loop Part 2: Return back to RoomEntrance
     if not entity or not entity.Parent then return false end
     EntityMoveTo(getRoomEntranceCFrame())
     
@@ -216,17 +240,35 @@ end
 
 -- ====== START EXECUTION ======
 
--- 1. Start intro visual/camera effects instantly
 forceRedTint(Color3.fromRGB(255, 0, 0), 4.5)
 smoothEarthquake(4.5, 15)
 
--- 2. Main lifecycle thread handling loading, sound, and patrol timing
 task.spawn(function()
-    -- Instant loading so we can attachment-play the audio from it
     entity = LoadEntity()
     if not entity then return end
 
-    -- Make completely invisible and non-collidable initially
+    -- Targeted ParticleEmitter Loop
+    task.spawn(function()
+        local head = entity:WaitForChild("Head", 10)
+        local emitter = head and head:WaitForChild("ParticleEmitter", 5)
+        
+        if emitter then
+            while entity and entity.Parent do
+                emitter.Texture = "rbxassetid://132608289829623"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://132598758780611"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://103365774502046"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://120065678981246"
+                task.wait(0.05)
+                emitter.Texture = "rbxassetid://14303506455"
+                task.wait(0.05)
+            end
+        end
+    end)
+
+    -- Make completely invisible initially
     for _, v in ipairs(entity:GetDescendants()) do
         if v:IsA("BasePart") then
             v.Transparency = 1
@@ -235,11 +277,9 @@ task.spawn(function()
         end
     end
 
-    -- Position it 30 studs behind RoomEntrance so players don't see it spawn out of thin air
     local spawnCF = getRoomEntranceCFrame()
     entity:PivotTo(spawnCF * CFrame.new(0, 0, 30))
 
-    -- Create and instantly play the sound directly inside the entity model part
     local soundPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
     if soundPart then
         local spawnSound = Instance.new("Sound", soundPart)
@@ -257,18 +297,21 @@ task.spawn(function()
         end)
     end
 
-    -- Wait 5 seconds while the environment shakes and the spawn sound echoes from behind the door
     task.wait(5)
 
-    -- Make the entity visible and instantly relocate it to the actual starting line
+    -- Return visibility to parts when it attacks
     for _, v in ipairs(entity:GetDescendants()) do
         if v:IsA("BasePart") then
-            v.Transparency = 1
+            if v.Name == "Head" or v.Name == "HumanoidRootPart" then
+                v.Transparency = 1
+            else
+                v.Transparency = 0
+            end
         end
     end
     entity:PivotTo(spawnCF)
 
-    -- 4. Spin up the Kill Detection tracking loop now that entity is active
+    -- Kill Detection Loop
     task.spawn(function()
         while RunService.Heartbeat:Wait() and entity and entity.Parent do
             if not isKilling then
@@ -302,7 +345,6 @@ task.spawn(function()
         end
     end)
 
-    -- 5. Begin patrol cycles immediately upon un-hiding
     local completedLoops = 0
     while entity and entity.Parent and completedLoops < 3 do
         local success = runPatrolSequence()
@@ -313,20 +355,20 @@ task.spawn(function()
         task.wait(0.1)
     end
     
-    -- Triggers when natural path loops finish successfully
+    -- Finale: Natural Loop Completion Outro
     if entity and entity.Parent then
         entity:Destroy()
-        AwardB60Achievement() -- Fires when the entity naturally despawns
+        AwardB60Achievement()
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
         smoothEarthquake(8, 55)
     end
 end)
 
--- Cleanup & Finale Outro on unexpected Room Change
+-- Finale: Room Change Interrupt Outro
 game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
     if entity then 
         entity:Destroy() 
-        AwardB60Achievement() -- Fires if despawned early by moving rooms
+        AwardB60Achievement()
         forceRedTint(Color3.fromRGB(150, 0, 0), 8) 
         smoothEarthquake(8, 55) 
     end
