@@ -1,6 +1,6 @@
 ---====== Load spawner ======---
 
-local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Doors-Modes/refs/heads/main/Entity%20Spawner%20V2"))()
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-Guestly/Modes/refs/heads/main/Entity-Spawner-Fixed-By-Guestly%20(Outernal)"))()
 
 ---====== Achievement ======---
 
