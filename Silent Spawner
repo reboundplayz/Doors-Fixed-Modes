@@ -1,5 +1,5 @@
 ---====== Load spawner ======---
-local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-Guestly/Modes/refs/heads/main/Entity-Spawner-Fixed-By-Guestly%20(Outernal)"))()
 
 ---====== Asset Handling ======---
 local fileName = "SilentArrivalSpawn.mp3"
