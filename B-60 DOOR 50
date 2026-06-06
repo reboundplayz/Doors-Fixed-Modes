@@ -7,12 +7,32 @@ local entityspeed = 200
 local killRange = 55 
 local entityName = "B-60"
 local assetId = "rbxassetid://126201090853359"
-local KillSoundID = "rbxassetid://132942725846535"
-local SpawnSoundID = "rbxassetid://132942725846535" -- Make sure this is your correct spawn sound ID!
+local SpawnSoundID = "rbxassetid://132942725846535" 
 
+-- Custom Sound Download and Allocation Logic
+local SoundFileName = "B60_HairJumpscare.mp3"
+local KillSoundID = ""
+
+if not isfile(SoundFileName) then
+    local success, audioData = pcall(function()
+        return game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/HAIR%20JUMPSCARE%20(1)%20(1).mp3")
+    end)
+    if success then
+        writefile(SoundFileName, audioData)
+    else
+        warn("[B-60]: Failed to download custom sound file.")
+    end
+end
+
+if isfile(SoundFileName) then
+    KillSoundID = getcustomasset(SoundFileName)
+else
+    KillSoundID = "rbxassetid://132942725846535" -- Fallback ID if download failed
+end
+
+-- Removed the 2nd Face completely from this list
 local FaceIDs = {
     "rbxassetid://132608289829623",
-    "rbxassetid://132598758780611",
     "rbxassetid://103365774502046", 
     "rbxassetid://120065678981246",
     "rbxassetid://14303506455"
@@ -28,7 +48,7 @@ local function AwardB60Achievement()
             Title = "Born From Static",
             Desc = "Its smile never changes..",
             Reason = "Encounter B-60",
-            Image = "rbxassetid://117667968899219",
+            Image = "rbxassetid://132194738560810",
         })
     end
 end
@@ -109,11 +129,30 @@ local function runHardJumpscare()
 
     local s = Instance.new("Sound", game:GetService("SoundService"))
     s.SoundId = KillSoundID
-    s.Volume = 3 
+    s.Volume = 4 
     s:Play()
 
-    for i = 1, 14 do
-        local img = Instance.new("ImageLabel", gui)
+    -- Fullscreen Dark Red Background
+    local backgroundFrame = Instance.new("Frame", gui)
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+    backgroundFrame.BorderSizePixel = 0
+    backgroundFrame.BackgroundTransparency = 1
+
+    -- Isolated Holder Frame for rapid spamming
+    local spamContainer = Instance.new("Frame", gui)
+    spamContainer.Size = UDim2.new(1, 0, 1, 0)
+    spamContainer.BackgroundTransparency = 1
+
+    -- Accelerated Phase: Spam faces for exactly 0.8 seconds
+    local phaseStart = tick()
+    local spamDuration = 0.8
+    
+    while tick() - phaseStart < spamDuration do
+        local elapsed = tick() - phaseStart
+        local progress = elapsed / spamDuration
+        
+        local img = Instance.new("ImageLabel", spamContainer)
         img.BackgroundTransparency = 1
         img.Image = FaceIDs[math.random(1, #FaceIDs)]
         img.ImageColor3 = Color3.fromRGB(255, 0, 0)
@@ -121,10 +160,18 @@ local function runHardJumpscare()
         img.AnchorPoint = Vector2.new(0.5, 0.5)
         img.Position = UDim2.new(0.5 + math.random(-15, 15)/100, 0, 0.5 + math.random(-15, 15)/100, 0)
         img.Rotation = math.random(-45, 45)
-        task.wait(0.05)
+        
+        backgroundFrame.BackgroundTransparency = math.max(0.3, 1 - progress)
+        
+        task.wait(0.04)
         img:Destroy()
     end
 
+    -- Clean up the chaotic spam container
+    spamContainer:Destroy()
+    backgroundFrame.BackgroundTransparency = 0.3
+
+    -- Final static zooming face layer (Isolated & Guaranteed to render)
     local finalFace = Instance.new("ImageLabel", gui)
     finalFace.Image = "rbxassetid://103365774502046" 
     finalFace.ImageColor3 = Color3.fromRGB(200, 0, 0) 
@@ -247,7 +294,7 @@ task.spawn(function()
     entity = LoadEntity()
     if not entity then return end
 
-    -- Targeted ParticleEmitter Loop
+    -- Targeted ParticleEmitter Loop (Second Face Removed)
     task.spawn(function()
         local head = entity:WaitForChild("Head", 10)
         local emitter = head and head:WaitForChild("ParticleEmitter", 5)
@@ -255,8 +302,6 @@ task.spawn(function()
         if emitter then
             while entity and entity.Parent do
                 emitter.Texture = "rbxassetid://132608289829623"
-                task.wait(0.05)
-                emitter.Texture = "rbxassetid://132598758780611"
                 task.wait(0.05)
                 emitter.Texture = "rbxassetid://103365774502046"
                 task.wait(0.05)
