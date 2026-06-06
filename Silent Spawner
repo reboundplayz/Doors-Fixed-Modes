@@ -5,8 +5,17 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-G
 local fileName = "SilentArrivalSpawn.mp3"
 local soundUrl = "https://github.com/idkman60093/Audio/raw/refs/heads/main/Silent%20Arrival%20Sound.mp3"
 
+-- New Jumpscare Sound Configuration
+local jumpFileName = "A-300_Jumpscare.mp3"
+local jumpSoundUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-300_Entity_Spawning.mp3.mpeg"
+
 if not isfile(fileName) then
     writefile(fileName, game:HttpGet(soundUrl))
+end
+
+-- Download the new jumpscare sound if it doesn't exist
+if not isfile(jumpFileName) then
+    writefile(jumpFileName, game:HttpGet(jumpSoundUrl))
 end
 
 local function playSpawnSound()
@@ -100,7 +109,7 @@ local function makeCurrentRoomBlue()
     else
         warn("[Executor] Could not detect the current room. Make sure you are spawned into the match.")
     end
-end -- FIXED: Added missing end here to properly close makeCurrentRoomBlue
+end
 
 local function onEntityGone()
     print("Silent destroyed/despawned")
@@ -142,6 +151,10 @@ local function startJumpscare(targetEntity)
     if isKilling then return end
     isKilling = true
 
+    -- Pre-fetch custom asset 
+    local customJumpSound
+    local customSuccess, customAssetId = pcall(function() return getcustomasset(jumpFileName) end)
+
     local player = game.Players.LocalPlayer
     local char = player.Character
     local root = char:FindFirstChild("HumanoidRootPart")
@@ -167,18 +180,37 @@ local function startJumpscare(targetEntity)
         end
     end)
 
+    -- 1. Play custom downloaded A-300 sound first at high volume
+    if customSuccess then
+        customJumpSound = Instance.new("Sound", game:GetService("SoundService"))
+        customJumpSound.SoundId = customAssetId
+        customJumpSound.Volume = 10 -- Cranked up volume to prioritize it
+        customJumpSound:Play()
+    end
+
+    -- Delay so the A-300 sound punches through solo for a moment
+    task.wait(0.15)
+
+    -- 2. Setup standard built-in sound with a fast volume fade-in
     local s = Instance.new("Sound", game:GetService("SoundService"))
     s.SoundId = "rbxassetid://7017782324"
-    s.PlaybackSpeed = 2
-    s.Volume = 5
+    s.PlaybackSpeed = 1.7
+    s.Volume = 0 -- Start muted to execute the fade
+    s.Parent = game:GetService("SoundService")
     s:Play()
 
-    task.wait(4)
+    -- Tween to fade the second sound in really fast
+    local fadeInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local fadeTween = game:GetService("TweenService"):Create(s, fadeInfo, { Volume = 2.5 })
+    fadeTween:Play()
+
+    task.wait(2.85) -- Maintained total timing balance
 
     freezeConnection:Disconnect()
     camConnection:Disconnect()
     s:Destroy()
     
+    if customJumpSound then customJumpSound:Destroy() end
     if targetEntity then targetEntity:Destroy() end
 
     hum.Health = 0
@@ -192,13 +224,12 @@ end
 
 task.spawn(function()
     while true do
-        task.wait(0.05) -- Faster check
+        task.wait(0.05)
         if not isKilling then
             local player = game.Players.LocalPlayer
             local char = player.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
             
-            -- Multi-check for hiding
             local isHiding = player:GetAttribute("Hiding") == true or char:GetAttribute("Hiding") == true or char:FindFirstChild("Hidden")
             
             local target = game.Workspace:FindFirstChild("Silent") or game.Workspace:FindFirstChild("Entity")
@@ -208,14 +239,12 @@ task.spawn(function()
                 if entityPart then
                     local distance = (root.Position - entityPart.Position).Magnitude
                     if distance <= DETECTION_RANGE then
-                        -- Raycast check: Can the entity actually "see" the player?
                         local rayParams = RaycastParams.new()
                         rayParams.FilterDescendantsInstances = {char, target}
                         rayParams.FilterType = Enum.RaycastFilterType.Exclude
                         
                         local ray = game.Workspace:Raycast(entityPart.Position, (root.Position - entityPart.Position).Unit * distance, rayParams)
                         
-                        -- If the ray didn't hit a wall, trigger the jumpscare
                         if not ray then
                             startJumpscare(target)
                         end
