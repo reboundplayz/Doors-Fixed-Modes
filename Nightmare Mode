@@ -1,100 +1,318 @@
-loadstring(game:HttpGet("https://github.com/thelostw3r/ScriptsForMyModes/raw/refs/heads/main/Hardcore%20Sprint%20System%20(PC%20and%20Mobile%20Adaptation).lua.txt"))()
-game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Mode%20Enterance"))()
-local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
-caption.TextColor3 = Color3.fromRGB(255, 255, 255)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Nightmare Mode Initiated")
-wait(1.5)
-local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
-caption.TextColor3 = Color3.fromRGB(255, 255, 255)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Made by Kodbol (Scripter) and Asif (Helper)")
-wait(1.5)
-local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
-caption.TextColor3 = Color3.fromRGB(255, 255, 255)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fixed/Remade version by Reboundplayz")
-wait(1.5)
-local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
-caption.TextColor3 = Color3.fromRGB(255, 255, 255)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Have fun! (You won't)...")
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Guiding%20Light%20Music"))()
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Mode%20Rigs"))()
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Mode%20Music"))()
+loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Mode%20Titles"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-Guestly/Scripts/refs/heads/main/UNIVERSAL-Sprint-Bar.lua"))()
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local _TweenService = game:GetService("TweenService")
+local _SoundService = game:GetService("SoundService")
+local _Debris = game:GetService("Debris")
+local workspaceService = game:GetService("Workspace")
+local currentRooms = workspaceService:WaitForChild("CurrentRooms")
 
--- Hungry
+local PREFIX = "!"
+local COMMANDS = {
+    hungry = true,
+    nightmare_screech = true,
+    attraction = true,
+    ["A-60"] = true,
+    fire_guardian = true,
+    silent = true,
+    ["B-60"] = true,
+    fear = true,
+    ["A-90"] = true, 
+    fart = true,
+    superpower = true,
+    troll = true,
+    freddy = true
+}
+
+local AllowedPlayers = {
+    ["kardindoorsgoat"] = true,
+    ["TestingDoorsScrip"] = true,
+    ["DaviGamer_NovaConta"] = true,
+    ["anbdnhucc"] = true
+}
+
+local function _getGitAsset(url, fileName)
+    if not isfile(fileName .. ".mp3") and string.find(fileName, ".mp3") then
+        writefile(fileName .. ".mp3", game:HttpGet(url))
+    elseif not isfile(fileName) then
+        writefile(fileName, game:HttpGet(url))
+    end
+
+    local assetFunc = getcustomasset or getsynasset
+    return assetFunc(string.find(fileName, ".mp3") and (fileName .. ".mp3") or fileName)
+end
+
+TextChatService.OnIncomingMessage = function(message)
+    local properties = Instance.new("TextChatMessageProperties")
+
+    if message.TextSource then
+        local player = Players:GetPlayerByUserId(message.TextSource.UserId)
+
+        if player then
+            if player.Name == "kardindoorsgoat" then
+                properties.PrefixText = "<font color='#FFD700'>[Owner]</font> " .. (message.PrefixText or "")
+            elseif player.Name == "TestingDoorsScrip" then
+                properties.PrefixText = "<font color='#00AAFF'>[Admin]</font><font color='#FFFFFF'> and </font><font color='#00FF00'>[Helper]</font> " .. (message.PrefixText or "")
+            elseif player.Name == "DaviGamer_NovaConta" then
+                properties.PrefixText = "<font color='#00AAFF'>[Admin]</font>" .. (message.PrefixText or "")
+            elseif player.Name == "anbdnhucc" then
+                properties.PrefixText = "<font color='#00FF00'>[Helper]</font> " .. (message.PrefixText or "")
+            end
+        end
+    end
+
+    return properties
+end
+
+local function ExecuteCommand(cmd, sender)
+    print("SYNC EXECUTED:", cmd, "FROM:", sender)
+
+    if cmd == "hungry" then
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hungry%20Spawner"))()
+    elseif cmd == "nightmare_screech" then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Custom-Entity/refs/heads/main/Nightmare-Screech-Nightmare-Mode"))()
+    elseif cmd == "attraction" then
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Attraction%20Spawner"))()
+    elseif cmd == "A-60" then
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-60%20(LSPLASH%20version)%20Spawner"))()
+    elseif cmd == "fire_guardian" then
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fire%20Guardian%20Spawner"))()
+    elseif cmd == "silent" then
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Silent%20Spawner"))()
+    elseif cmd == "B-60" then
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/B-60%20Spawner"))()
+    elseif cmd == "fear" then
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fear%20Spawner"))()
+    elseif cmd == "A-90" then -- Command execution logic kept
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Custom-Entity/refs/heads/main/A-90-Nightmare-Mode"))()
+    elseif cmd == "fart" then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Audio/refs/heads/main/Fart-Sound"))()
+    elseif cmd == "superpower" then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Audio/refs/heads/main/epic-superpower"))()
+    elseif cmd == "troll" then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Audio/refs/heads/main/Troll-Face"))()
+    elseif cmd == "freddy" then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Audio/refs/heads/main/Freddy-ArArArAr"))()
+    end
+end
+
+local function HookPlayer(player)
+    player.Chatted:Connect(function(msg)
+        if not AllowedPlayers[player.Name] then return end
+        msg = tostring(msg)
+        if string.sub(msg, 1, #PREFIX) ~= PREFIX then return end
+        local cmd = string.sub(msg, #PREFIX + 1)
+        if not COMMANDS[cmd] then return end
+        ExecuteCommand(cmd, player.Name)
+    end)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    HookPlayer(player)
+end
+
+Players.PlayerAdded:Connect(HookPlayer)
+
+coroutine.wrap(function()
+    while true do
+        wait(0.0005)
+        pcall(function()
+            workspace.CurrentRooms[game.ReplicatedStorage.GameData.LatestRoom.Value].Door.Door.Open.SoundId = "rbxassetid://89145506862696"
+        end)
+    end
+end)()
+
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Nightmare Mode Successfully Executed", true)
+local achievementGiver1 = loadstring(game:HttpGet("https://raw.githubusercontent.com/Voor-Pr00/Achivements/refs/heads/main/Voorpr0"))()
+
+achievementGiver1({
+    Title = "The Nightmare Has Come...",
+    Desc = "Run for your life",
+    Reason = "Execute Nightmare Mode Script",
+    Image = "rbxassetid://10888024887"
+})
+
+game:GetService("TextChatService").TextChannels.RBXGeneral:DisplaySystemMessage("<b><font color='rgb(255, 0, 0)'>Nightmare Mode Has Been Executed</font></b>")
+wait(1.5)
+game:GetService("TextChatService").TextChannels.RBXGeneral:DisplaySystemMessage("<b><font color='rgb(255, 0, 0)'>Discord Server = https://discord.gg/csju8PBxM</font></b>")
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+local caption = game.Players.LocalPlayer:WaitForChild("PlayerGui").MainUI.MainFrame.Caption
+caption.TextColor3 = Color3.fromRGB(255, 255, 255)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Nightmare Mode Initiated", true)
+wait(2.5)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Made by Kodbol (Scripter) and Asif (Helper)", true)
+wait(2.5)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Fixed/Remade by Reboundplayz (Scripter), Rip_Silence (Helper), and Guestly (Scriper & Helper)", true)
+wait(2.5)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Sprint Bar by Guestly", true)
+wait(2.5)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Five Nights At Freddys, how it can be?", true)
+
+game.Players.LocalPlayer.PlayerGui.MainUI.Jumpscare.Jumpscare_Rush.ImageLabel.ImageColor3 = Color3.fromRGB(255, 0, 0)
+game.Players.LocalPlayer.PlayerGui.MainUI.Jumpscare.Jumpscare_Rush.ImageLabelBig.ImageColor3 = Color3.fromRGB(255,0,0)
+
+local running = true
+
+local function OnRushSpawned(model)
+    print("Rush detected:", model.Name)
+    task.wait(0.5)
+    local rushNew = workspaceService:WaitForChild("RushMoving"):WaitForChild("RushNew")
+    rushNew.Attachment.ParticleEmitter.Color = ColorSequence.new(Color3.fromRGB(255,0,0))
+    rushNew.PlaySound.PlaybackSpeed = 0.1
+    rushNew.Footsteps.PlaybackSpeed = 0.1
+    workspaceService.RushMoving.RushNew.Attachment.BlackTrail.Color = ColorSequence.new(Color3.fromRGB(41,1,1))
+end
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if running then
+            local rush = workspaceService:FindFirstChild("RushMoving")
+            if rush and rush:IsA("Model") then
+                running = false
+                task.spawn(function()
+                    OnRushSpawned(rush)
+                end)
+                repeat
+                    task.wait(0.1)
+                    rush = workspaceService:FindFirstChild("RushMoving")
+                until not rush
+                running = true
+                print("Rush gone, loop resumed")
+            end
+        end
+    end
+end)
+
 coroutine.wrap(function()
     while true do
         wait(math.random(15, 30))
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hungry%20Spawner"))()
+        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Hungry%20Spawner"))()
     end
 end)()
 
--- Nightmare Screech
 coroutine.wrap(function()
     while true do
         wait(math.random(25, 45))
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Nightmare%20Screech%20Spawner"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Custom-Entity/refs/heads/main/Nightmare-Screech-Nightmare-Mode"))()
     end
 end)()
 
--- Attraction
 coroutine.wrap(function()
     while true do
-        wait(75)
+        task.wait(110)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
-        wait(0)
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Attraction%20Spawner"))()
+        local currentRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+        if currentRoom ~= 50 and currentRoom ~= 51 then 
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Attraction%20Spawner"))()
+        end
     end
 end)()
 
--- A-60
-coroutine.wrap(function()
-    while true do
-        wait(230)
-        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
-        wait(0)
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-60%20(LSPLASH%20version)%20Spawner"))()
-    end
-end)()
-
--- Fire Guardian
-coroutine.wrap(function()
-    while true do
-        wait(150)
-        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
-        wait(0)
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fire%20Guardian%20Spawner"))()
-    end
-end)()
-
--- Silent
 coroutine.wrap(function()
     while true do
         wait(200)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
         wait(0)
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Silent%20Spawner"))()
+        local currentRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+        if currentRoom == 50 or currentRoom == 51 then
+            -- Do nothing
+        else
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-60%20(LSPLASH%20version)%20Spawner"))()
+        end
     end
 end)()
 
--- Fear
 coroutine.wrap(function()
     while true do
-        wait(280)
+        wait(180)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
         wait(0)
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fear%20Spawner"))()
+        local currentRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+        if currentRoom == 50 or currentRoom == 51 then
+            -- Do nothing
+        else
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fire%20Guardian%20Spawner"))()
+        end
     end
 end)()
 
--- B-60
 coroutine.wrap(function()
     while true do
-        wait(540)
+        wait(math.random(200, 220))
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
-        wait(3)
-loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/B-60%20Spawner"))()
+        wait(0)
+        local currentRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+        if currentRoom == 50 or currentRoom == 51 then
+            -- Do nothing
+        else
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Silent%20Spawner"))()
+        end
     end
 end)()
 
+coroutine.wrap(function()
+    while true do
+        wait(math.random(280, 350))
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+        local currentRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+        if currentRoom == 50 or currentRoom == 51 then
+            -- Do nothing
+        else
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Fear%20Spawner"))()
+        end
+    end
+end)()
 
+coroutine.wrap(function()
+    while true do
+        wait(math.random(500, 600))
+        local currentRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+        if currentRoom == 50 or currentRoom == 51 then
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/B-60%20DOOR%2050"))()
+        else
+            loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/B-60%20Spawner"))()
+        end
+    end
+end)()
 
+coroutine.wrap(function()
+    while true do
+        wait(math.random(30, 90))
+        local currentRoom = game.ReplicatedStorage.GameData.LatestRoom.Value
+        if currentRoom > 50 then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/idkman60093/Custom-Entity/refs/heads/main/A-90-Nightmare-Mode"))()    
+        else
+            
+        end
+    end
+end)()
 
+local function Convert(Room)
+    if not Room then return end
+    local num = tonumber(Room.Name:match("%d+"))
+    if num and num >= 51 then
+        task.wait(1)
+        for _, asset in ipairs(Room:GetDescendants()) do
+            if asset.Name == "Neon" then
+                for _, v in ipairs(asset.Parent:GetDescendants()) do
+                    if v:IsA("PointLight") or v:IsA("SpotLight") then
+                        v:Destroy()
+                    end
+                end
+                asset:Destroy()
+            end
+        end
+    end
+end
 
+currentRooms.ChildAdded:Connect(Convert)
 
+for _, room in ipairs(currentRooms:GetChildren()) do
+    Convert(room)
+end
