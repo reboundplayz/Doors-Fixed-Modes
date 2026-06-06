@@ -1,60 +1,60 @@
 ---====== Load spawner ======---
 
-local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-Guestly/Modes/refs/heads/main/Entity-Spawner-Fixed-By-Guestly%20(Outernal)"))()
 
 ---====== Create entity ======---
 
 local entity = Spawner:Create({
-	Entity = {
-		Name = "A-60",
-		Asset = "rbxassetid://14040465404",
-		HeightOffset = 0
-	},
-	Lights = {
-		Flicker = {
-			Enabled = false,
-			Duration = 1
-		},
-		Shatter = false,
-		Repair = false
-	},
-	Earthquake = {
-		Enabled = false
-	},
-	CameraShake = {
-		Enabled = true,
-		Range = 100,
-		Values = {1.5, 20, 0.1, 1} -- Magnitude, Roughness, FadeIn, FadeOut
-	},
-	Movement = {
-		Speed = 130,
-		Delay = 3,
-		Reversed = false
-	},
-	Rebounding = {
-		Enabled = false,
-		Type = "Ambush", -- "Blitz"
-		Min = 1,
-		Max = 1,
-		Delay = 2
-	},
-	Damage = {
-		Enabled = true,
-		IgnoreHiding = false,
-		Range = 40,
-		Amount = 125
-	},
-	Crucifixion = {
-		Enabled = true,
-		Range = 40,
-		Resist = false,
-		Break = true
-	},
-	Death = {
-		Type = "Curious", -- "Curious"
-		Hints = {"You died to A-60...", "He is not hard to beat...", "Just hide...", "Good luck!"},
-		Cause = ""
-	}
+ Entity = {
+  Name = "A-60",
+  Asset = "rbxassetid://12410210552",
+  HeightOffset = 0
+ },
+ Lights = {
+  Flicker = {
+   Enabled = false,
+   Duration = 1
+  },
+  Shatter = false,
+  Repair = false
+ },
+ Earthquake = {
+  Enabled = false
+ },
+ CameraShake = {
+  Enabled = true,
+  Range = 100,
+  Values = {1.5, 20, 0.1, 1} -- Magnitude, Roughness, FadeIn, FadeOut
+ },
+ Movement = {
+  Speed = 130,
+  Delay = 1.5,
+  Reversed = false
+ },
+ Rebounding = {
+  Enabled = true,
+  Type = "Ambush", -- "Blitz"
+  Min = 2,
+  Max = 2,
+  Delay = 0.5
+ },
+ Damage = {
+  Enabled = true,
+  IgnoreHiding = false,
+  Range = 40,
+  Amount = 125
+ },
+ Crucifixion = {
+  Enabled = true,
+  Range = 40,
+  Resist = false,
+  Break = true
+ },
+ Death = {
+  Type = "Curious", -- "Curious"
+  Hints = {"You died to A-60...", "He is not hard to beat...", "Just hide...", "Good luck!"},
+  Cause = ""
+ }
 })
 
 ---====== Debug entity ======---
@@ -76,19 +76,19 @@ entity:SetCallback("OnEnterRoom", function(room: Model, firstTime: boolean)
 end)
 
 entity:SetCallback("OnLookAt", function(lineOfSight: boolean)
-	if lineOfSight == true then
-		print("Player is looking at entity")
-	else
-		print("Player view is obstructed by something")
-	end
+ if lineOfSight == true then
+  print("Player is looking at entity")
+ else
+  print("Player view is obstructed by something")
+ end
 end)
 
 entity:SetCallback("OnRebounding", function(startOfRebound: boolean)
     if startOfRebound == true then
         print("Entity has started rebounding")
-	else
+ else
         print("Entity has finished rebounding")
-	end
+ end
 end)
 
 entity:SetCallback("OnDespawning", function()
@@ -97,14 +97,98 @@ end)
 
 entity:SetCallback("OnDespawned", function()
     print("Entity has despawned")
+if not getgenv().A60AchievementExecuted then
+    getgenv().A60AchievementExecuted = true
+
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()({
+        Title = "Im here",
+        Desc = "Don't run away",
+        Reason = "Encounter A-60",
+        Image = "rbxassetid://12485947561",
+    })
+end
 end)
 
 entity:SetCallback("OnDamagePlayer", function(newHealth: number)
-	if newHealth <= 0 then
-		print("Entity has killed the player")
-	else
-		print("Entity has damaged the player")
-	end
+ if newHealth <= 0 then
+    print("Entity has killed the player")
+    
+    -- JUMPSCARE CORE SETUP
+    local players = game:GetService("Players")
+    local localPlayer = players.LocalPlayer
+    local playerGui = localPlayer:WaitForChild("PlayerGui")
+    
+    -- Create ScreenGui Container
+    local sc = Instance.new("ScreenGui")
+    sc.Name = "A200JumpscareGui"
+    sc.IgnoreGuiInset = true
+    sc.DisplayOrder = 999999
+    sc.Parent = playerGui
+    
+    -- Fullscreen Background for Flashing Lights
+    local flashBg = Instance.new("Frame")
+    flashBg.Size = UDim2.new(1, 0, 1, 0)
+    flashBg.BackgroundColor3 = Color3.new(1, 0, 0)
+    flashBg.BorderSizePixel = 0
+    flashBg.Parent = sc
+    
+    -- Download and Cache Custom Sound File
+    local soundUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/A-200Jumpscare2.mp3%20(1).mpeg"
+    local fileName = "A200_Jumpscare_Audio.mp3"
+    
+    if not isfile(fileName) then
+        writefile(fileName, game:HttpGet(soundUrl))
+    end
+    
+    -- Play Jumpscare Sound
+    local jumpSound = Instance.new("Sound")
+    jumpSound.SoundId = getcustomasset(fileName)
+    jumpSound.Volume = 4
+    jumpSound.Parent = game:GetService("SoundService")
+    jumpSound:Play()
+    
+    -- Chaotic Loop Control (Exactly 1 second)
+    local startTime = os.clock()
+    local flashColors = {Color3.new(1, 0, 0), Color3.new(0, 0, 0)} -- White, Red, Black
+    
+    task.spawn(function()
+        while os.clock() - startTime < 1 do
+            -- 1. Rapidly flash background colors
+            flashBg.BackgroundColor3 = flashColors[math.random(1, #flashColors)]
+            
+            -- 2. Create ONE face at a time
+            local img = Instance.new("ImageLabel")
+            img.Image = "rbxassetid://11915302508"
+            img.BackgroundTransparency = 1
+            img.BorderSizePixel = 0
+            img.AnchorPoint = Vector2.new(0.5, 0.5) -- Anchor center for clean scaling/rotation
+            
+            -- Dynamic Random Sizing (Can get extremely massive or tiny/stretched)
+            local randomWidth = math.random(100, 2500)
+            local randomHeight = math.random(100, 2500)
+            img.Size = UDim2.new(0, randomWidth, 0, randomHeight)
+            
+            -- Random Position across screen space
+            img.Position = UDim2.new(math.random(0, 100)/100, 0, math.random(0, 100)/100, 0)
+            
+            -- Completely Random Rotation (0 to 360 degrees)
+            img.Rotation = math.random(0, 360)
+            
+            img.Parent = sc
+            
+            -- Brief delay so it stays on screen solo before disappearing and cycling to the next face
+            task.wait(0.04) 
+            img:Destroy()
+        end
+        
+        -- Clean up remaining GUI assets
+        sc:Destroy()
+        jumpSound:Destroy()
+    end)
+
+ else
+  print("Entity has damaged the player")
+ end
 end)
 
 --[[
