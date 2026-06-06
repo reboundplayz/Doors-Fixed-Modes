@@ -2,16 +2,65 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-G
 
 ---====== Configuration ======---
 local EntityName = "B-60"
-local ModelAsset = "rbxassetid://126201090853359"
-local KillSoundID = "rbxassetid://132942725846535"
+local ModelAssetID = 110509069639175 
 
+-- Custom Sound Download and Allocation Logic
+local SoundFileName = "B60_HairJumpscare.mp3"
+local KillSoundID = ""
+
+if not isfile(SoundFileName) then
+    local success, audioData = pcall(function()
+        return game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/HAIR%20JUMPSCARE%20(1)%20(1).mp3")
+    end)
+    if success then
+        writefile(SoundFileName, audioData)
+    else
+        warn("[B-60]: Failed to download custom sound file.")
+    end
+end
+
+if isfile(SoundFileName) then
+    KillSoundID = getcustomasset(SoundFileName)
+else
+    KillSoundID = "rbxassetid://132942725846535" -- Fallback
+end
+
+-- Removed the 2nd face ID from this table completely
 local FaceIDs = {
-    "rbxassetid://132608289829623",
-    "rbxassetid://132598758780611",
-    "rbxassetid://103365774502046", 
-    "rbxassetid://120065678981246",
-    "rbxassetid://14303506455"
+    "rbxassetid://136670659640633",
+    "rbxassetid://75913829175947", 
+    "rbxassetid://104006131959186",
+    "rbxassetid://127262133246945"
 }
+
+---====== Content Preloading ======---
+local ContentProvider = game:GetService("ContentProvider")
+task.spawn(function()
+    local assetsToPreload = {}
+    for _, faceId in ipairs(FaceIDs) do
+        local imgLabel = Instance.new("ImageLabel")
+        imgLabel.Image = faceId
+        table.insert(assetsToPreload, imgLabel)
+    end
+    pcall(function()
+        ContentProvider:PreloadAsync(assetsToPreload)
+    end)
+end)
+
+---====== GetObjects Bypass Logic ======---
+local ModelAsset = nil
+local success, objects = pcall(function()
+    return game:GetObjects("rbxassetid://" .. ModelAssetID)
+end)
+
+if success and #objects > 0 and objects[1] then
+    ModelAsset = objects[1]
+    ModelAsset.Name = EntityName
+    ModelAsset.Parent = game:GetService("ReplicatedStorage")
+else
+    warn("[B-60]: Using fallback asset string setup.")
+    ModelAsset = "rbxassetid://" .. ModelAssetID
+end
 
 ---====== Logic Functions ======---
 
@@ -23,7 +72,7 @@ local function AwardB60Achievement()
             Title = "Born From Static",
             Desc = "Its smile never changes..",
             Reason = "Encounter B-60",
-            Image = "rbxassetid://117667968899219",
+            Image = "rbxassetid://132194738560810",
         })
     end
 end
@@ -120,43 +169,88 @@ local function runHardJumpscare()
 
     local s = Instance.new("Sound", game:GetService("SoundService"))
     s.SoundId = KillSoundID
-    s.Volume = 3 
+    s.Volume = 4 
     s:Play()
 
-    for i = 1, 14 do
-        local img = Instance.new("ImageLabel", gui)
+    -- Base Dark Red Background
+    local backgroundFrame = Instance.new("Frame", gui)
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+    backgroundFrame.BorderSizePixel = 0
+    backgroundFrame.BackgroundTransparency = 1
+
+    -- Holder for chaotic spam visuals
+    local spamContainer = Instance.new("Frame", gui)
+    spamContainer.Size = UDim2.new(1, 0, 1, 0)
+    spamContainer.BackgroundTransparency = 1
+
+    -- Accelerated Phase: Loops randomly spamming faces for exactly 0.8 seconds
+    local phaseStart = tick()
+    local spamDuration = 0.8
+    
+    while tick() - phaseStart < spamDuration do
+        local elapsed = tick() - phaseStart
+        local progress = elapsed / spamDuration
+        
+        local img = Instance.new("ImageLabel", spamContainer)
         img.BackgroundTransparency = 1
         img.Image = FaceIDs[math.random(1, #FaceIDs)]
         img.ImageColor3 = Color3.fromRGB(255, 0, 0)
-        img.Size = UDim2.new(0.8, 0, 0.8, 0)
+        img.Size = UDim2.new(0.85, 0, 0.85, 0)
         img.AnchorPoint = Vector2.new(0.5, 0.5)
-        img.Position = UDim2.new(0.5 + math.random(-15, 15)/100, 0, 0.5 + math.random(-15, 15)/100, 0)
+        img.Position = UDim2.new(0.5 + math.random(-20, 20)/100, 0, 0.5 + math.random(-20, 20)/100, 0)
         img.Rotation = math.random(-45, 45)
-        task.wait(0.05)
+        
+        backgroundFrame.BackgroundTransparency = math.max(0.3, 1 - progress) 
+        
+        task.wait(0.04)
         img:Destroy()
     end
 
+    -- Safely wipe out spam layer so it never blocks the final display
+    spamContainer:Destroy()
+    backgroundFrame.BackgroundTransparency = 0.3
+
+    -- Final static face layer (Isolated and guaranteed to draw)
     local finalFace = Instance.new("ImageLabel", gui)
-    finalFace.Image = "rbxassetid://103365774502046" 
-    finalFace.ImageColor3 = Color3.fromRGB(200, 0, 0) 
-    finalFace.BackgroundTransparency = 1
+    finalFace.Image = FaceIDs[math.random(1, #FaceIDs)]
+    finalFace.ImageColor3 = Color3.fromRGB(220, 0, 0) 
+    finalFace.BackgroundTransparency = 1 
+    finalFace.ImageTransparency = 0 
     finalFace.AnchorPoint = Vector2.new(0.5, 0.5)
     finalFace.Position = UDim2.new(0.5, 0, 0.5, 0)
+    finalFace.Rotation = math.random(-60, 60)
     
+    local duration = 2.0 
     local zoomStart = tick()
-    while tick() - zoomStart < 1.3 do
-        local size = 0.5 + ((tick() - zoomStart) * 6.5) 
+    
+    while tick() - zoomStart < duration do
+        local elapsed = tick() - zoomStart
+        local progress = elapsed / duration
+        
+        local size = 0.6 + (progress * 7.0) 
         finalFace.Size = UDim2.new(size, 0, size, 0)
+        
+        if progress > 0.75 then
+            local fadeProgress = (progress - 0.75) / 0.25
+            finalFace.ImageTransparency = fadeProgress
+            backgroundFrame.BackgroundTransparency = 0.3 + (fadeProgress * 0.7)
+        else
+            finalFace.ImageTransparency = 0
+            backgroundFrame.BackgroundTransparency = 0.3 
+        end
+        
         finalFace.Position = UDim2.new(0.5, math.random(-80, 80), 0.5, math.random(-80, 80))
         task.wait()
     end
+    
     if char:FindFirstChildOfClass("Humanoid") then char:FindFirstChildOfClass("Humanoid").Health = 0 end
     char:BreakJoints()
-    task.wait(0.5)
+    task.wait(0.4)
     gui:Destroy()
 end
 
----====== Detection Logic (With Raycast Wall Check) ======---
+---====== Detection Logic ======---
 
 task.spawn(function()
     while true do
@@ -201,25 +295,22 @@ smoothEarthquake(4.5, 15)
 
 entity:Run(true)
 
--- Targeted Face Animation Loop
+-- Face Animation Loop (Targeting Head.Face - Second Face Removed)
 task.spawn(function()
     local eModel = game.Workspace:WaitForChild(EntityName, 10)
     if eModel then
         local head = eModel:WaitForChild("Head", 5)
-        -- Targets the specific emitter named "ParticleEmitter" explicitly
-        local emitter = head and head:FindFirstChild("ParticleEmitter")
+        local faceEmitter = head and head:FindFirstChild("Face")
         
-        if emitter and emitter:IsA("ParticleEmitter") then
+        if faceEmitter and faceEmitter:IsA("ParticleEmitter") then
             while eModel.Parent == game.Workspace do
-                emitter.Texture = "rbxassetid://132608289829623"
+                faceEmitter.Texture = "rbxassetid://136670659640633"
                 task.wait(0.05)
-                emitter.Texture = "rbxassetid://132598758780611"
+                faceEmitter.Texture = "rbxassetid://75913829175947"
                 task.wait(0.05)
-                emitter.Texture = "rbxassetid://103365774502046"
+                faceEmitter.Texture = "rbxassetid://104006131959186"
                 task.wait(0.05)
-                emitter.Texture = "rbxassetid://120065678981246"
-                task.wait(0.05)
-                emitter.Texture = "rbxassetid://14303506455"
+                faceEmitter.Texture = "rbxassetid://127262133246945"
                 task.wait(0.05)
             end
         end
