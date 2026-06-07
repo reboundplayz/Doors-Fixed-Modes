@@ -1,21 +1,21 @@
-local music_guiding_light = "music_guiding_light.mp3"
-local url = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/remix.mp3"
+local music_guiding_light = "custom_music_guiding_light.mp3"
+local url = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/ScreenRecording_06-07-2026%2010-21-18_1.mp3"
 
 -- Check if the file doesn't exist, then download it
-if not isfile(music_guiding_light) then
+if not isfile(custom_music_guiding_light) then
     local success, response = pcall(function()
         return game:HttpGet(url) -- Or request({Url = url, Method = "GET"}).Body
     end)
     
     if success and response then
-        writefile(music_guiding_light, response)
+        writefile(custom_music_guiding_light, response)
     else
         warn("Failed to download the music file.")
     end
 end
 
 -- Get the custom asset string
-local asset = getcustomasset(music_guiding_light)
+local asset = getcustomasset(custom_music_guiding_light)
 
 -- Apply it to the SoundId
 local healthMusic = game.Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("MainUI"):WaitForChild("Initiator"):WaitForChild("Main_Game"):WaitForChild("Health"):WaitForChild("Music"):WaitForChild("Blue")
