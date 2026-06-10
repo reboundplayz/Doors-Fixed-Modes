@@ -7,7 +7,7 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-G
 local entity = Spawner:Create({
  Entity = {
   Name = "A-60",
-  Asset = "rbxassetid://12410210552",
+  Asset = "rbxassetid://140262177195232",
   HeightOffset = 0
  },
  Lights = {
@@ -104,7 +104,7 @@ if not getgenv().A60AchievementExecuted then
         Title = "Im here",
         Desc = "Don't run away",
         Reason = "Encounter A-60",
-        Image = "rbxassetid://12485947561",
+        Image = "rbxassetid://73080601444524",
     })
 end
 end)
