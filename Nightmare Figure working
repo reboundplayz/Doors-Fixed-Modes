@@ -1,0 +1,174 @@
+-- Configuration: Your custom Asset IDs
+local FIGURE_REPLACEMENT_ID = "rbxassetid://79146410205578"
+
+-- Safely grab the models once
+local function getAsset(id)
+    local success, objects = pcall(function() return game:GetObjects(id) end)
+    return success and objects and objects[1] or nil
+end
+
+local customFigureSource = getAsset(FIGURE_REPLACEMENT_ID)
+
+-- Core morphing function with continuous render tracking
+local function morphRig(realRig, customSource, isFigure)
+    if not realRig or not customSource or realRig:FindFirstChild("Morphed") then return end
+    
+    -- Tag it so we don't handle the same rig twice
+    local tag = Instance.new("BoolValue")
+    tag.Name = "Morphed"
+    tag.Parent = realRig
+
+    local realRoot = realRig:FindFirstChild("Root") or realRig:FindFirstChild("HumanoidRootPart")
+    if not realRoot then return end
+
+    -- Safe sub-model container to keep your parts organized and hidden from Doors script cleansers
+    local customGroup = Instance.new("Model")
+    customGroup.Name = "CustomMorphGroup"
+    customGroup.Parent = realRig
+
+    local trackingPairs = {}
+
+    -- Processing and registration pipeline for custom assets
+    local function processCustomPart(partClone, targetLimb, mirrorMode)
+        partClone.CanCollide = false
+        partClone.CanTouch = false
+        partClone.CanQuery = false
+        partClone.Massless = true
+        partClone.Parent = customGroup
+
+        -- ROOT BUG FIX: Strip visual components completely from custom roots
+        if partClone.Name == "Root" or partClone.Name == "HumanoidRootPart" then
+            partClone.Transparency = 1
+            partClone.Size = Vector3.new(0, 0, 0)
+            if partClone:IsA("MeshPart") then
+                partClone.MeshId = ""
+            end
+        end
+
+        -- Handle placement alignments
+        if mirrorMode then
+            partClone.CFrame = targetLimb.CFrame * CFrame.new(1.1, 0, 0) * CFrame.Angles(0, math.rotations and math.rad(180) or 3.14159, 0)
+        else
+            partClone.CFrame = targetLimb.CFrame
+        end
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = targetLimb
+        weld.Part1 = partClone
+        weld.Parent = partClone
+
+        table.insert(trackingPairs, {Custom = partClone, Real = targetLimb, Mirror = mirrorMode})
+    end
+
+    -- Clone and map your custom assets to the moving skeleton parts
+    for _, child in ipairs(customSource:GetDescendants()) do
+        if child:IsA("BasePart") or child:IsA("MeshPart") then
+            local newPart = child:Clone()
+            
+            -- Try to find the matching game body part
+            local matchingRealPart = realRig:FindFirstChild(newPart.Name)
+            
+            -- Strict fallback helper for unique naming variations (like 'hand')
+            if not matchingRealPart then
+                if newPart.Name == "hand" then
+                    matchingRealPart = realRig:FindFirstChild("RightHand") or realRig:FindFirstChild("LeftHand")
+                elseif newPart.Name:lower():find("foot") then
+                    matchingRealPart = realRig:FindFirstChild("RightFoot") or realRig:FindFirstChild("LeftFoot")
+                end
+            end
+            
+            -- Snap it into frame alignment
+            local targetPart = matchingRealPart or realRoot
+            processCustomPart(newPart, targetPart, false)
+
+            -- SEEK LEG BUG FIX: Skipped for Figure
+            if not isFigure then
+                if newPart.Name == "UpperRightLeg" then
+                    local leftUpper = child:Clone()
+                    leftUpper.Name = "LeftUpperLeg"
+                    processCustomPart(leftUpper, realRig:FindFirstChild("LeftUpperLeg") or targetPart, true)
+                elseif newPart.Name == "LowerRightLeg" then
+                    local leftLower = child:Clone()
+                    leftLower.Name = "LeftLowerLeg"
+                    processCustomPart(leftLower, realRig:FindFirstChild("LeftLowerLeg") or targetPart, true)
+                elseif newPart.Name == "RightFoot" then
+                    local leftFoot = child:Clone()
+                    leftFoot.Name = "LeftFoot"
+                    processCustomPart(leftFoot, realRig:FindFirstChild("LeftFoot") or targetPart, true)
+                end
+            end
+        elseif child:IsA("Decal") or child:IsA("Texture") then
+            child:Clone().Parent = realRoot
+        end
+    end
+
+    -- CONTINUOUS FORCED TRACKING LOOP
+    local cycleCount = 0
+    task.spawn(function()
+        while realRig and realRig:IsDescendantOf(workspace) do
+            cycleCount = cycleCount + 1
+            
+            -- 1. Continuously hide original parts
+            for _, item in ipairs(realRig:GetChildren()) do
+                if item:IsA("BasePart") or item:IsA("MeshPart") then
+                    if item.Name ~= "Root" and item.Name ~= "HumanoidRootPart" and item ~= customGroup then
+                        item.Transparency = 1
+                    end
+                end
+            end
+            
+            -- 2. Clean out original monster facial textures/decals
+            for _, item in ipairs(realRig:GetDescendants()) do
+                if (item:IsA("Decal") or item:IsA("Texture")) and item.Name ~= "Eye" then
+                    if not item:IsDescendantOf(customGroup) then
+                        item.Enabled = false
+                    end
+                end
+            end
+            
+            -- 3. Snap your custom parts perfectly
+            for _, pair in ipairs(trackingPairs) do
+                if pair.Custom and pair.Real then
+                    if pair.Mirror then
+                        local swingOffset = math.sin(cycleCount * 0.25) * 0.6
+                        local heightOffset = math.cos(cycleCount * 0.25) * 0.3
+                        
+                        pair.Custom.CFrame = pair.Real.CFrame 
+                            * CFrame.new(1.1, heightOffset, -swingOffset) 
+                            * CFrame.Angles(swingOffset, math.rad(180), 0)
+                    else
+                        pair.Custom.CFrame = pair.Real.CFrame
+                    end
+                    
+                    if pair.Custom.Transparency ~= 0 and pair.Custom.Name:lower():find("eye") then
+                        pair.Custom.Transparency = 0
+                    end
+                end
+            end
+            
+            task.wait()
+        end
+    end)
+end
+
+-- Fast identification check
+local function checkDescendant(descendant)
+    if not descendant:IsA("Model") then return end
+    
+    -- Match if the name contains "Figure" OR if it explicitly has the main setup inside Room 50/100
+    local nameMatch = descendant.Name:find("Figure") or descendant.Name == "FigureRig"
+    
+    if customFigureSource and nameMatch then
+        morphRig(descendant, customFigureSource, true)
+    end
+end
+
+-- Scan the active game layers
+for _, descendant in ipairs(workspace:GetDescendants()) do
+    task.spawn(checkDescendant, descendant)
+end
+
+-- Catches both cutscene instantiations and active room streaming drops instantly
+workspace.DescendantAdded:Connect(function(descendant)
+    checkDescendant(descendant)
+end)
