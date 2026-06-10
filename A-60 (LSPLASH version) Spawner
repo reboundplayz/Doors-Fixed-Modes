@@ -7,7 +7,7 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-G
 local entity = Spawner:Create({
  Entity = {
   Name = "A-60",
-  Asset = "rbxassetid://80637598164469",
+  Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/a-60good.rbxm",
   HeightOffset = 0
  },
  Lights = {
