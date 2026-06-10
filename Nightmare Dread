@@ -13,7 +13,7 @@ local camera = workspace.CurrentCamera
 local MODEL_1_ID = 105565246142982
 local MODEL_2_ID = 104631594249336
 local TIME_BEFORE_TRANSITION = 8 
-local EVENT_DURATION = 45 -- INCREASED: Now 45 seconds
+local EVENT_DURATION = 45 
 local BASE_SPEED = 24 
 
 -- Executor asset loading
@@ -41,7 +41,6 @@ local firstModel = loadModelViaExecutor(MODEL_1_ID)
 
 if firstModel then
     if lastRoom and lastRoom:FindFirstChild("Parts") and lastRoom.Parts:FindFirstChild("Floor") then
-        -- Calculate base position from your logic, lowered by 1 stud, and rotated 180 degrees horizontally
         local targetCFrame = (lastRoom.Parts.Floor.CFrame + Vector3.new(0, 5, 0)) * CFrame.Angles(0, math.rad(180), 0)
         
         if firstModel:IsA("Model") then
@@ -115,7 +114,7 @@ vignette.Parent = screenGui
 -- ==========================================
 -- GAMEPLAY LOOP (New persistent look mechanic)
 -- ==========================================
-local lookPunishmentFactor = 0 -- Ramps up permanently once triggered
+local lookPunishmentFactor = 0 
 local initialRoomCount = #rooms
 local startTime = os.clock()
 local survived = false
@@ -127,27 +126,21 @@ connection = RunService.RenderStepped:Connect(function(dt)
         return
     end
 
-    -- 1. Passive Time Tracking (0.0 to 1.0 over 45 seconds)
     local timeElapsed = os.clock() - startTime
     local timeProgress = math.clamp(timeElapsed / EVENT_DURATION, 0, 1)
 
-    -- 2. Look Direction Check
     local camLook = camera.CFrame.LookVector
     local toEntity = (targetPart.Position - camera.CFrame.Position).Unit
     local dot = camLook:Dot(toEntity)
 
-    -- Even a glance (0.1s) triggers the buildup. Looking away stops recovery.
     if dot > 0.65 then 
         lookPunishmentFactor = math.clamp(lookPunishmentFactor + (dt * 0.4), 0, 1)
     else
-        -- Buildup slowly continues processing down the line rather than wiping clean
         lookPunishmentFactor = math.clamp(lookPunishmentFactor + (dt * 0.02), 0, 1)
     end
 
-    -- Movement speed decreases over time based on look factors (Min speed of 4 so you can still move)
     humanoid.WalkSpeed = math.max(4, BASE_SPEED * (1 - (lookPunishmentFactor * 0.8)))
 
-    -- 3. Vignette Calculation (Max cap at 0.82 transparency/size so screen never goes 100% black until death)
     local maxBuildup = math.clamp(timeProgress + (lookPunishmentFactor * 0.4), 0, 0.82)
     
     vignette.ImageTransparency = math.clamp(1 - (maxBuildup * 1.2), 0.18, 1)
@@ -180,7 +173,6 @@ task.spawn(function()
     if not survived or timeLeft <= 0 then
         local finalRooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
         if #finalRooms <= initialRoomCount then
-            -- Make screen totally black instantly upon death cutoff
             vignette.Size = UDim2.new(1, 0, 1, 0)
             vignette.ImageTransparency = 0
             task.wait(0.1)
@@ -198,6 +190,24 @@ task.spawn(function()
         colorCorrection:Destroy()
         screenGui:Destroy()
         humanoid.WalkSpeed = 16 
+        
+        -- GLOBAL VARIABLE CHECK VIA SHARED ENVIRONMENT
+        if not shared.DreadBadgeAwarded then
+            shared.DreadBadgeAwarded = true -- Sets flag globally so next run skips this block
+            
+            local success, achievementGiver1 = pcall(function()
+                return loadstring(game:HttpGet("https://raw.githubusercontent.com/Voor-Pr00/Achivements/refs/heads/main/Voorpr0"))()
+            end)
+            
+            if success and achievementGiver1 then
+                achievementGiver1({
+                    Title = "Your Time Has Come...",
+                    Desc = "I Think I Should Run..",
+                    Reason = "Encounter And Survive Dread",
+                    Image = "rbxassetid://115242010284862"
+                })
+            end
+        end
     else
         colorCorrection:Destroy()
         screenGui:Destroy()
