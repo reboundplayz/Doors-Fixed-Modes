@@ -143,7 +143,7 @@ entity:SetCallback("OnDamagePlayer", function(newHealth: number)
     -- Play Jumpscare Sound
     local jumpSound = Instance.new("Sound")
     jumpSound.SoundId = getcustomasset(fileName)
-    jumpSound.Volume = 4
+    jumpSound.Volume = 5
     jumpSound.Parent = game:GetService("SoundService")
     jumpSound:Play()
     
