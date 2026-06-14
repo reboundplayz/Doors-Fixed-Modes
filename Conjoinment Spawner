@@ -1,0 +1,379 @@
+---====== Load spawner ======---
+
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+local function AwardConjoinmentAchievement()
+    if not getgenv().ConjoinmentAchievementExecuted then
+        getgenv().ConjoinmentAchievementExecuted = true
+
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()({
+            Title = "Double Trouble",
+            Desc = "It wasn't just your vision blurring.",
+            Reason = "Encounter Conjoinment",
+            Image = "rbxassetid://138582222555412",
+        })
+    end
+end
+---====== Create entity ======---
+
+local entity = Spawner:Create({
+    Entity = {
+        Name = "Conjoinment",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/conjoinment.rbxm",
+        HeightOffset = 0
+    },
+    Lights = {
+        Flicker = {
+            Enabled = true,
+            Duration = 1
+        },
+        Shatter = true,
+        Repair = false
+    },
+    Earthquake = {
+        Enabled = false
+    },
+    CameraShake = {
+        Enabled = true,
+        Range = 100,
+        Values = {1.5, 30, 0.1, 1} -- Magnitude, Roughness, FadeIn, FadeOut
+    },
+    Movement = {
+        Speed = 200,
+        Delay = 4,
+        Reversed = true
+    },
+    Rebounding = {
+        Enabled = true,
+        Type = "Ambush", -- "Blitz"
+        Min = 4,
+        Max = 6,
+        Delay = 0.1
+    },
+    Damage = {
+        Enabled = true,
+        Range = 40,
+        Amount = 125
+    },
+    Crucifixion = {
+        Enabled = true,
+        Range = 40,
+        Resist = false,
+        Break = true
+    },
+    Death = {
+        Type = "Curious", -- "Curious"
+        Hints = {"You just died to, uh...", "Actually, I don't know what you died to.", "Well, it's two faces conjoined into eachother, maybe you can call it Conjoinment?", "Well, I don't know, but good luck next time."},
+        Cause = "Conjoinment"
+    }
+})
+
+---====== Debug entity ======---
+
+entity:SetCallback("OnSpawned", function()
+    print("Entity has spawned")
+    local GITHUB_URL, FILE_NAME = "https://github.com/idkman60093/Audio/blob/main/ConjoinmentArrivalScream.mp3", "ConjoinmentArrivalScream.mp3"
+    if not isfile(FILE_NAME) then writefile(FILE_NAME, game:HttpGet(GITHUB_URL)) end
+    local sound = Instance.new("Sound", game:GetService("SoundService"))
+    sound.SoundId = getcustomasset(FILE_NAME)
+    sound.Volume = 4
+    sound:Play()
+
+	    local function forceRedTint(targetColor, duration)
+        local rooms = game.Workspace:FindFirstChild("CurrentRooms")
+        if not rooms then return end
+        
+        local originalColors = {}
+        local lights = {}
+        
+        for _, room in pairs(rooms:GetChildren()) do
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    table.insert(lights, v)
+                    originalColors[v] = v.Color
+                    v.Color = targetColor
+                end
+            end
+        end
+        
+        task.spawn(function()
+            local start = tick()
+            while tick() - start < duration do
+                local elapsed = tick() - start
+                local progress = elapsed / duration
+                
+                for _, light in ipairs(lights) do
+                    if light and light.Parent then
+                        local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                        light.Color = targetColor:Lerp(orig, progress)
+                    end
+                end
+                task.wait()
+            end
+            
+            for _, light in ipairs(lights) do
+                if light and light.Parent then
+                    light.Color = originalColors[light]
+                end
+            end
+        end)
+    end
+
+    local function smoothEarthquake(duration, maxIntensity)
+        local camera = game.Workspace.CurrentCamera
+        local start = tick()
+        local connection
+        
+        connection = game:GetService("RunService").RenderStepped:Connect(function()
+            local elapsed = tick() - start
+            if elapsed >= duration then
+                connection:Disconnect()
+                return
+            end
+            
+            local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+            
+            camera.CFrame = camera.CFrame * CFrame.Angles(
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+            )
+        end)
+    end
+
+    ---====== Triggers ======---
+    -- Adjust values here to change color, duration, or intensity
+    forceRedTint(Color3.fromRGB(255, 0, 0), 3.5)  -- Red tint for 2 seconds
+    smoothEarthquake(4, 6)                      -- Smooth shake for 2 seconds with an intensity of 5
+end)
+
+entity:SetCallback("OnDamagePlayer", function(newHealth: number)
+    if newHealth <= 0 then
+        print("Entity has killed the player")
+    else
+        print("Entity has damaged the player")
+    end
+end)
+
+
+entity:SetCallback("OnStartMoving", function()
+    print("Entity has started moving")
+end)
+
+entity:SetCallback("OnEnterRoom", function(room: Model, firstTime: boolean)
+    if firstTime == true then
+        print("Entity has entered room: ".. room.Name.. " for the first time")
+    else
+        print("Entity has entered room: ".. room.Name.. " again")
+    end
+end)
+
+entity:SetCallback("OnLookAt", function(lineOfSight: boolean)
+    if lineOfSight == true then
+        print("Player is looking at entity")
+    else
+        print("Player view is obstructed by something")
+    end
+end)
+
+entity:SetCallback("OnRebounding", function(startOfRebound: boolean)
+    if startOfRebound == true then
+        print("Entity has started rebounding")
+    else
+        print("Entity has finished rebounding")
+    end
+end)
+
+entity:SetCallback("OnDespawning", function()
+    print("Entity is despawning")
+end)
+
+entity:SetCallback("OnDespawned", function()
+    print("Entity has despawned")
+
+	AwardConjoinmentAchievement()
+    
+    -- Play despawn sound
+    local assetId = "rbxassetid://102629353661236"
+    local sound = Instance.new("Sound", game:GetService("SoundService"))
+    sound.SoundId = assetId
+    sound.Volume = 1
+    sound.PlaybackSpeed = 0.5
+    sound:Play()
+
+    -- Function definitions
+    local function forceRedTint(targetColor, duration)
+        local rooms = game.Workspace:FindFirstChild("CurrentRooms")
+        if not rooms then return end
+        
+        local originalColors = {}
+        local lights = {}
+        
+        for _, room in pairs(rooms:GetChildren()) do
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    table.insert(lights, v)
+                    originalColors[v] = v.Color
+                    v.Color = targetColor
+                end
+            end
+        end
+        
+        task.spawn(function()
+            local start = tick()
+            while tick() - start < duration do
+                local elapsed = tick() - start
+                local progress = elapsed / duration
+                
+                for _, light in ipairs(lights) do
+                    if light and light.Parent then
+                        local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                        light.Color = targetColor:Lerp(orig, progress)
+                    end
+                end
+                task.wait()
+            end
+            
+            for _, light in ipairs(lights) do
+                if light and light.Parent then
+                    light.Color = originalColors[light]
+                end
+            end
+        end)
+    end
+
+    local function smoothEarthquake(duration, maxIntensity)
+        local camera = game.Workspace.CurrentCamera
+        local start = tick()
+        local connection
+        
+        connection = game:GetService("RunService").RenderStepped:Connect(function()
+            local elapsed = tick() - start
+            if elapsed >= duration then
+                connection:Disconnect()
+                return
+            end
+            
+            local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+            
+            camera.CFrame = camera.CFrame * CFrame.Angles(
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+            )
+        end)
+    end
+
+    ---====== Triggers ======---
+    -- Adjust values here to change color, duration, or intensity
+    forceRedTint(Color3.fromRGB(255, 0, 0), 2)  -- Red tint for 2 seconds
+    smoothEarthquake(2, 5)                      -- Smooth shake for 2 seconds with an intensity of 5
+end)
+
+entity:SetCallback("OnDamagePlayer", function(newHealth: number)
+    if newHealth <= 0 then
+        print("Entity has killed the player")
+    else
+        print("Entity has damaged the player")
+    end
+
+		local Players = game:GetService("Players")
+	local TweenService = game:GetService("TweenService")
+
+	local player = Players.LocalPlayer
+	local playerGui = player:WaitForChild("PlayerGui")
+
+	-- GUI
+	local gui = Instance.new("ScreenGui")
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 999999
+	gui.ResetOnSpawn = false
+	gui.Parent = playerGui
+
+	-- FLASH
+	local flash = Instance.new("Frame")
+	flash.Size = UDim2.new(1,0,1,0)
+	flash.BorderSizePixel = 0
+	flash.BackgroundColor3 = Color3.new(0,0,0)
+	flash.ZIndex = 10
+	flash.Parent = gui
+
+	-- IMAGE
+	local image = Instance.new("ImageLabel")
+	image.AnchorPoint = Vector2.new(0.5, 0.5)
+	image.Position = UDim2.new(0.5, 0, 0.5, 0)
+	image.Size = UDim2.new(0, 300, 0, 420)
+	image.BackgroundTransparency = 1
+	image.Image = "rbxassetid://97775542646419"
+	image.ZIndex = 11
+	image.Parent = gui
+
+	-- 🔊 GITHUB SOUND (YOUR ORIGINAL SYSTEM, BUT SAFE)
+	local url = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/MYEARS.mp3.mpeg"
+	local file = "conjoinmentjumpscare.mp3"
+
+	if not isfile(file) then
+		writefile(file, game:HttpGet(url))
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset(file)
+	sound.Volume = 10
+	sound.Parent = gui
+	task.spawn(function()
+		sound:Play()
+	end)
+
+	-- ZOOM
+	TweenService:Create(
+		image,
+		TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+		{Size = UDim2.new(0, 3500, 0, 3500)}
+	):Play()
+
+	-- LOOP (mobile stable)
+	task.spawn(function()
+		local duration = 1.2
+		local start = os.clock()
+
+		while true do
+			local t = os.clock() - start
+			if t >= duration then break end
+
+			-- FLASH
+			if math.random(1,2) == 1 then
+				flash.BackgroundColor3 = Color3.fromRGB(255,0,0)
+			else
+				flash.BackgroundColor3 = Color3.fromRGB(0,0,0)
+			end
+
+			-- SHAKE
+			image.Rotation = math.random(-5,5)
+
+			local offsetX = math.random(-25,25)
+			local offsetY = math.random(-25,25)
+
+			image.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
+
+			task.wait(0.01)
+		end
+
+		gui:Destroy()
+	end)
+end)
+
+
+--[[
+
+DEVELOPER NOTE:
+By overwriting 'CrucifixionOverwrite' the default crucifixion callback will be replaced with your custom callback.
+
+entity:SetCallback("CrucifixionOverwrite", function()
+    print("Custom crucifixion callback")
+end)
+
+]]--
+
+---====== Run entity ======---
+
+entity:Run(true)
