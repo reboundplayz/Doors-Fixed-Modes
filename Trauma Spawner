@@ -104,7 +104,7 @@ if not getgenv().TraumaAchievementExecuted then
         Title = "Last Witness",
         Desc = "You saw something that was never meant to be seen",
         Reason = "Encounter Trauma (Admin Entity)",
-        Image = "rbxassetid://94197990768103",
+        Image = "rbxassetid://129037104611597",
     })
 end
 end)
