@@ -13,6 +13,7 @@ end
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local SoundService = game:GetService("SoundService")
 
 local player = Players.LocalPlayer
 
@@ -32,7 +33,7 @@ end
 
 --// Load asset safely
 local success, assets = pcall(function()
-    return game:GetObjects("rbxassetid://133967268737755")
+    return game:GetObjects("rbxassetid://87299299596374")
 end)
 
 if not success or not assets or #assets == 0 or not assets[1] then
@@ -67,38 +68,43 @@ model.Name = "Greed"
 
 local greed = workspace:WaitForChild("Greed")
 
---// --- LOUD GITHUB SOUND LOGIC ---
+--// --- FIXED GLOBAL SOUND LOGIC (PLAYS ON SCREEN) ---
 local GITHUB_SOUND_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Video%20Project%204.mp3"
 
 task.spawn(function()
     if writefile and getcustomasset then
-        local fileName = "GreedSpawnSound_Final.mp3"
+        local fileName = "AttractionSpawn_Global.mp3"
         local soundSuccess, audioData = pcall(function() return game:HttpGet(GITHUB_SOUND_URL) end)
         
         if soundSuccess and audioData then
             writefile(fileName, audioData)
+            
             local sound = Instance.new("Sound")
-            sound.Name = "SpawnEffect"
-            sound.SoundId = getcustomasset(fileName)
+            sound.Name = "GlobalSpawnEffect"
             
-            -- Loud Settings
-            sound.Volume = 10 
-            sound.Looped = false 
-            sound.RollOffMaxDistance = 300
-            sound.RollOffMinDistance = 30
-            
-            -- Find a parent for 3D audio (Wait for part to exist)
-            local soundParent = greed:FindFirstChild("HumanoidRootPart") or greed:FindFirstChildWhichIsA("BasePart")
-            
-            if soundParent then
-                sound.Parent = soundParent
-                sound:Play()
-                
-                sound.Ended:Connect(function()
-                    sound:Destroy()
-                end)
+            -- Try standard custom asset string fallback if file:// protocol is needed by your executor
+            local assetId = getcustomasset(fileName)
+            if not assetId:find("://") then
+                assetId = "file://" .. fileName
             end
+            sound.SoundId = assetId
+            
+            -- Screen Playback Settings (No 3D roll-off components)
+            sound.Volume = 5 -- 5-10 is incredibly loud for a global non-3D sound
+            sound.Looped = false 
+            
+            -- Parent to SoundService so it plays directly through your headset/screen
+            sound.Parent = SoundService
+            sound:Play()
+            
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
+        else
+            warn("Failed to download sound data from GitHub URL.")
         end
+    else
+        warn("Executor environment lacks writefile or getcustomasset functions.")
     end
 end)
 
