@@ -13,7 +13,7 @@ end
 -- Fetch custom audio IDs
 local customLibraryId = cacheGitSound("https://github.com/idkman60093/Audio/raw/refs/heads/main/CustomLibraryMusicRemake.mp3", "CustomLibraryMusicRemake")
 local customDoor100Id = cacheGitSound("https://github.com/kodbolx/kodbolhub/blob/main/Nightmare%20Mode/Sounds/library1.mp3?raw=true", "library1")
-local customSeekId = cacheGitSound("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/SeekMoving.mp3", "SeekMusic")
+local customSeekId = cacheGitSound("https://github.com/idkman60093/Audio/raw/refs/heads/main/SeekMovingThePossession.mp3", "SeekMusicThePosession")
 
 -- Volume configurations
 local FIGURE_VOLUME = 0.5
@@ -78,7 +78,7 @@ task.spawn(function()
         for _, parent in ipairs(targets) do
             if parent then
                 for _, desc in ipairs(parent:GetDescendants()) do
-                    if desc:IsA("Sound") and desc.Name == "SeekMusic" then
+                    if desc:IsA("Sound") and desc.Name == "SeekMusicThePosession" then
                         if desc.SoundId ~= customSeekId then
                             desc.SoundId = customSeekId
                             if desc.IsPlaying then
