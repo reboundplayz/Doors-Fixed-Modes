@@ -78,7 +78,7 @@ task.spawn(function()
         for _, parent in ipairs(targets) do
             if parent then
                 for _, desc in ipairs(parent:GetDescendants()) do
-                    if desc:IsA("Sound") and desc.Name == "SeekMusicThePosession" then
+                    if desc:IsA("Sound") and desc.Name == "SeekMusic" then
                         if desc.SoundId ~= customSeekId then
                             desc.SoundId = customSeekId
                             if desc.IsPlaying then
