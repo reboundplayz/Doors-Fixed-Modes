@@ -92,7 +92,7 @@ end
 local entity = Spawner:Create({
     Entity = {
         Name = "Fire Guardian",
-        Asset = "https://github.com/kodbolx/kodbolhub/raw/400fd27e0297d11ec3c3a020e97dca02cbd0c1c2/Nightmare%20Mode/Models/fireguardian.rbxm",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/fire%20guardian%20remake.rbxm",
         HeightOffset = 0
     },
     Lights = {
