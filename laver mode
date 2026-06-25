@@ -1,0 +1,106 @@
+local function getGitSoundId(GithubSoundPath: string, AssetName: string): Sound
+    local Url = GithubSoundPath
+
+    if not isfile(AssetName..".mp3") then 
+        writefile(AssetName..".mp3", game:HttpGet(Url)) 
+    end
+
+    local Sound = Instance.new("Sound")
+    Sound.SoundId = getcustomasset(AssetName..".mp3", true)
+    return Sound 
+end
+
+local CustomMusic = getGitSoundId("https://raw.githubusercontent.com/J63633S/Fog-script/refs/heads/main/ambient%20that%20doesn't%20work%20FOR%20GODS%20SAKE.mp3", "ambience")
+CustomMusic.Parent = game.SoundService
+CustomMusic.Looped = true
+CustomMusic:Play()
+
+game.SoundService.AmbientReverb = Enum.ReverbType.Cave
+
+warn("Loading")
+_G.ver = 2.1
+
+local sync = loadstring(game:HttpGet("https://raw.githubusercontent.com/ChronoAcceleration/Comet-Development/refs/heads/main/Doors/Utility/SyncHelper.lua"))()
+local seed = game.ReplicatedStorage.GameData.GameSeed.Value
+local lastroom = game.ReplicatedStorage.GameData.LatestRoom
+local tweenservice = game:GetService("TweenService")
+
+local captions = {"Good Luck"}
+_G.chaotic = false
+_G.classio = false
+_G.corrode = false
+_G.moriarty = false
+_G.death = false
+
+_G.insp = true
+
+local chaoticsp = {}
+local classiosp = {}
+local corrodesp = {}
+local moriartysp = {}
+local deathsp = {}
+
+for i = 15 , 95 , sync:generateFullRandom(6,8,seed) do
+  table.insert(chaoticsp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+end
+
+for i = 12 , 99 , sync:generateFullRandom(8,5,seed) do
+  table.insert(classiosp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+end
+
+for i = 6 , 90 , sync:generateFullRandom(8,6,seed) do
+  table.insert(corrodesp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+end
+
+for i = 17 , 96 , sync:generateFullRandom(4,5,seed) do
+  table.insert(moriartysp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+end
+
+for i = 20 , 99 , sync:generateFullRandom(8,5,seed) do
+  table.insert(deathsp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+end
+
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Loaded",true)
+warn("Loaded")
+
+
+lastroom.changed:wait()
+
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Laver mode ".. _G.ver .." activated",true)
+task.wait(3)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Made by Silly cat cat and localplayer",true)
+task.wait(3)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption(captions[sync:generateFullRandom(0,#captions,seed)],true)
+
+lastroom.changed:connect(function()
+    if table.find(chaoticsp, lastroom.Value) then
+	task.spawn(function()
+	        task.wait(sync:generateFullRandom(5,15,lastroom.Value))
+	        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/chaotic"))()
+end)
+    	end
+	if table.find(classiosp, lastroom.Value) then
+		task.spawn(function()
+			task.wait(sync:generateFullRandom(2,12,lastroom.Value))
+	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/classicorebuondier"))()
+		end)
+    	end
+if table.find(corrodesp, lastroom.Value) then
+		task.spawn(function()
+			task.wait(sync:generateFullRandom(6,6,lastroom.Value))
+	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/corrode"))()
+		end)
+    	end
+if table.find(moriartysp, lastroom.Value) then
+		task.spawn(function()
+			task.wait(sync:generateFullRandom(1,17,lastroom.Value))
+	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/moriarty"))()
+		end) 
+       end
+if table.find(deathsp, lastroom.Value) then
+		task.spawn(function()
+			task.wait(sync:generateFullRandom(2,20,lastroom.Value))
+	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/death"))()
+		end)
+    	end
+end)
