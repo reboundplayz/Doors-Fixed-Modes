@@ -1,0 +1,144 @@
+local hints = {
+    "You seem to have freeze'd out...",
+    "Maybe something that can keep you warm?"
+}
+
+local G = getgenv()
+local Lighting = game:GetService("Lighting")
+local frostURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/frostyfix.rbxm"
+
+-- Helper to safely create/get tint
+local function getTint()
+    local t = Lighting:FindFirstChild("FrostbiteTint")
+    if not t then
+        t = Instance.new("ColorCorrectionEffect")
+        t.Name = "FrostbiteTint"
+        t.TintColor = Color3.fromRGB(0, 50, 150)
+        t.Contrast = 0
+        t.Saturation = 0
+        t.Enabled = true
+        t.Parent = Lighting
+    end
+    return t
+end
+
+G.LoadGithubModel = function(url)
+    if not (writefile and getcustomasset and request) then return nil end
+    local fileName = "frost_remake.rbxm"
+    local response = request({Url = url, Method = "GET"})
+    if response.StatusCode ~= 200 then return nil end
+    writefile(fileName, response.Body)
+    local assetId = getcustomasset(fileName)
+    local success, result = pcall(function() return game:GetObjects(assetId)[1] end)
+    return success and result or nil
+end
+
+task.spawn(function()
+    local entity = G.LoadGithubModel(frostURL)
+    if not entity then return nil end
+    local model = entity:IsA("Model") and entity or entity:FindFirstChildWhichIsA("Model", true)
+    
+    for _, v in ipairs(model:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = false; v.CanQuery = false; v.CanTouch = false end
+    end
+    
+    model.Parent = workspace
+    local part = model:FindFirstChild("FrostyNew")
+    local latestRoomVal = game.ReplicatedStorage.GameData.LatestRoom.Value
+    local currentRoom = workspace.CurrentRooms:FindFirstChild(tostring(latestRoomVal))
+    if currentRoom and currentRoom:FindFirstChild("Parts") and currentRoom.Parts:FindFirstChild("Floor") then
+        part.CFrame = currentRoom.Parts.Floor.CFrame + Vector3.new(0, 14, 0)
+    end
+
+    local attachment = part:FindFirstChild("Attachment")
+    local static = model:FindFirstChild("Static Effect", true)
+    local close = attachment:FindFirstChild("close")
+    local far = attachment:FindFirstChild("far")
+    
+    if attachment then attachment.Heylois.Enabled = false; attachment.face.Enabled = false end
+    if close then close.Volume = 0; close:Stop() end
+    if far then far.Volume = 0; far:Stop() end
+    if static then static.Volume = 1; static.Looped = true; static.PlaybackSpeed = 0.112; static:Play() end
+
+    -- FORMING PHASE
+    task.wait(6)
+
+    -- MANUAL FADE IN
+    local tint = getTint()
+    task.spawn(function()
+        for i = 1, 50 do
+            tint.Contrast = tint.Contrast + 0.01
+            tint.Saturation = tint.Saturation - 0.02
+            task.wait(0.01)
+        end
+    end)
+
+    if attachment then attachment.Heylois.Enabled = true; attachment.face.Enabled = true end
+    if static then 
+        task.spawn(function()
+            for i = 1, 10 do static.Volume = static.Volume - 0.1; task.wait(0.15) end
+            static:Stop() 
+        end)
+    end
+
+    task.wait(0.5)
+    if close then close:Play(); task.spawn(function() for i=1,10 do close.Volume = close.Volume + 0.1; task.wait(0.15) end end) end
+    if far then far:Play(); task.spawn(function() for i=1,10 do far.Volume = far.Volume + 0.1; task.wait(0.15) end end) end
+
+    -- Damage Loop
+    local player = game.Players.LocalPlayer
+    local active = true
+    task.spawn(function()
+        while active and model and model.Parent do
+            local char = player.Character
+            if char and char:FindFirstChild("Humanoid") then
+                local hasHeat = false
+                local tool = char:FindFirstChild("Lighter") or char:FindFirstChild("Candle")
+                if tool then
+                    for _, obj in ipairs(tool:GetDescendants()) do
+                        if obj:IsA("PointLight") and obj.Enabled then hasHeat = true; break end
+                    end
+                end
+                if not hasHeat and char.Humanoid.Health > 0 then
+                    char.Humanoid:TakeDamage(10)
+                    if char.Humanoid.Health <= 0 then
+                        local remote = game.ReplicatedStorage:FindFirstChild("Bricks", true) or game.ReplicatedStorage:FindFirstChild("RemotesFolder", true)
+                        if remote and remote:FindFirstChild("DeathHint") then
+                            firesignal(remote.DeathHint.OnClientEvent, hints)
+                        end
+                    end
+                end
+            end
+            task.wait(1)
+        end
+    end)
+
+    game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+    active = false
+    
+    -- DESPAWN SOUND
+    if static then
+        local soundClone = static:Clone()
+        soundClone.Parent = workspace
+        soundClone.PlaybackSpeed = 0.05
+        soundClone.Volume = 0.5
+        soundClone:Play()
+        task.spawn(function()
+            for i = 1, 10 do soundClone.Volume = soundClone.Volume - 0.05; task.wait(0.2) end
+            soundClone:Destroy()
+        end)
+    end
+    
+    -- MANUAL FADE OUT (4 Seconds)
+    -- We loop 40 times with 0.1s wait = 4 seconds total
+    task.spawn(function()
+        for i = 1, 40 do
+            tint.Contrast = math.max(tint.Contrast - 0.0125, 0)
+            tint.Saturation = math.min(tint.Saturation + 0.025, 0)
+            task.wait(0.1)
+        end
+        tint:Destroy()
+    end)
+    
+    model:Destroy()
+end)
