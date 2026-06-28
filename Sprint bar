@@ -1,0 +1,318 @@
+-- Configuration & Asset IDs
+local SPRINT_SPEED = 19
+local REGEN_SPEED = 12       -- Slower walkspeed while actively regenerating stamina
+local EXHAUSTED_SPEED = 10   -- Extra slow walkspeed while fully exhausted
+local MAX_STAMINA = 100
+local STAMINA_DRAIN = 20     -- Per second (drains in 5 seconds)
+local STAMINA_REGEN = 9      -- Recovery rate
+local MOBILE_BUTTON_IMAGE = "rbxassetid://118083152904290"
+local BREATHING_SOUND_ID = "rbxassetid://88247479280853"
+
+-- Your Custom Vignette Texture ID
+local VIGNETTE_IMAGE_ID = "rbxassetid://192776776"
+
+-- FOV Config
+local NORMAL_FOV = 70
+local SPRINT_FOV = 85
+local FOV_TWEEN_TIME = 0.4
+
+-- Custom Sprint Bar Color
+local CUSTOM_BLUE = Color3.new(0.454902, 0.529412, 1)
+
+-- Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local Camera = workspace.CurrentCamera
+
+-- Dynamic default speed fallback
+local BaseWalkSpeed = 16
+
+-- State Variables
+local CurrentStamina = MAX_STAMINA
+local IsSprinting = false
+local IsExhausted = false
+local CurrentFOV = NORMAL_FOV
+
+-- Idle/Fade System Variables
+local LastActivityTime = os.clock()
+local IsFadedOut = false
+local FADE_DELAY = 3          -- Seconds before fading out
+local FADE_TIME = 0.5         -- Duration of fade tween
+local IDLE_TRANSPARENCY = 0.5 -- How transparent the bar gets when idle (0 = fully visible, 1 = invisible)
+
+-- 1. Build the DOORS Health Bar Clone
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local MainUI = PlayerGui:WaitForChild("MainUI")
+
+local StaminaGui = Instance.new("ScreenGui")
+StaminaGui.Name = "CustomStaminaGui"
+StaminaGui.ResetOnSpawn = false
+StaminaGui.Parent = PlayerGui
+
+-- Main Container Frame to hold the elements for easy group fading
+local MainContainer = Instance.new("Frame")
+MainContainer.Name = "MainContainer"
+MainContainer.BackgroundTransparency = 1
+MainContainer.BorderSizePixel = 0
+MainContainer.AnchorPoint = Vector2.new(1, 1)
+MainContainer.Position = UDim2.new(0.97, 0, 0.95, 0)
+
+-- Thinned out UI heights here
+if UserInputService.TouchEnabled then
+    MainContainer.Size = UDim2.new(0, 240, 0, 12) -- Thinner size for mobile
+else
+    MainContainer.Size = UDim2.new(0, 360, 0, 14) -- Thinner size for PC
+end
+MainContainer.Parent = StaminaGui
+
+local HealthBarBorder = Instance.new("Frame")
+HealthBarBorder.Name = "StaminaBarBorder"
+HealthBarBorder.Size = UDim2.new(1, 0, 1, 0)
+HealthBarBorder.Position = UDim2.new(0, 0, 0, 0)
+HealthBarBorder.BackgroundColor3 = CUSTOM_BLUE
+HealthBarBorder.BorderSizePixel = 0
+HealthBarBorder.Parent = MainContainer
+
+local BorderCorner = Instance.new("UICorner")
+BorderCorner.CornerRadius = UDim.new(0, 8)
+BorderCorner.Parent = HealthBarBorder
+
+local BarBackground = Instance.new("Frame")
+BarBackground.Name = "BarBackground"
+BarBackground.Size = UDim2.new(1, -4, 1, -4) -- Adjusted padding slightly for thinner bar compatibility
+BarBackground.Position = UDim2.new(0.5, 0, 0.5, 0)
+BarBackground.AnchorPoint = Vector2.new(0.5, 0.5)
+BarBackground.BackgroundColor3 = Color3.fromRGB(0, 2, 28)
+BarBackground.BorderSizePixel = 0
+BarBackground.Parent = HealthBarBorder
+
+local BackgroundCorner = Instance.new("UICorner")
+BackgroundCorner.CornerRadius = UDim.new(0, 6)
+BackgroundCorner.Parent = BarBackground
+
+local FillContainer = Instance.new("Frame")
+FillContainer.Name = "FillContainer"
+FillContainer.Size = UDim2.new(1, -2, 1, -2)
+FillContainer.Position = UDim2.new(0.5, 0, 0.5, 0)
+FillContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+FillContainer.BackgroundTransparency = 1
+FillContainer.BorderSizePixel = 0
+FillContainer.ClipsDescendants = true
+FillContainer.Parent = BarBackground
+
+local ProgressVisual = Instance.new("Frame")
+ProgressVisual.Name = "ProgressVisual"
+ProgressVisual.Size = UDim2.new(1, 0, 1, 0)
+ProgressVisual.BackgroundColor3 = CUSTOM_BLUE
+ProgressVisual.BorderSizePixel = 0
+ProgressVisual.Parent = FillContainer
+
+local ProgressCorner = Instance.new("UICorner")
+ProgressCorner.CornerRadius = UDim.new(0, 4)
+ProgressCorner.Parent = ProgressVisual
+
+-- 2. Setup Screen Effects (Vignette)
+local EffectGui = Instance.new("ScreenGui")
+EffectGui.Name = "StaminaEffects"
+EffectGui.ResetOnSpawn = false
+EffectGui.Parent = PlayerGui
+
+local Vignette = Instance.new("ImageLabel")
+Vignette.Name = "Vignette"
+Vignette.AnchorPoint = Vector2.new(0.5, 0.5)
+Vignette.Position = UDim2.new(0.5, 0, 0.5, 0)
+Vignette.Size = UDim2.new(1, 0, 1, 0) 
+Vignette.BackgroundTransparency = 1
+Vignette.Image = VIGNETTE_IMAGE_ID 
+Vignette.ImageColor3 = Color3.fromRGB(0, 0, 0)
+Vignette.ImageTransparency = 1 
+Vignette.ZIndex = 10 
+Vignette.Parent = EffectGui
+
+local BreathingSound = Instance.new("Sound")
+BreathingSound.SoundId = BREATHING_SOUND_ID
+BreathingSound.Volume = 3
+BreathingSound.Looped = true
+BreathingSound.Parent = Character:WaitForChild("Head")
+
+-- 3. Dynamic Color Shifting Logic
+local function UpdateStaminaUI()
+    local Percentage = CurrentStamina / MAX_STAMINA
+    ProgressVisual.Size = UDim2.new(Percentage, 0, 1, 0)
+    
+    local targetColor
+    -- Split transitions up cleanly so Blue mixes with Green instead of jumping directly to Yellow
+    if Percentage > 0.75 then
+        targetColor = CUSTOM_BLUE -- Custom Light Blue
+    elseif Percentage > 0.50 then
+        local relativePercent = (Percentage - 0.50) / 0.25
+        targetColor = Color3.fromRGB(50, 255, 50):Lerp(CUSTOM_BLUE, relativePercent) -- Green to Custom Blue
+    elseif Percentage > 0.25 then
+        local relativePercent = (Percentage - 0.25) / 0.25
+        targetColor = Color3.fromRGB(255, 230, 0):Lerp(Color3.fromRGB(50, 255, 50), relativePercent) -- Yellow to Green
+    else
+        local relativePercent = Percentage / 0.25
+        targetColor = Color3.fromRGB(240, 40, 40):Lerp(Color3.fromRGB(255, 230, 0), relativePercent) -- Red to Yellow
+    end
+    
+    ProgressVisual.BackgroundColor3 = targetColor
+    HealthBarBorder.BackgroundColor3 = targetColor
+    
+    -- Make the background a darker shade of the current color for layered contrast
+    BarBackground.BackgroundColor3 = targetColor:Lerp(Color3.fromRGB(0, 0, 0), 0.8)
+end
+
+-- Smooth multi-element fade function
+local function FadeUI(targetTransparency)
+    local tweenInfo = TweenInfo.new(FADE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    
+    TweenService:Create(HealthBarBorder, tweenInfo, {BackgroundTransparency = targetTransparency}):Play()
+    TweenService:Create(BarBackground, tweenInfo, {BackgroundTransparency = targetTransparency}):Play()
+    TweenService:Create(ProgressVisual, tweenInfo, {BackgroundTransparency = targetTransparency}):Play()
+end
+
+-- 4. Exhaustion Handling
+local function ToggleExhaustion(state)
+    IsExhausted = state
+    if state then
+        IsSprinting = false
+        if Humanoid then Humanoid.WalkSpeed = EXHAUSTED_SPEED end
+        
+        pcall(function()
+            require(MainUI.Initiator.Main_Game).caption("You're Exhausted.", true)
+        end)
+        
+        TweenService:Create(Vignette, TweenInfo.new(0.4, Enum.EasingStyle.Sine), {ImageTransparency = 0.2}):Play()
+        
+        if not BreathingSound.IsPlaying then
+            BreathingSound:Play()
+        end
+    else
+        TweenService:Create(Vignette, TweenInfo.new(0.6, Enum.EasingStyle.Sine), {ImageTransparency = 1}):Play()
+        BreathingSound:Stop()
+        if Humanoid then Humanoid.WalkSpeed = BaseWalkSpeed end
+    end
+end
+
+-- Monitor baseline speed updates safely
+local function UpdateBaseSpeed()
+    if Humanoid and not IsSprinting and not IsExhausted and 
+       Humanoid.WalkSpeed ~= SPRINT_SPEED and 
+       Humanoid.WalkSpeed ~= REGEN_SPEED and 
+       Humanoid.WalkSpeed ~= EXHAUSTED_SPEED then
+        BaseWalkSpeed = Humanoid.WalkSpeed
+    end
+end
+
+-- 5. Inputs (PC / Mobile Split)
+if UserInputService.TouchEnabled then
+    local MobileControls = PlayerGui:WaitForChild("TouchGui", 5) and PlayerGui.TouchGui:WaitForChild("TouchControlFrame", 5)
+    local CrouchButton = MobileControls and MobileControls:FindFirstChild("CrouchButton", true)
+    
+    local MobileSprint = Instance.new("ImageButton")
+    MobileSprint.Name = "MobileSprintButton"
+    MobileSprint.BackgroundTransparency = 1
+    MobileSprint.Image = MOBILE_BUTTON_IMAGE
+    MobileSprint.Parent = StaminaGui
+    
+    if CrouchButton then
+        MobileSprint.Size = UDim2.new(CrouchButton.Size.X.Scale * 1.15, 0, CrouchButton.Size.Y.Scale * 1.15, 0)
+        MobileSprint.Position = UDim2.new(CrouchButton.Position.X.Scale - 0.15, 0, CrouchButton.Position.Y.Scale - 0.05, 0)
+    else
+        MobileSprint.Size = UDim2.new(0, 75, 0, 75)
+        MobileSprint.Position = UDim2.new(0.72, 0, 0.65, 0)
+    end
+    
+    MobileSprint.MouseButton1Click:Connect(function()
+        if IsExhausted then return end
+        IsSprinting = not IsSprinting
+        LastActivityTime = os.clock()
+    end)
+else
+    -- PC Keybind (Q) - Hold
+    UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.KeyCode == Enum.KeyCode.Q and not IsExhausted then
+            IsSprinting = true
+            LastActivityTime = os.clock()
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.Q then
+            IsSprinting = false
+            LastActivityTime = osclock()
+        end
+    end)
+end
+
+-- 6. Heartbeat Loop: Core Logic & Speeds
+RunService.Heartbeat:Connect(function(dt)
+    if not Humanoid or not Humanoid.Parent then
+        Character = Player.Character or Player.CharacterAdded:Wait()
+        Humanoid = Character:WaitForChild("Humanoid")
+        BreathingSound.Parent = Character:WaitForChild("Head")
+        BaseWalkSpeed = Humanoid.WalkSpeed
+    end
+
+    UpdateBaseSpeed()
+
+    local isActivelyUsing = (IsSprinting and Humanoid.MoveDirection.Magnitude > 0) or IsExhausted
+
+    if IsExhausted then
+        Humanoid.WalkSpeed = EXHAUSTED_SPEED
+        CurrentStamina = math.clamp(CurrentStamina + (STAMINA_REGEN * dt), 0, MAX_STAMINA)
+        if CurrentStamina >= (MAX_STAMINA * 0.66) then
+            ToggleExhaustion(false)
+        end
+    elseif IsSprinting and Humanoid.MoveDirection.Magnitude > 0 then
+        Humanoid.WalkSpeed = SPRINT_SPEED
+        CurrentStamina = math.clamp(CurrentStamina - (STAMINA_DRAIN * dt), 0, MAX_STAMINA)
+        if CurrentStamina <= 0 then
+            ToggleExhaustion(true)
+        end
+    else
+        if CurrentStamina < MAX_STAMINA then
+            Humanoid.WalkSpeed = REGEN_SPEED
+            CurrentStamina = math.clamp(CurrentStamina + (STAMINA_REGEN * dt), 0, MAX_STAMINA)
+            isActivelyUsing = true -- Keep UI active during active regeneration
+        else
+            Humanoid.WalkSpeed = BaseWalkSpeed
+        end
+    end
+    
+    -- Activity & Fade Timer Checks
+    if isActivelyUsing then
+        LastActivityTime = os.clock()
+        if IsFadedOut then
+            IsFadedOut = false
+            FadeUI(0) -- Restores back to full visibility smoothly
+        end
+    else
+        if os.clock() - LastActivityTime >= FADE_DELAY and not IsFadedOut then
+            IsFadedOut = true
+            FadeUI(IDLE_TRANSPARENCY) -- Fades out slightly instead of completely hiding
+        end
+    end
+    
+    UpdateStaminaUI()
+end)
+
+-- 7. RenderStepped Camera Override
+RunService.RenderStepped:Connect(function(dt)
+    Camera = workspace.CurrentCamera
+    
+    local desiredFOV = NORMAL_FOV
+    if IsSprinting and Humanoid and Humanoid.MoveDirection.Magnitude > 0 and not IsExhausted then
+        desiredFOV = SPRINT_FOV
+    end
+    
+    CurrentFOV = math.clamp(CurrentFOV + (desiredFOV - CurrentFOV) * (dt / FOV_TWEEN_TIME), NORMAL_FOV, SPRINT_FOV)
+    Camera.FieldOfView = CurrentFOV
+end)
