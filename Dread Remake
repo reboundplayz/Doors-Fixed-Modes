@@ -1,0 +1,250 @@
+-- ==========================================
+-- 1. CONFIGURATION & FILE MANAGEMENT
+-- ==========================================
+local ModelURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/dread%20reamke.rbxm"
+local ModelFilename = "dread_remake.rbxm"
+
+-- Download the model if it doesn't exist
+if not isfile(ModelFilename) then
+    writefile(ModelFilename, game:HttpGet(ModelURL))
+end
+
+-- Load the model using getcustomasset
+local assetId = (getcustomasset or getsynasset)(ModelFilename)
+local dreadModel = game:GetObjects(assetId)[1]
+
+if not dreadModel then
+    warn("Failed to load Dread Model!")
+    return
+end
+
+-- Ensure it's treated as a Model and has a PrimaryPart
+dreadModel.Parent = workspace
+if not dreadModel.PrimaryPart then
+    local root = dreadModel:FindFirstChild("HumanoidRootPart") or dreadModel:FindFirstChildWhichIsA("BasePart")
+    if root then dreadModel.PrimaryPart = root end
+end
+
+-- ==========================================
+-- 2. SPAWN LOGIC
+-- ==========================================
+local rooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
+local lastRoom = rooms[#rooms - 1]
+local initialRoomNumber = tonumber(lastRoom and lastRoom.Name) or 0
+
+if lastRoom and lastRoom:FindFirstChild("Parts") and lastRoom.Parts:FindFirstChild("Floor") then
+    dreadModel:SetPrimaryPartCFrame(lastRoom.Parts.Floor.CFrame + Vector3.new(0, 6, 0))
+else
+    warn("Could not find appropriate room or floor to spawn Dread.")
+    dreadModel:Destroy()
+    return
+end
+
+-- ==========================================
+-- 3. VISUAL EFFECTS (PALE/WHITE TINT)
+-- ==========================================
+local lighting = game:GetService("Lighting")
+local tintCC = Instance.new("ColorCorrectionEffect")
+tintCC.TintColor = Color3.fromRGB(255, 245, 235)
+tintCC.Saturation = -0.5                        
+tintCC.Contrast = 0.2                           
+tintCC.Brightness = 0.1                         
+tintCC.Parent = lighting
+
+-- ==========================================
+-- 4. JUMPSCARE & CLEANUP FUNCTIONS
+-- ==========================================
+local function RunJumpscare()
+    if tintCC then tintCC:Destroy() end
+
+    if dreadModel then
+        for _, obj in pairs(dreadModel:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") then
+                obj.TimeScale = 0
+            end
+        end
+    end
+
+    -- [PASTED JUMPSCARE LOGIC]
+    local GitHubSoundURL = "https://raw.githubusercontent.com/reboundplayz/Doors-Fixed-Modes/main/Desktop%202026.06.19%20-%2013.15.43.01.mp3"
+    local LocalFilename = "dread_jumpscare.mp3"
+
+    local function GetCustomSound(pUrl, pName)
+        if not isfile(pName) then
+            writefile(pName, game:HttpGet(pUrl))
+        end
+        
+        local _Sound = Instance.new('Sound')
+        _Sound.SoundId = (getcustomasset or getsynasset)(pName)
+        _Sound.Parent = workspace
+        return _Sound
+    end
+
+    local CameraShaker = require(game.ReplicatedStorage.CameraShaker)
+    local CurrentCamera = workspace.CurrentCamera
+    
+    require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).stopcam = true
+    CurrentCamera.CameraType = Enum.CameraType.Scriptable
+
+    local ShakerInstance = CameraShaker.new(Enum.RenderPriority.Camera.Value, function(pShake)
+        if dreadModel and dreadModel.PrimaryPart then
+            local targetPos = dreadModel.PrimaryPart.Position
+            local baseCFrame = CFrame.lookAt(CurrentCamera.CFrame.Position, targetPos)
+            CurrentCamera.CFrame = baseCFrame * pShake
+        else
+            CurrentCamera.CFrame = CurrentCamera.CFrame * pShake
+        end
+    end)
+
+    ShakerInstance:Start()
+    ShakerInstance:ShakeSustain(CameraShaker.Presets.Explosion)
+
+    local DreadSound = GetCustomSound(GitHubSoundURL, LocalFilename)
+    DreadSound.Volume = 4
+    DreadSound:Play()
+
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") and not obj:IsDescendantOf(dreadModel) then
+            obj.TimeScale = 0
+        end
+    end
+
+    local LocalPlayer = game.Players.LocalPlayer
+    local Character = LocalPlayer.Character
+    local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+
+    local HiddenParts = {}
+
+    if Character and Root and Humanoid then
+        Humanoid.PlatformStand = true
+        Root.CFrame = Root.CFrame * CFrame.new(0, -2, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("Decal") then
+                table.insert(HiddenParts, {
+                    Part = part, 
+                    IsDecal = part:IsA("Decal"), 
+                    OriginalTrans = part.Transparency,
+                    OriginalLTM = part:IsA("BasePart") and part.LocalTransparencyModifier or 0
+                })
+                
+                part.Transparency = 1
+                if part:IsA("BasePart") then
+                    part.LocalTransparencyModifier = 1
+                end
+            end
+        end
+    end
+
+    game.Lighting.MainColorCorrection.Brightness = -1
+    game.Lighting.MainColorCorrection.Contrast = -4
+    game.Lighting.MainColorCorrection.Saturation = -1
+
+    ShakerInstance:ShakeOnce(10, 100, 0.1, 1000)
+
+    if DreadSound.IsLoaded then
+        task.wait(DreadSound.TimeLength)
+    else
+        DreadSound.Loaded:Wait()
+        task.wait(DreadSound.TimeLength)
+    end
+
+    if DreadSound then DreadSound:Destroy() end
+    ShakerInstance:Stop()
+    
+    if dreadModel then dreadModel:Destroy() end
+
+    game.Lighting.MainColorCorrection.Brightness = 0
+    game.Lighting.MainColorCorrection.Contrast = 0
+    game.Lighting.MainColorCorrection.Saturation = 0
+
+    local MainGameModule = require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game)
+    MainGameModule.stopcam = false
+    MainGameModule.freemouse = false
+    CurrentCamera.CameraType = Enum.CameraType.Custom
+
+    for _, item in pairs(HiddenParts) do
+        if item.Part and item.Part.Parent then
+            item.Part.Transparency = item.OriginalTrans
+            if not item.IsDecal then
+                item.Part.LocalTransparencyModifier = item.OriginalLTM
+            end
+        end
+    end
+
+    if Humanoid then
+        Humanoid.PlatformStand = false
+        -- Set Death Cause right before taking final damage
+        pcall(function()
+            game:GetService("ReplicatedStorage").GameStats["Player_".. LocalPlayer.Name].Total.DeathCause.Value = "Dread"
+        end)
+        Humanoid.Health = 0 
+    end
+end
+
+local function DespawnDread()
+    if tintCC then tintCC:Destroy() end
+    if dreadModel then dreadModel:Destroy() end
+end
+
+-- ==========================================
+-- 5. RUNTIME LOOPS & DETECTION LOGIC
+-- ==========================================
+local RunService = game:GetService("RunService")
+local camera = workspace.CurrentCamera
+local triggered = false
+local lookTimer = 0 
+local lookThreshold = 0.5 
+
+local connection
+connection = RunService.RenderStepped:Connect(function(deltaTime)
+    if triggered then 
+        connection:Disconnect()
+        return 
+    end
+    
+    if not dreadModel or not dreadModel.Parent or not dreadModel.PrimaryPart then
+        DespawnDread()
+        connection:Disconnect()
+        return
+    end
+
+    -- A. Despawn if Player opens 4 more doors ahead
+    local currentRooms = workspace:WaitForChild("CurrentRooms"):GetChildren()
+    local latestRoom = currentRooms[#currentRooms - 1]
+    local latestRoomNumber = tonumber(latestRoom and latestRoom.Name) or 0
+    
+    if latestRoomNumber >= (initialRoomNumber + 4) then
+        triggered = true
+        DespawnDread()
+        return
+    end
+
+    -- B. Look Vector Check with a 0.5s Grace Window
+    local targetPart = dreadModel.PrimaryPart
+    local _, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+    local isLookingAtDread = false
+    
+    if onScreen then
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.FilterDescendantsInstances = {game.Players.LocalPlayer.Character, dreadModel}
+        
+        local rayResult = workspace:Raycast(camera.CFrame.Position, (targetPart.Position - camera.CFrame.Position), raycastParams)
+        
+        if not rayResult then 
+            isLookingAtDread = true
+        end
+    end
+
+    if isLookingAtDread then
+        lookTimer = lookTimer + deltaTime
+        if lookTimer >= lookThreshold then
+            triggered = true
+            task.spawn(RunJumpscare)
+        end
+    else
+        lookTimer = 0
+    end
+end)
