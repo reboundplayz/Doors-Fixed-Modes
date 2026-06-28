@@ -1,0 +1,524 @@
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local SoundService = game:GetService("SoundService")
+local ContentProvider = game:GetService("ContentProvider")
+local Lighting = game:GetService("Lighting")
+
+local localPlayer = Players.LocalPlayer
+
+-- === ENTITY CONFIGURATION ===
+local Config = {
+    Name = "A-60",
+    Asset = "rbxassetid://93702916339224", 
+    HeightOffset = 4, 
+    Speed = 350, 
+    DamageRange = 40,
+    DamageAmount = 125,
+    PatrolLoops = 3,
+    SpawnDelay = 2.5,
+    SpawnBehindOffset = 25 -- How many studs behind the entrance he spawns hidden
+}
+
+local destroyedRooms = {}
+local entityModel = nil
+
+local function getRoomEntranceCFrame()
+    local rooms = Workspace:FindFirstChild("CurrentRooms")
+    if rooms then
+        local room50 = rooms:FindFirstChild("50") or rooms:FindFirstChild("Room50")
+        if room50 and room50:FindFirstChild("RoomStart") then
+            return room50.RoomStart.CFrame
+        end
+    end
+    return CFrame.new(0, 0, 0)
+end
+
+-- === DAMAGE & PROXIMITY CHECKER ===
+local function startDamageThread(entity)
+    task.spawn(function()
+        while entity and entity.Parent do
+            local character = localPlayer.Character
+            local primaryPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
+            
+            if character and character:FindFirstChild("HumanoidRootPart") and primaryPart then
+                local hrp = character.HumanoidRootPart
+                local distance = (hrp.Position - primaryPart.Position).Magnitude
+                
+                if distance <= Config.DamageRange then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        local newHealth = humanoid.Health - Config.DamageAmount
+                        
+                        if newHealth <= 0 then
+                            print("Entity has killed the player")
+                            
+                            local JUMPSCARE_IMAGES = {
+                                "rbxassetid://124887042598105", "rbxassetid://17206102313", "rbxassetid://70579374116007",
+                                "rbxassetid://138308786963210", "rbxassetid://107134253330756", "rbxassetid://138806755053926",
+                                "rbxassetid://83021870514358", "rbxassetid://133426336717195", "rbxassetid://129072942715997",
+                                "rbxassetid://81268093333511"
+                            }
+
+                            local JUMPSCARE_AUDIO_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/HAIR%20JUMPSCARE%20(1)%20(1).mp3"
+                            local AUDIO_FILE_NAME = "asixtyScareremakeOmg"
+                            local JUMPSCARE_DURATION = 0.85 
+
+                            local function loadCustomSound(url, fileName)
+                                if not isfile(fileName .. '.mp3') then
+                                    writefile(fileName .. '.mp3', game:HttpGet(url))
+                                end
+                                local sound = Instance.new('Sound')
+                                sound.SoundId = (getcustomasset or getsynasset)(fileName .. '.mp3')
+                                return sound
+                            end
+
+                            local function runJumpscare()
+                                print('Executing Jumpscare...')
+                                local screenGui = Instance.new('ScreenGui', localPlayer:WaitForChild('PlayerGui'))
+                                screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+                                local fullTemplate = Instance.new('ImageLabel', screenGui)
+                                fullTemplate.Name = 'Full'
+                                fullTemplate.BackgroundTransparency = 1
+                                fullTemplate.Position = UDim2.new(-0.0609865487, 0, -0.224358946, 0)
+                                fullTemplate.Size = UDim2.new(1.12197304, 0, 1.44743586, 0)
+                                fullTemplate.ImageTransparency = 1
+
+                                local jumpscareEnd = Instance.new('ImageLabel', screenGui)
+                                jumpscareEnd.Name = 'JumpscareEnd'
+                                jumpscareEnd.BackgroundTransparency = 1
+                                
+                                local defaultPosition = UDim2.new(0.468161434, 0, 0.455128193, 0)
+                                local defaultSize = UDim2.new(0.0636771321, 0, 0.0884615406, 0)
+                                
+                                jumpscareEnd.Position = defaultPosition
+                                jumpscareEnd.Size = defaultSize
+                                jumpscareEnd.ImageColor3 = Color3.fromRGB(255, 0, 4)
+
+                                local finalFace = JUMPSCARE_IMAGES[math.random(1, #JUMPSCARE_IMAGES)]
+                                local scareSound = loadCustomSound(JUMPSCARE_AUDIO_URL, AUDIO_FILE_NAME)
+                                scareSound.Parent = Workspace
+                                scareSound.Volume = 6
+
+                                local colorCorrection = Instance.new('ColorCorrectionEffect', Lighting)
+                                scareSound:Play()
+
+                                TweenService:Create(colorCorrection, TweenInfo.new(0.5), {
+                                    Brightness = 0.2,
+                                    Contrast = 0.2,
+                                    Saturation = -0.2,
+                                    TintColor = Color3.fromRGB(255, 0, 4),
+                                }):Play()
+
+                                local cycling = true
+                                task.spawn(function()
+                                    local rng = Random.new()
+                                    while cycling do
+                                        jumpscareEnd.Image = JUMPSCARE_IMAGES[math.random(1, #JUMPSCARE_IMAGES)]
+                                        jumpscareEnd.Position = UDim2.new(rng:NextNumber(0.1, 0.8), 0, rng:NextNumber(0.1, 0.8), 0)
+                                        jumpscareEnd.Size = UDim2.new(0.15, 0, 0.2, 0)
+                                        jumpscareEnd.Rotation = rng:NextNumber(-180, 180)
+                                        RunService.Heartbeat:Wait()
+                                        task.wait(math.random(0, 1) / 100) 
+                                    end
+                                end)
+
+                                task.wait(JUMPSCARE_DURATION)
+                                cycling = false 
+                                
+                                jumpscareEnd.Image = finalFace
+                                jumpscareEnd.Position = defaultPosition
+                                jumpscareEnd.Size = defaultSize
+                                jumpscareEnd.Rotation = 0
+
+                                TweenService:Create(jumpscareEnd, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                                    Size = fullTemplate.Size,
+                                    Position = fullTemplate.Position,
+                                    Rotation = math.random(-25, 25),
+                                }):Play()
+
+                                TweenService:Create(colorCorrection, TweenInfo.new(2), {
+                                    Brightness = 0,
+                                    Contrast = 0,
+                                    Saturation = 0,
+                                    TintColor = Color3.fromRGB(255, 255, 255),
+                                }):Play()
+
+                                humanoid:TakeDamage(100)
+
+                                task.wait(1.5)
+                                TweenService:Create(jumpscareEnd, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
+                                
+                                task.delay(0.5, function()
+                                    screenGui:Destroy()
+                                    colorCorrection:Destroy()
+                                    scareSound:Destroy()
+                                end)
+                            end
+                            runJumpscare()
+                            break
+                        else
+                            humanoid:TakeDamage(Config.DamageAmount)
+                            print("Entity has damaged the player")
+                            task.wait(1)
+                        end
+                    end
+                end
+            end
+            task.wait(0.05)
+        end
+    end)
+end
+
+-- === ROOM PROXIMITY PROPERTY SEPARATOR ===
+local function monitorRoomTraverse(entity)
+    task.spawn(function()
+        while entity and entity.Parent do
+            local currentRooms = Workspace:FindFirstChild("CurrentRooms")
+            if currentRooms then
+                for _, room in ipairs(currentRooms:GetChildren()) do
+                    local primaryPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
+                    if primaryPart and room:IsA("Model") and not destroyedRooms[room] then
+                        local roomCenter = room:FindFirstChild("RoomStart") or room:FindFirstChildWhichIsA("BasePart", true)
+                        if roomCenter and (primaryPart.Position - roomCenter.Position).Magnitude < 80 then
+                            destroyedRooms[room] = true
+                            
+                            local breakSound = Instance.new("Sound")
+                            breakSound.SoundId = "rbxassetid://9114223171"
+                            breakSound.Volume = 2.5
+                            breakSound.Parent = room:FindFirstChild("Assets") or room
+                            breakSound:Play()
+                            breakSound.Ended:Connect(function() breakSound:Destroy() end)
+
+                            local assetContainer = room:FindFirstChild("Assets") or room
+                            local breakSounds = {"rbxassetid://9125992545", "rbxassetid://4004052860", "rbxassetid://7142857558", "rbxassetid://7142843615", "rbxassetid://2612674531", "rbxassetid://2174790942"}
+                            local blacklist = {"wardrobe", "bed", "rug", "key", "drawer", "book", "breaker", "table", "desk", "gold"}
+
+                            for _, item in pairs(assetContainer:GetChildren()) do
+                                if item:IsA("Model") and item.Name ~= "Door" and item.Name ~= "HidingSpots" then
+                                    local isBlacklisted = false
+                                    local itemNameLower = string.lower(item.Name)
+                                    for _, word in ipairs(blacklist) do
+                                        if string.find(itemNameLower, word) then
+                                            isBlacklisted = true
+                                            break
+                                        end
+                                    end
+
+                                    if not isBlacklisted then
+                                        local soundParent = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart") or room
+                                        if soundParent then
+                                            local s = Instance.new("Sound")
+                                            s.SoundId = breakSounds[math.random(1, #breakSounds)]
+                                            s.Volume = math.random(20, 35) / 10
+                                            s.PlaybackSpeed = math.random(85, 115) / 100
+                                            s.RollOffMaxDistance = 100
+                                            s.Parent = soundParent
+                                            s:Play()
+                                            s.Ended:Connect(function() s:Destroy() end)
+                                        end
+
+                                        local primary = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                                        if primary then
+                                            for _, v in ipairs(item:GetDescendants()) do
+                                                if v:IsA("BasePart") then
+                                                    local lowerName = string.lower(v.Name)
+                                                    if not string.find(lowerName, "floor") and not string.find(lowerName, "hitbox") then
+                                                        v.Anchored = false
+                                                        v.CanCollide = true
+                                                        v.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0.01, 0.5, 1, 1)
+
+                                                        pcall(function()
+                                                            if v:CanSetNetworkOwnership() then
+                                                                v:SetNetworkOwner(localPlayer)
+                                                            end
+                                                            v.CFrame = v.CFrame + Vector3.new(0, 0.05, 0)
+                                                        end)
+                                                    end
+                                                end
+                                            end
+
+                                            primary.Anchored = true
+                                            task.wait()
+                                            primary.Anchored = false
+                                            primary.AssemblyLinearVelocity = Vector3.new(math.random(-60, 60), math.random(20, 50), math.random(-60, 60))
+                                            primary.AssemblyAngularVelocity = Vector3.new(math.random(-25, 25), math.random(-25, 25), math.random(-25, 25))
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait(0.2)
+        end
+    end)
+end
+
+-- === MOVEMENT ENGINE ===
+local function EntityMoveTo(targetCFrame)
+    if not entityModel or not entityModel.Parent then return end
+    local reached = false
+    local connection
+    
+    connection = RunService.Stepped:Connect(function(_, step)
+        if not entityModel or not entityModel.Parent then 
+            if connection then connection:Disconnect() end
+            reached = true 
+            return 
+        end
+        
+        local pivot = entityModel:GetPivot()
+        local difference = (targetCFrame.Position - pivot.Position)
+        
+        if difference.Magnitude > 0.8 then
+            local unit = difference.Unit
+            entityModel:PivotTo(pivot + unit * math.min(step * Config.Speed, difference.Magnitude))
+        else
+            connection:Disconnect()
+            reached = true
+        end
+    end)
+    
+    local start = tick()
+    repeat RunService.Stepped:Wait() until reached or (tick() - start > 12)
+    if connection then connection:Disconnect() end
+end
+
+-- === PATHING PATROL PATTERN ===
+local function runPatrolSequence()
+    local pathFolder = Workspace:FindFirstChild("FigureNodes", true)
+    if not pathFolder then 
+        task.wait(1)
+        return false
+    end
+    
+    local nodes = pathFolder:GetChildren()
+    table.sort(nodes, function(a, b)
+        local numA = tonumber(a.Name:match("%d+")) or 0
+        local numB = tonumber(b.Name:match("%d+")) or 0
+        return numA < numB
+    end)
+
+    for _, node in ipairs(nodes) do
+        if not entityModel or not entityModel.Parent then return false end
+        if node:IsA("BasePart") then
+            EntityMoveTo(node.CFrame + Vector3.new(0, Config.HeightOffset, 0))
+        end
+    end
+    
+    if not entityModel or not entityModel.Parent then return false end
+    EntityMoveTo(getRoomEntranceCFrame())
+    return true
+end
+
+-- === CALLBACK EFFECTS LOGIC ===
+local function runOnSpawnedEffects()
+    print("Entity has spawned")
+    task.wait(0.1)
+
+    task.spawn(function()
+        local customScream = Instance.new("Sound")
+        customScream.Name = "A60_CustomScream_Global"
+        customScream.SoundId = "rbxassetid://112497140615036"
+        customScream.Volume = 5
+        customScream.Parent = SoundService
+        
+        ContentProvider:PreloadAsync({customScream})
+        customScream:Play()
+        
+        customScream.Ended:Connect(function()
+            customScream:Destroy()
+        end)
+    end)
+    
+    task.spawn(function()
+        local textures = {
+            "rbxassetid://124887042598105", "rbxassetid://17206102313", "rbxassetid://70579374116007",
+            "rbxassetid://138308786963210", "rbxassetid://107134253330756", "rbxassetid://138806755053926",
+            "rbxassetid://83021870514358", "rbxassetid://133426336717195", "rbxassetid://129072942715997",
+            "rbxassetid://81268093333511"
+        }
+        local faceEmitter = nil
+        
+        while entityModel and entityModel.Parent do
+            if not faceEmitter then
+                local mainPart = entityModel:FindFirstChild("Main", true)
+                local facePart = mainPart and mainPart:FindFirstChild("Face")
+                if facePart then
+                    faceEmitter = facePart:FindFirstChildWhichIsA("ParticleEmitter")
+                end
+                if not faceEmitter then
+                    for _, desc in ipairs(entityModel:GetDescendants()) do
+                        if desc:IsA("ParticleEmitter") and (desc.Name == "Face" or desc.Parent.Name == "Face") then
+                            faceEmitter = desc
+                            break
+                        end
+                    end
+                end
+            end
+            if faceEmitter and faceEmitter.Parent then
+                faceEmitter.Texture = textures[math.random(1, #textures)]
+            end
+            task.wait(0.05)
+        end
+    end)
+
+    local function forceRedTint(targetColor, duration)
+        local rooms = Workspace:FindFirstChild("CurrentRooms")
+        if not rooms then return end
+        local originalColors = {}
+        local lights = {}
+        
+        for _, room in pairs(rooms:GetChildren()) do
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    table.insert(lights, v)
+                    originalColors[v] = v.Color
+                    v.Color = targetColor
+                end
+            end
+        end
+        
+        task.spawn(function()
+            local start = tick()
+            while tick() - start < duration do
+                local elapsed = tick() - start
+                local progress = elapsed / duration
+                for _, light in ipairs(lights) do
+                    if light and light.Parent then
+                        local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                        light.Color = targetColor:Lerp(orig, progress)
+                    end
+                end
+                task.wait()
+            end
+            for _, light in ipairs(lights) do
+                if light and light.Parent then light.Color = originalColors[light] end
+            end
+        end)
+    end
+
+    local function smoothEarthquake(duration, maxIntensity)
+        local camera = Workspace.CurrentCamera
+        local start = tick()
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            local elapsed = tick() - start
+            if elapsed >= duration then connection:Disconnect() return end
+            local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+            camera.CFrame = camera.CFrame * CFrame.Angles(
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+            )
+        end)
+    end
+
+    forceRedTint(Color3.fromRGB(255, 0, 0), 3.5)
+    smoothEarthquake(3, 4)
+end
+
+local function runOnDespawnedEffects()
+    print("Entity has despawned")
+    table.clear(destroyedRooms)
+
+    local function forceRedTint(targetColor, duration)
+        local rooms = Workspace:FindFirstChild("CurrentRooms")
+        if not rooms then return end
+        local originalColors = {}
+        local lights = {}
+        
+        for _, room in pairs(rooms:GetChildren()) do
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    table.insert(lights, v)
+                    originalColors[v] = v.Color
+                    v.Color = targetColor
+                end
+            end
+        end
+        
+        task.spawn(function()
+            local start = tick()
+            while tick() - start < duration do
+                local elapsed = tick() - start
+                local progress = elapsed / duration
+                for _, light in ipairs(lights) do
+                    if light and light.Parent then
+                        local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                        light.Color = targetColor:Lerp(orig, progress)
+                    end
+                end
+                task.wait()
+            end
+            for _, light in ipairs(lights) do
+                if light and light.Parent then light.Color = originalColors[light] end
+            end
+        end)
+    end
+
+    local function smoothEarthquake(duration, maxIntensity)
+        local camera = Workspace.CurrentCamera
+        local start = tick()
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            local elapsed = tick() - start
+            if elapsed >= duration then connection:Disconnect() return end
+            local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+            camera.CFrame = camera.CFrame * CFrame.Angles(
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+            )
+        end)
+    end
+
+    forceRedTint(Color3.fromRGB(255, 0, 0), 3.5)
+    smoothEarthquake(10, 10)
+end
+
+-- === CORE EXECUTION INITIALIZER ===
+local function initEntity()
+    entityModel = game:GetObjects(Config.Asset)[1]
+    entityModel.Name = Config.Name
+    entityModel.Parent = Workspace
+    
+    for _, part in ipairs(entityModel:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+            part.Massless = true
+        end
+    end
+    
+    -- Fixed: Always forces spawn at Room Entrance + moves him back several studs out of sight
+    local entranceCFrame = getRoomEntranceCFrame()
+    local hiddenSpawnCFrame = entranceCFrame + (entranceCFrame.LookVector * Config.SpawnBehindOffset) + Vector3.new(0, Config.HeightOffset, 0)
+    entityModel:PivotTo(hiddenSpawnCFrame)
+
+    runOnSpawnedEffects()
+    startDamageThread(entityModel)
+    monitorRoomTraverse(entityModel)
+
+    -- Delay buffer while hidden out of bounds
+    task.wait(Config.SpawnDelay)
+
+    -- === RUN PATROL LOOPS ===
+    for i = 1, Config.PatrolLoops do
+        print("Starting patrol loop count: " .. i)
+        local success = runPatrolSequence()
+        if not success then break end
+    end
+
+    -- === DESPAWN SEQUENCE ===
+    print("Entity is despawning")
+    if entityModel then
+        entityModel:Destroy()
+    end
+    runOnDespawnedEffects()
+end
+
+initEntity()
