@@ -1,0 +1,236 @@
+-- Isolated Immediate A-90 Execution
+local function execute_A90()
+    local v557 = require(game.ReplicatedStorage.CameraShaker)
+    local _CurrentCamera14 = workspace.CurrentCamera
+    local v560 = v557.new(Enum.RenderPriority.Camera.Value, function(p559)
+        _CurrentCamera14.CFrame = _CurrentCamera14.CFrame * p559
+    end)
+
+    v560:Start()
+
+    local _TweenService = game:GetService('TweenService')
+    local _LocalPlayer10 = game.Players.LocalPlayer
+    local _MainUI = game.Players.LocalPlayer.PlayerGui.MainUI
+    local _Jumpscare_A90 = _MainUI.Jumpscare.Jumpscare_A90
+    local _A90 = _MainUI.Initiator.Main_Game.RemoteListener.Modules.A90
+    
+    -- Dynamically grab or mock the local context dependencies
+    local u566 = require(_MainUI.Initiator.Main_Game)
+    local u567 = true
+    local u568 = false
+    local _LookVector = u566.cam and u566.cam.CFrame.LookVector or _CurrentCamera14.CFrame.LookVector
+    local u570 = 0
+
+    game.SoundService.Main.Volume = 0
+    _Jumpscare_A90.Face.Image = 'http://www.roblox.com/asset/?id=93390750040238'
+    _Jumpscare_A90.FaceAngry.Image = 'http://www.roblox.com/asset/?id=102404936290396'
+    _A90.Spawn.SoundGroup = nil
+    _A90.Hit.SoundGroup = nil
+
+    _A90.Spawn:Play()
+
+    _Jumpscare_A90.BackgroundTransparency = 1
+    _Jumpscare_A90.Face.Visible = true
+    _Jumpscare_A90.FaceAngry.Visible = false
+    _Jumpscare_A90.Static.Visible = true
+    _Jumpscare_A90.Static2.Visible = true
+    _Jumpscare_A90.Static.ImageTransparency = 1
+    _Jumpscare_A90.Static2.ImageTransparency = 1
+    _Jumpscare_A90.Face.ImageColor3 = Color3.new(0, 0, 0)
+    _Jumpscare_A90.Face.Rotation = Random.new():NextNumber(-5, 5)
+    _Jumpscare_A90.Face.Position = UDim2.new(Random.new():NextNumber(10, 90) / 100, 0, Random.new():NextNumber(10, 90) / 100, 0)
+    _Jumpscare_A90.Visible = true
+
+    task.wait(0.03)
+
+    _Jumpscare_A90.Face.ImageColor3 = Color3.new(1, 1, 1)
+
+    task.wait(0.28)
+
+    _Jumpscare_A90.BackgroundTransparency = 0
+    _Jumpscare_A90.Face.Rotation = 0
+    _Jumpscare_A90.Face.Position = UDim2.new(0.5, 0, 0.49, 0)
+
+    task.wait(0.03)
+
+    _Jumpscare_A90.StopIcon.Visible = true
+    _Jumpscare_A90.BackgroundColor3 = Color3.new(0, 0, 0)
+    _Jumpscare_A90.BackgroundTransparency = 1
+    _Jumpscare_A90.Static.ImageTransparency = 0.8
+    _Jumpscare_A90.Static2.ImageTransparency = 0.8
+
+    task.delay(0.2, function()
+        _Jumpscare_A90.StopIcon.Visible = false
+
+        while u567 do
+            local v571 = math.random(0, 1)
+            local v572 = 100 + u570 * 0.5
+
+            u570 = u570 + 15
+
+            task.wait(0.03)
+
+            _Jumpscare_A90.Static.Position = UDim2.new(math.random(0, 100) / 100, 0, math.random(0, 100) / 100, 0)
+            _Jumpscare_A90.Static.Rotation = math.random(0, 1) * 180
+            _Jumpscare_A90.Static2.Position = UDim2.new(math.random(0, 100) / 100, 0, math.random(0, 100) / 100, 0)
+            _Jumpscare_A90.Static2.Rotation = math.random(0, 1) * 180
+            _Jumpscare_A90.Face.Position = UDim2.new(0.5, 0, 0.49, math.random(-1, 1))
+            _Jumpscare_A90.FaceAngry.Position = UDim2.new(0.5 + Random.new():NextNumber(-v572, v572) / 50000, 0, 0.49 + Random.new():NextNumber(-v572, v572) / 30000, math.random(-1, 1))
+            _Jumpscare_A90.FaceAngry.Rotation = Random.new():NextNumber(-1, 1) * (u570 * 0.0015)
+            _Jumpscare_A90.FaceAngry.ImageColor3 = Color3.new(1, v571, v571)
+
+            if not u568 then
+                local currentCam = u566.cam or _CurrentCamera14
+                local currentHum = u566.hum or (_LocalPlayer10.Character and _LocalPlayer10.Character:FindFirstChildOfClass("Humanoid"))
+                
+                if (_LookVector - currentCam.CFrame.LookVector).Magnitude <= 0.4 then
+                    if currentHum and currentHum.MoveDirection.Magnitude > 0.4 then
+                        u568 = true
+                    end
+                else
+                    u568 = true
+                end
+            end
+        end
+    end)
+    task.wait(0.3)
+
+    _Jumpscare_A90.BackgroundColor3 = Color3.new(0, 0, 0)
+    _Jumpscare_A90.BackgroundTransparency = 0
+    _Jumpscare_A90.Static.ImageTransparency = 0
+    _Jumpscare_A90.Static2.ImageTransparency = 0.5
+
+    task.wait(0.03)
+
+    _Jumpscare_A90.Face.ImageColor3 = Color3.new(1, 0, 0)
+
+    task.wait(0.03)
+
+    _Jumpscare_A90.Visible = false
+
+    task.wait(0.08)
+
+    if u568 then
+        local u573 = true
+
+        _Jumpscare_A90.Visible = true
+
+        _A90.Hit:Play()
+        task.wait(0.03)
+
+        _Jumpscare_A90.Face.ImageColor3 = Color3.new(1, 1, 1)
+
+        task.wait(0.03)
+
+        _Jumpscare_A90.BackgroundTransparency = 0
+        _Jumpscare_A90.Static.ImageTransparency = 0
+        _Jumpscare_A90.Static2.ImageTransparency = 0.5
+
+        task.wait(0.067)
+
+        _Jumpscare_A90.FaceAngry.Size = UDim2.new(0.8, 0, 0.8, 0)
+        _Jumpscare_A90.FaceAngry.Rotation = 0
+        _Jumpscare_A90.FaceAngry.ImageTransparency = 0
+        _Jumpscare_A90.FaceAngry.ImageColor3 = Color3.new(1, 0, 0)
+        _Jumpscare_A90.FaceAngry.Visible = true
+
+        task.wait(0.067)
+
+        _Jumpscare_A90.FaceAngry.ImageColor3 = Color3.new(1, 1, 1)
+        _Jumpscare_A90.Face.Visible = false
+
+        task.wait(0.75)
+
+        if _LocalPlayer10.Character and _LocalPlayer10.Character:FindFirstChild("Humanoid") then
+            _LocalPlayer10.Character.Humanoid.Health = _LocalPlayer10.Character.Humanoid.Health - 70
+        end
+
+        firesignal(game.ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {
+            'You died to an entity called A-90...',
+            'React Fast and Dont Move a Muscle!',
+        }, 'Blue')
+        task.wait(0.1)
+
+        _Jumpscare_A90.FaceAngry.Visible = false
+        _Jumpscare_A90.BackgroundColor3 = Color3.new(1, 1, 1)
+        _Jumpscare_A90.Static.ImageTransparency = 1
+        _Jumpscare_A90.Static2.ImageTransparency = 1
+
+        task.wait(0.067)
+
+        _Jumpscare_A90.BackgroundColor3 = Color3.new(1, 0, 0)
+
+        task.wait(0.067)
+
+        _Jumpscare_A90.BackgroundColor3 = Color3.new(0, 0, 0)
+
+        task.wait(0.067)
+        v560:ShakeOnce(25, 8, 0, 4)
+
+        u567 = false
+
+        task.wait(0.03)
+        _A90.Spawn:Stop()
+
+        _Jumpscare_A90.BackgroundTransparency = 1
+        _Jumpscare_A90.Static.ImageTransparency = 0.5
+        _Jumpscare_A90.Static2.ImageTransparency = 0.5
+
+        _TweenService:Create(_Jumpscare_A90.Static, TweenInfo.new(20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
+        _TweenService:Create(_Jumpscare_A90.Static2, TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
+
+        local v574 = Random.new():NextNumber(2, 3)
+
+        _Jumpscare_A90.FaceAngry.Rotation = Random.new():NextNumber(-3, 3)
+        _Jumpscare_A90.FaceAngry.Visible = true
+        _Jumpscare_A90.FaceAngry.ImageColor3 = Color3.new(1, 0, 0)
+        _Jumpscare_A90.FaceAngry.Size = UDim2.new(v574, 0, v574, 0)
+
+        _TweenService:Create(_Jumpscare_A90.FaceAngry, TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
+
+        game.SoundService.Main.Volume = 0
+        game.SoundService.Main.EqualizerSoundEffect.Enabled = true
+        game.SoundService.Main.EqualizerSoundEffect.HighGain = -50
+        game.SoundService.Main.EqualizerSoundEffect.LowGain = 10
+        game.SoundService.Main.EqualizerSoundEffect.MidGain = -50
+
+        _TweenService:Create(game.SoundService.Main.EqualizerSoundEffect, TweenInfo.new(15, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), {
+            LowGain = 0,
+            HighGain = 0,
+            MidGain = 0,
+        }):Play()
+        _TweenService:Create(game.SoundService.Main, TweenInfo.new(5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Volume = 1}):Play()
+        task.spawn(function()
+            while u573 do
+                local v575 = 100 + 0.1
+
+                task.wait()
+
+                _Jumpscare_A90.Static.Position = UDim2.new(Random.new():NextNumber(0, v575) / 100, 0, Random.new():NextNumber(0, v575) / 100, 0)
+                _Jumpscare_A90.Static.Rotation = math.random(0, 1) * 180
+                _Jumpscare_A90.Static2.Position = UDim2.new(Random.new():NextNumber(0, v575) / 100, 0, Random.new():NextNumber(0, v575) / 100, 0)
+                _Jumpscare_A90.Static2.Rotation = math.random(0, 1) * 180
+            end
+        end)
+        task.delay(20, function()
+            u573 = false
+            _Jumpscare_A90.Visible = false
+            _Jumpscare_A90.BackgroundTransparency = 0
+            _Jumpscare_A90.Static.ImageTransparency = 1
+            _Jumpscare_A90.Static2.ImageTransparency = 1
+        end)
+    else
+        _A90.Spawn:Stop()
+
+        _Jumpscare_A90.BackgroundTransparency = 1
+        _Jumpscare_A90.Visible = false
+
+        v560:ShakeOnce(5, 10, 0.1, 1)
+
+        u567 = false
+        game.SoundService.Main.Volume = 1
+    end
+end
+
+-- Run it immediately upon script execution
+execute_A90()
