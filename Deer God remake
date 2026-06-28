@@ -1,0 +1,461 @@
+---====== Load spawner ======---
+
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+
+---====== Create entity ======---
+
+local entity = Spawner:Create({
+    Entity = {
+        Name = "Deer God",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/realdeergod8.rbxm",
+        HeightOffset = 0
+    },
+    Lights = {
+        Flicker = {
+            Enabled = true,
+            Duration = 100
+        },
+        Shatter = true,
+        Repair = false
+    },
+    Earthquake = {
+        Enabled = false
+    },
+    CameraShake = {
+        Enabled = false,
+        Range = 10,
+        Values = {5, 15, 0.1, 1}
+    },
+    Movement = {
+        Speed = 20,
+        Delay = 0,
+        Reverse = false
+    },
+    Rebounding = {
+        Enabled = false,
+        Type = "Ambush",
+        Min = 1,
+        Max = 1,
+        Delay = 2
+    },
+    Damage = {
+        Enabled = true,
+        IgnoreHiding = true,
+        Range = 40,
+        Amount = 0
+    },
+    Crucifixion = {
+        Enabled = true,
+        Range = 40,
+        Resist = false,
+        Break = true
+    },
+    Death = {
+        Type = "Guiding",
+        Hints = {"You just died to an entity named Deer God...", "Its form is incomprehensible, you shouldn't look at it...", "Hiding won't work either... try running!", "Good luck! I hope you come back again."},
+        Cause = "Deer God"
+    }
+})
+
+---====== Setup Camera Shaker, Sound & Static Variables ======---
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+-- Camera Shaker Integration
+local CameraShaker = require(game.ReplicatedStorage.CameraShaker)
+local _CurrentCamera = workspace.CurrentCamera
+local CamShakeInstance = CameraShaker.new(Enum.RenderPriority.Camera.Value, function(p143)
+    _CurrentCamera.CFrame = _CurrentCamera.CFrame * p143
+end)
+CamShakeInstance:Start()
+
+-- Static, Sound & Flicker Control Variables
+local staticGui = nil
+local staticActive = false
+local constantFlicker = false
+local ambientSound = nil
+local jumpscareSound = nil
+local cutscenePlaying = false
+
+-- Custom File Downloader for Ambient Sound (.ogg version)
+local function SetupAmbientSound()
+    local url = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/Your_Consenting_Mind.ogg"
+    local fileName = "deergodambient_fixed.ogg"
+    
+    ambientSound = Instance.new("Sound")
+    ambientSound.Name = "DeerGodAmbientMusic"
+    ambientSound.Volume = 2.5
+    ambientSound.Looped = true
+    ambientSound.Parent = game:GetService("SoundService")
+
+    pcall(function()
+        if not isfile(fileName) then
+            writefile(fileName, game:HttpGet(url))
+        end
+        ambientSound.SoundId = getcustomasset(fileName)
+    end)
+end
+
+-- Custom File Downloader for Jumpscare Sound
+local function SetupJumpscareSound()
+    local url = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/DL_AMB.mp3"
+    local fileName = "deergodjumpscare.mp3"
+    
+    jumpscareSound = Instance.new("Sound")
+    jumpscareSound.Name = "DeerGodJumpscareMusic"
+    jumpscareSound.Volume = 3.0
+    jumpscareSound.Looped = false
+    jumpscareSound.Parent = game:GetService("SoundService")
+
+    pcall(function()
+        if not isfile(fileName) then
+            writefile(fileName, game:HttpGet(url))
+        end
+        jumpscareSound.SoundId = getcustomasset(fileName)
+    end)
+end
+
+local function PlayAmbientSound()
+    if not ambientSound then SetupAmbientSound() end
+    if ambientSound and ambientSound.SoundId ~= "" then
+        ambientSound:Play()
+    end
+end
+
+local function StopAmbientSound()
+    if ambientSound then
+        ambientSound:Stop()
+        ambientSound:Destroy()
+        ambientSound = nil
+    end
+end
+
+local function CreateStaticEffect()
+    staticGui = Instance.new("ScreenGui")
+    staticGui.Name = "DeerGodStaticGui"
+    staticGui.ResetOnSpawn = false
+    staticGui.IgnoreGuiInset = true
+    staticGui.Parent = PlayerGui
+
+    local staticImage = Instance.new("ImageLabel")
+    staticImage.Name = "StaticImage"
+    staticImage.Image = "rbxassetid://8806708292"
+    staticImage.ImageTransparency = 0.92 
+    staticImage.BackgroundTransparency = 1
+    
+    staticImage.Size = UDim2.new(1.3, 0, 1.3, 0) 
+    staticImage.AnchorPoint = Vector2.new(0.5, 0.5)
+    staticImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+    staticImage.Parent = staticGui
+
+    staticActive = true
+
+    task.spawn(function()
+        local rand = Random.new()
+        while staticActive and staticImage and staticImage.Parent do
+            local xOffset = rand:NextNumber(-55, 55)
+            local yOffset = rand:NextNumber(-55, 55)
+            staticImage.Position = UDim2.new(0.5, xOffset, 0.5, yOffset)
+            staticImage.ImageTransparency = rand:NextNumber(0.70, 0.97)
+            task.wait(0.01)
+        end
+    end)
+end
+
+local function RemoveStaticEffect()
+    staticActive = false
+    if staticGui then
+        staticGui:Destroy()
+        staticGui = nil
+    end
+    CamShakeInstance:Stop()
+end
+
+local function StartConstantFlicker()
+    constantFlicker = true
+    task.spawn(function()
+        local ModuleScripts = game:GetService("ReplicatedStorage"):WaitForChild("ModuleScripts")
+        local MainGame = ModuleScripts:FindFirstChild("MainGame")
+        
+        while constantFlicker do
+            if MainGame then
+                pcall(function()
+                    require(MainGame).flickerLights(1, 1)
+                end)
+            else
+                pcall(function()
+                    for _, v in ipairs(workspace:GetDescendants()) do
+                        if v:IsA("Light") and v.Name == "Light" then
+                            v.Enabled = not v.Enabled
+                        end
+                    end
+                end)
+            end
+            task.wait(math.random(5, 25) / 100)
+        end
+    end)
+end
+
+local function StopConstantFlicker()
+    constantFlicker = false
+end
+
+-- Custom Cutscene System
+local function PlayCustomCutscene()
+    local modelUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/deergod%20fixed%20cutsecene.rbxm"
+    local modelFile = "FIXEDCUTSCENE.rbxm"
+    
+    -- Clear any old duplicates or loose objects before spawning
+    for _, oldObj in ipairs(workspace:GetChildren()) do
+        if oldObj.Name == "ashj_cutscene_root" or oldObj.Name == "Model" then
+            if oldObj:FindFirstChild("DeerLord 2", true) or oldObj:FindFirstChild("Back", true) then
+                oldObj:Destroy()
+            end
+        end
+    end
+
+    -- 1. Download Model via Executor File system
+    pcall(function()
+        if not isfile(modelFile) then
+            writefile(modelFile, game:HttpGet(modelUrl))
+        end
+    end)
+    
+    local spawnedModel = nil
+    pcall(function()
+        spawnedModel = game:GetObjects(getcustomasset(modelFile))[1]
+    end)
+    
+    if not spawnedModel then 
+        warn("Failed to load custom cutscene model asset.")
+        cutscenePlaying = false
+        return 
+    end
+    
+    spawnedModel.Name = "FIXEDCUTSCENE"
+    
+    -- 2. Position model completely DOWN outside map (-1000 studs lower)
+    local spawnLocation = CFrame.new(0, -1000, 0)
+    spawnedModel.Parent = workspace
+    if spawnedModel:IsA("Model") then
+        spawnedModel:PivotTo(spawnLocation)
+    elseif spawnedModel:IsA("BasePart") then
+        spawnedModel.CFrame = spawnLocation
+    end
+    
+    -- 3. High-intensity Red Sky & Fog Environment Lighting
+    local redTint = Instance.new("ColorCorrectionEffect")
+    redTint.Name = "CutsceneRedTint"
+    redTint.TintColor = Color3.fromRGB(255, 30, 30) -- Deeper vibrant red tint
+    redTint.Brightness = 0.25
+    redTint.Contrast = 0.2
+    redTint.Parent = Lighting
+
+    local atmosphereGlow = Instance.new("Atmosphere")
+    atmosphereGlow.Name = "CutsceneRedGlow"
+    atmosphereGlow.Color = Color3.fromRGB(255, 0, 0)
+    atmosphereGlow.Decay = Color3.fromRGB(180, 0, 0)
+    atmosphereGlow.Glare = 1.0 -- Boosted glow reflection
+    atmosphereGlow.Density = 0.75 -- Thicker environmental fog
+    atmosphereGlow.Parent = Lighting
+
+    -- Play Jumpscare Audio Track
+    SetupJumpscareSound()
+    if jumpscareSound and jumpscareSound.SoundId ~= "" then
+        jumpscareSound:Play()
+    end
+
+    -- RECURSIVE SEARCH: Looks through the updated file for parts
+    local backPart = spawnedModel:FindFirstChild("Back", true) or spawnedModel:FindFirstChild("Beginning", true)
+    local targetPart = spawnedModel:FindFirstChild("DeerLord 2", true)
+    
+    if not backPart then
+        backPart = spawnedModel:FindFirstChildWhichIsA("BasePart", true) or spawnedModel
+    end
+    if not targetPart then
+        targetPart = backPart
+    end
+
+    -- Grab raw initial spatial positions 
+    local baseStartPos = (backPart:IsA("BasePart") and backPart.Position) or spawnedModel:GetPivot().Position
+    local baseTargetPos = (targetPart:IsA("BasePart") and targetPart.Position) or spawnedModel:GetPivot().Position
+
+    -- Shift the track down exactly 4 studs so the camera runs strictly straight forward
+    local startPos = baseStartPos - Vector3.new(0, 4, 0)
+    local targetPos = baseTargetPos - Vector3.new(0, 4, 0)
+
+    -- Linear tracking progress value (0 to 1)
+    local progress = Instance.new("NumberValue")
+    progress.Value = 0
+
+    -- 4. Create intense, bright red tracking light attached to the camera viewport
+    local cutsceneLight = Instance.new("PointLight")
+    cutsceneLight.Name = "CutsceneIllumination"
+    cutsceneLight.Color = Color3.fromRGB(255, 10, 10)
+    cutsceneLight.Range = 450 -- Expanded illumination reach
+    cutsceneLight.Brightness = 35 -- Massive boost for high-intensity red glow
+    cutsceneLight.Shadows = false
+    cutsceneLight.Parent = workspace.CurrentCamera
+
+    -- 5. Force camera position straight forward down the adjusted track
+    local camera = workspace.CurrentCamera
+    local cameraConnection = RunService.RenderStepped:Connect(function()
+        camera.CameraType = Enum.CameraType.Scriptable
+        
+        -- Linearly interpolate current location vector
+        local currentPos = startPos:Lerp(targetPos, progress.Value)
+        
+        -- Lock direction flatly forward across the lowered track
+        camera.CFrame = CFrame.new(currentPos, targetPos)
+        
+        -- Fallback Anchor Logic: Keep models firmly clamped down
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj.Name == "wmetjkn_cutscene_root" or obj.Name == "Model" or obj:FindFirstChild("DeerLord 2", true) then
+                for _, part in ipairs(obj:GetDescendants()) do
+                    if part:IsA("BasePart") and not part.Anchored then
+                        part.Anchored = true
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- 6. Flashing Image Overlay Setup (Every 2 seconds)
+    local flashGui = Instance.new("ScreenGui")
+    flashGui.Name = "CutsceneFlashGui"
+    flashGui.IgnoreGuiInset = true
+    flashGui.Parent = PlayerGui
+    
+    local flashImage = Instance.new("ImageLabel")
+    flashImage.Size = UDim2.new(1, 0, 1, 0)
+    flashImage.BackgroundTransparency = 1
+    flashImage.Image = "rbxassetid://11395249132"
+    flashImage.ImageTransparency = 1
+    flashImage.Parent = flashGui
+    
+    local runFlashing = true
+    task.spawn(function()
+        while runFlashing do
+            task.wait(2)
+            if not runFlashing then break end
+            flashImage.ImageTransparency = 0
+            task.wait(0.15)
+            flashImage.ImageTransparency = 1
+        end
+    end)
+    
+    -- 7. Smoothly interpolate camera track progress over 25 seconds
+    local tweenInfo = TweenInfo.new(25, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(progress, tweenInfo, {Value = 1})
+    tween:Play()
+    tween.Completed:Wait()
+    
+    -- 8. Cleanup and reset execution
+    cameraConnection:Disconnect()
+    runFlashing = false
+    
+    flashGui:Destroy()
+    progress:Destroy()
+    cutsceneLight:Destroy()
+    redTint:Destroy()
+    atmosphereGlow:Destroy()
+    
+    if jumpscareSound then
+        jumpscareSound:Stop()
+        jumpscareSound:Destroy()
+        jumpscareSound = nil
+    end
+    
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj.Name == "wmetjkn_cutscene_root" or obj:FindFirstChild("DeerLord 2", true) then
+            obj:Destroy()
+        end
+    end
+    
+    camera.CameraType = Enum.CameraType.Custom
+    
+    -- Assign Death Cause right before dying
+    pcall(function()
+        game:GetService("ReplicatedStorage").GameStats["Player_" .. LocalPlayer.Name].Total.DeathCause.Value = "Deer God"
+    end)
+
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.Health = 0
+        end
+    end
+    cutscenePlaying = false
+end
+
+---====== Debug entity ======---
+
+entity:SetCallback("OnSpawned", function()
+    print("Entity has spawned")
+    CreateStaticEffect()
+    StartConstantFlicker()
+    PlayAmbientSound()
+    CamShakeInstance:ShakeSustain(CameraShaker.Presets.Earthquake)
+end)
+
+entity:SetCallback("OnStartMoving", function()
+    print("Entity has started moving")
+end)
+
+entity:SetCallback("OnEnterRoom", function(room: Model, firstTime: boolean)
+    if firstTime == true then
+        print("Entity has entered room: ".. room.Name.. " for the first time")
+    else
+        print("Entity has entered room: ".. room.Name.. " again")
+    end
+end)
+
+entity:SetCallback("OnLookAt", function(lineOfSight: boolean)
+    if lineOfSight == true then
+        print("Player is looking at entity")
+    else
+        print("Player view is obstructed by something")
+    end
+end)
+
+entity:SetCallback("OnRebounding", function(startOfRebound: boolean)
+    if startOfRebound == true then
+        print("Entity has started rebounding")
+    else
+        print("Entity has finished rebounding")
+    end
+end)
+
+entity:SetCallback("OnDespawning", function()
+    print("Entity is despawning")
+end)
+
+entity:SetCallback("OnDespawned", function()
+    print("Entity has despawned")
+    RemoveStaticEffect() 
+    StopConstantFlicker() 
+    StopAmbientSound()
+end)
+
+entity:SetCallback("OnDamagePlayer", function(newHealth: number)
+    if cutscenePlaying then return end
+    cutscenePlaying = true
+    
+    print("Entity touched player - Intercepting and running cutscene")
+    RemoveStaticEffect()
+    StopConstantFlicker() 
+    StopAmbientSound()
+    
+    task.spawn(PlayCustomCutscene)
+end)
+
+---====== Run entity ======---
+
+entity:Run(true)
