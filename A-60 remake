@@ -1,0 +1,586 @@
+local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/DOORS-Entity-Spawner-V2/main/init.luau"))()
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+
+-- Tracking table to avoid double flinging props on rebounding phases
+local destroyedRooms = {}
+
+---====== Create entity ======---
+
+local entity = Spawner:Create({
+    Entity = {
+        Name = "A-60",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/a-60remake.rbxm",
+        HeightOffset = 0.5
+    },
+    Lights = {
+        Flicker = {
+            Enabled = false,
+            Duration = 1
+        },
+        Shatter = true,
+        Repair = false
+    },
+    Earthquake = {
+        Enabled = false
+    },
+    CameraShake = {
+        Enabled = true,
+        Range = 50,
+        Values = {30, 30, 0.1, 1} -- Magnitude, Roughness, FadeIn, FadeOut
+    },
+    Movement = {
+        Speed = 350,
+        Delay = 3,
+        Reversed = false
+    },
+    Rebounding = {
+        Enabled = true,
+        Type = "Ambush", -- "Blitz"
+        Min = 4,
+        Max = 4,
+        Delay = 0.05
+    },
+    Damage = {
+        Enabled = true,
+        Range = 40,
+        Amount = 125
+    },
+    Cruifixion = {
+        Enabled = true,
+        Range = 40,
+        Resist = false,
+        Break = true
+    },
+    Death = {
+        Type = "Curious",
+        Hints = {"Wow, that one.", "He's pretty brutal to deal with.", "Just hide...", "Come back, it's fun seeing you here."},
+        Cause = "A-60"
+    }
+})
+
+---====== Debug entity ======---
+
+entity:SetCallback("OnSpawned", function()
+    print("Entity has spawned")
+    
+    task.wait(0.1)
+
+    local entityModel = entity.Model 
+        or workspace:FindFirstChild("A-60") 
+        or workspace:FindFirstChild("A-60 Remake") 
+        or workspace:FindFirstChild("A60")
+
+    if not entityModel then
+        for _, child in ipairs(workspace:GetChildren()) do
+            if child:IsA("Model") and string.find(child.Name, "60") then
+                entityModel = child
+                break
+            end
+        end
+    end
+    
+    if entityModel then
+        print("Found Entity Model: " .. entityModel.Name)
+        
+        -- === GLOBAL CUSTOM SCREAM ENGINE ===
+        task.spawn(function()
+            local customScream = Instance.new("Sound")
+            customScream.Name = "A60_CustomScream_Global"
+            customScream.SoundId = "rbxassetid://112497140615036"
+            customScream.Volume = 5
+            customScream.Looped = false
+            customScream.Parent = game:GetService("SoundService")
+            
+            game:GetService("ContentProvider"):PreloadAsync({customScream})
+            customScream:Play()
+            print("Playing new global scream track!")
+            
+            customScream.Ended:Connect(function()
+                customScream:Destroy()
+            end)
+        end)
+        
+        -- === PARTICLE ENGINE LAYER ===
+        task.spawn(function()
+            local textures = {
+                "rbxassetid://124887042598105",
+                "rbxassetid://17206102313",
+                "rbxassetid://70579374116007",
+                "rbxassetid://138308786963210",
+                "rbxassetid://107134253330756",
+                "rbxassetid://138806755053926",
+                "rbxassetid://83021870514358",
+                "rbxassetid://133426336717195",
+                "rbxassetid://129072942715997",
+                "rbxassetid://81268093333511"
+            }
+            
+            local faceEmitter = nil
+            
+            while entityModel and entityModel.Parent do
+                if not faceEmitter then
+                    local mainPart = entityModel:FindFirstChild("Main", true)
+                    local facePart = mainPart and mainPart:FindFirstChild("Face")
+                    
+                    if facePart then
+                        faceEmitter = facePart:FindFirstChildWhichIsA("ParticleEmitter")
+                    end
+                    
+                    if not faceEmitter then
+                        for _, desc in ipairs(entityModel:GetDescendants()) do
+                            if desc:IsA("ParticleEmitter") then
+                                if desc.Name == "Face" or desc.Parent.Name == "Face" then
+                                    faceEmitter = desc
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                if faceEmitter and faceEmitter.Parent then
+                    faceEmitter.Texture = textures[math.random(1, #textures)]
+                end
+                
+                task.wait(0.05)
+            end
+        end)
+    else
+        warn("Could not find the A-60 model in Workspace.")
+    end
+
+    local GITHUB_URL, FILE_NAME = "nil", "nil"
+    if not isfile(FILE_NAME) then writefile(FILE_NAME, game:HttpGet(GITHUB_URL)) end
+    local sound = Instance.new("Sound", game:GetService("SoundService"))
+    sound.SoundId = getcustomasset(FILE_NAME)
+    sound.Volume = 4
+    sound:Play()
+
+    local function forceRedTint(targetColor, duration)
+        local rooms = game.Workspace:FindFirstChild("CurrentRooms")
+        if not rooms then return end
+        
+        local originalColors = {}
+        local lights = {}
+        
+        for _, room in pairs(rooms:GetChildren()) do
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    table.insert(lights, v)
+                    originalColors[v] = v.Color
+                    v.Color = targetColor
+                end
+            end
+        end
+        
+        task.spawn(function()
+            local start = tick()
+            while tick() - start < duration do
+                local elapsed = tick() - start
+                local progress = elapsed / duration
+                
+                for _, light in ipairs(lights) do
+                    if light and light.Parent then
+                        local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                        light.Color = targetColor:Lerp(orig, progress)
+                    end
+                end
+                task.wait()
+            end
+            
+            for _, light in ipairs(lights) do
+                if light and light.Parent then
+                    light.Color = originalColors[light]
+                end
+            end
+        end)
+    end
+
+    local function smoothEarthquake(duration, maxIntensity)
+        local camera = game.Workspace.CurrentCamera
+        local start = tick()
+        local connection
+        
+        connection = game:GetService("RunService").RenderStepped:Connect(function()
+            local elapsed = tick() - start
+            if elapsed >= duration then
+                connection:Disconnect()
+                return
+            end
+            
+            local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+            
+            camera.CFrame = camera.CFrame * CFrame.Angles(
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+            )
+        end)
+    end
+
+    forceRedTint(Color3.fromRGB(255, 0, 0), 3.5)
+    smoothEarthquake(3, 4)
+end)
+
+entity:SetCallback("OnStartMoving", function()
+    print("Entity has started moving")
+end)
+
+entity:SetCallback("OnEnterRoom", function(room: Model, firstTime: boolean)
+    if firstTime == true then
+        print("Entity has entered room: ".. room.Name.. " for the first time")
+    else
+        print("Entity has entered room: ".. room.Name.. " again")
+    end
+
+    -- ====== IMPLEMENTED RIPPER PHYSICS FLINGING LAYER ======
+    if room and not destroyedRooms[room] then
+        destroyedRooms[room] = true
+        
+        task.spawn(function()
+            task.wait(0.05)
+            
+            -- Ambient room shattering crash sound
+            local breakSound = Instance.new("Sound")
+            breakSound.SoundId = "rbxassetid://9114223171"
+            breakSound.Volume = 2.5
+            breakSound.Parent = room:FindFirstChild("Assets") or room
+            breakSound:Play()
+            breakSound.Ended:Connect(function() breakSound:Destroy() end)
+
+            local assetContainer = room:FindFirstChild("Assets") or room
+            local breakSounds = {
+                "rbxassetid://9125992545",
+                "rbxassetid://4004052860",
+                "rbxassetid://7142857558",
+                "rbxassetid://7142843615",
+                "rbxassetid://7142857558",
+                "rbxassetid://2612674531",
+                "rbxassetid://2174790942"
+            }
+
+            -- Smart Blacklist Filter Items
+            local blacklist = {"wardrobe", "bed", "rug", "key", "drawer", "book", "breaker", "table", "desk", "gold"}
+
+            for _, item in pairs(assetContainer:GetChildren()) do
+                if item:IsA("Model") and item.Name ~= "Door" and item.Name ~= "HidingSpots" then
+                    
+                    local isBlacklisted = false
+                    local itemNameLower = string.lower(item.Name)
+                    for _, word in ipairs(blacklist) do
+                        if string.find(itemNameLower, word) then
+                            isBlacklisted = true
+                            break
+                        end
+                    end
+
+                    if not isBlacklisted then
+                        -- Individual debris break acoustics
+                        local soundParent = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart") or room
+                        if soundParent then
+                            local s = Instance.new("Sound")
+                            s.SoundId = breakSounds[math.random(1, #breakSounds)]
+                            s.Volume = math.random(20, 35) / 10
+                            s.PlaybackSpeed = math.random(85, 115) / 100
+                            s.RollOffMaxDistance = 100
+                            s.Parent = soundParent
+                            s:Play()
+                            s.Ended:Connect(function() s:Destroy() end)
+                        end
+
+                        local primary = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                        if primary then
+                            for _, v in ipairs(item:GetDescendants()) do
+                                if v:IsA("BasePart") then
+                                    local lowerName = string.lower(v.Name)
+
+                                    if not string.find(lowerName, "floor") and not string.find(lowerName, "hitbox") then
+                                        v.Anchored = false
+                                        v.CanCollide = true
+
+                                        -- Makes the parts weightless and super slippery to push out of the way
+                                        v.CustomPhysicalProperties = PhysicalProperties.new(
+                                            0.01,  -- Density (Super light weight, like paper)
+                                            0.01,  -- Friction (Slippery, character slides past)
+                                            0.5,   -- Elasticity
+                                            1,     -- FrictionWeight
+                                            1      -- ElasticityWeight
+                                        )
+
+                                        pcall(function()
+                                            if v:CanSetNetworkOwnership() then
+                                                v:SetNetworkOwner(localPlayer)
+                                            end
+                                        end)
+
+                                        -- Force network and engine physics updates
+                                        v.CFrame = v.CFrame + Vector3.new(0, 0.05, 0)
+                                    end
+                                end
+                            end
+
+                            -- Physical Assembly Wake Hook
+                            primary.Anchored = true
+                            task.wait()
+                            primary.Anchored = false
+
+                            -- Soft scatter forces (keeps layout clear & easy to traverse)
+                            primary.AssemblyLinearVelocity = Vector3.new(
+                                math.random(-60, 60),
+                                math.random(20, 50),
+                                math.random(-60, 60)
+                            )
+
+                            primary.AssemblyAngularVelocity = Vector3.new(
+                                math.random(-25, 25),
+                                math.random(-25, 25),
+                                math.random(-25, 25)
+                            )
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+entity:SetCallback("OnLookAt", function(lineOfSight: boolean)
+    if lineOfSight == true then
+        print("Player is looking at entity")
+    else
+        print("Player view is obstructed by something")
+    end
+end)
+
+entity:SetCallback("OnRebounding", function(startOfRebound: boolean)
+    if startOfRebound == true then
+        print("Entity has started rebounding")
+    else
+        print("Entity has finished rebounding")
+    end
+end)
+
+entity:SetCallback("OnDespawning", function()
+    print("Entity is despawning")
+end)
+
+entity:SetCallback("OnDespawned", function()
+    print("Entity has despawned")
+    table.clear(destroyedRooms) -- Flushed for clean operation next run
+
+    local GITHUB_URL, FILE_NAME = "nil", "nil"
+    if not isfile(FILE_NAME) then writefile(FILE_NAME, game:HttpGet(GITHUB_URL)) end
+    local sound = Instance.new("Sound", game:GetService("SoundService"))
+    sound.SoundId = getcustomasset(FILE_NAME)
+    sound.Volume = 4
+    sound:Play()
+
+    local function forceRedTint(targetColor, duration)
+        local rooms = game.Workspace:FindFirstChild("CurrentRooms")
+        if not rooms then return end
+        
+        local originalColors = {}
+        local lights = {}
+        
+        for _, room in pairs(rooms:GetChildren()) do
+            for _, v in pairs(room:GetDescendants()) do
+                if v:IsA("Light") then
+                    table.insert(lights, v)
+                    originalColors[v] = v.Color
+                    v.Color = targetColor
+                end
+            end
+        end
+        
+        task.spawn(function()
+            local start = tick()
+            while tick() - start < duration do
+                local elapsed = tick() - start
+                local progress = elapsed / duration
+                
+                for _, light in ipairs(lights) do
+                    if light and light.Parent then
+                        local orig = originalColors[light] or Color3.fromRGB(255, 255, 255)
+                        light.Color = targetColor:Lerp(orig, progress)
+                    end
+                end
+                task.wait()
+            end
+            
+            for _, light in ipairs(lights) do
+                if light and light.Parent then
+                    light.Color = originalColors[light]
+                end
+            end
+        end)
+    end
+
+    local function smoothEarthquake(duration, maxIntensity)
+        local camera = game.Workspace.CurrentCamera
+        local start = tick()
+        local connection
+        
+        connection = game:GetService("RunService").RenderStepped:Connect(function()
+            local elapsed = tick() - start
+            if elapsed >= duration then
+                connection:Disconnect()
+                return
+            end
+            
+            local currentIntensity = maxIntensity * (1 - (elapsed / duration))
+            
+            camera.CFrame = camera.CFrame * CFrame.Angles(
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10),
+                math.rad(math.random(-currentIntensity, currentIntensity) / 10)
+            )
+        end)
+    end
+
+    forceRedTint(Color3.fromRGB(255, 0, 0), 3.5)
+    smoothEarthquake(10, 10)
+end)
+
+entity:SetCallback("OnDamagePlayer", function(newHealth: number)
+    if newHealth <= 0 then
+        print("Entity has killed the player")
+        
+        local JUMPSCARE_IMAGES = {
+            "rbxassetid://124887042598105",
+            "rbxassetid://17206102313",
+            "rbxassetid://70579374116007",
+            "rbxassetid://138308786963210",
+            "rbxassetid://107134253330756",
+            "rbxassetid://138806755053926",
+            "rbxassetid://83021870514358",
+            "rbxassetid://133426336717195",
+            "rbxassetid://129072942715997",
+            "rbxassetid://81268093333511"
+        }
+
+        local JUMPSCARE_AUDIO_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/HAIR%20JUMPSCARE%20(1)%20(1).mp3"
+        local AUDIO_FILE_NAME = "asixtyScareremakeOmg"
+        local JUMPSCARE_DURATION = 0.85 
+
+        local function loadCustomSound(url, fileName)
+            if not isfile(fileName .. '.mp3') then
+                writefile(fileName .. '.mp3', game:HttpGet(url))
+            end
+
+            local sound = Instance.new('Sound')
+            sound.SoundId = (getcustomasset or getsynasset)(fileName .. '.mp3')
+            return sound
+        end
+
+        local function runJumpscare()
+            print('Executing Jumpscare...')
+
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass('Humanoid')
+            
+            if not humanoid then return end
+
+            local screenGui = Instance.new('ScreenGui')
+            screenGui.Parent = player:WaitForChild('PlayerGui')
+            screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+            local fullTemplate = Instance.new('ImageLabel')
+            fullTemplate.Name = 'Full'
+            fullTemplate.Parent = screenGui
+            fullTemplate.BackgroundTransparency = 1
+            fullTemplate.Position = UDim2.new(-0.0609865487, 0, -0.224358946, 0)
+            fullTemplate.Size = UDim2.new(1.12197304, 0, 1.44743586, 0)
+            fullTemplate.ImageTransparency = 1
+
+            local jumpscareEnd = Instance.new('ImageLabel')
+            jumpscareEnd.Name = 'JumpscareEnd'
+            jumpscareEnd.Parent = screenGui
+            jumpscareEnd.BackgroundTransparency = 1
+            
+            local defaultPosition = UDim2.new(0.468161434, 0, 0.455128193, 0)
+            local defaultSize = UDim2.new(0.0636771321, 0, 0.0884615406, 0)
+            
+            jumpscareEnd.Position = defaultPosition
+            jumpscareEnd.Size = defaultSize
+            jumpscareEnd.ImageColor3 = Color3.fromRGB(255, 0, 4)
+
+            local finalFace = JUMPSCARE_IMAGES[math.random(1, #JUMPSCARE_IMAGES)]
+            local scareSound = loadCustomSound(JUMPSCARE_AUDIO_URL, AUDIO_FILE_NAME)
+            scareSound.Parent = workspace
+            scareSound.Volume = 6
+            scareSound.PlayOnRemove = false
+
+            local lighting = game:GetService("Lighting")
+            local colorCorrection = Instance.new('ColorCorrectionEffect', lighting)
+
+            scareSound:Play()
+
+            game:GetService("TweenService"):Create(colorCorrection, TweenInfo.new(0.5), {
+                Brightness = 0.2,
+                Contrast = 0.2,
+                Saturation = -0.2,
+                TintColor = Color3.fromRGB(255, 0, 4),
+            }):Play()
+
+            local cycling = true
+            task.spawn(function()
+                local rng = Random.new()
+                while cycling do
+                    jumpscareEnd.Image = JUMPSCARE_IMAGES[math.random(1, #JUMPSCARE_IMAGES)]
+                    local randomX = rng:NextNumber(0.1, 0.8)
+                    local randomY = rng:NextNumber(0.1, 0.8)
+                    jumpscareEnd.Position = UDim2.new(randomX, 0, randomY, 0)
+                    jumpscareEnd.Size = UDim2.new(0.15, 0, 0.2, 0)
+                    jumpscareEnd.Rotation = rng:NextNumber(-180, 180)
+                    
+                    game:GetService("RunService").Heartbeat:Wait()
+                    task.wait(math.random(0, 1) / 100) 
+                end
+            end)
+
+            task.wait(JUMPSCARE_DURATION)
+            cycling = false 
+            
+            jumpscareEnd.Image = finalFace
+            jumpscareEnd.Position = defaultPosition
+            jumpscareEnd.Size = defaultSize
+            jumpscareEnd.Rotation = 0
+
+            game:GetService("TweenService"):Create(jumpscareEnd, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = fullTemplate.Size,
+                Position = fullTemplate.Position,
+                Rotation = math.random(-25, 25),
+            }):Play()
+
+            game:GetService("TweenService"):Create(colorCorrection, TweenInfo.new(2), {
+                Brightness = 0,
+                Contrast = 0,
+                Saturation = 0,
+                TintColor = Color3.fromRGB(255, 255, 255),
+            }):Play()
+
+            humanoid:TakeDamage(100)
+
+            task.wait(1.5)
+            game:GetService("TweenService"):Create(jumpscareEnd, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
+            
+            task.delay(0.5, function()
+                screenGui:Destroy()
+                colorCorrection:Destroy()
+                scareSound:Destroy()
+            end)
+        end
+
+        runJumpscare()
+    else
+        print("Entity has damaged the player")
+    end
+end)
+
+---====== Run entity ======---
+
+entity:Run(true)
