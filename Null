@@ -1,0 +1,322 @@
+-- Null Entity Controller (Executor Version)
+-- Fixed LatestRoom Progression & Exact Death Hint Signals
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Camera = Workspace.CurrentCamera
+
+--------------------------------------------------------------------------------
+-- CONFIGURATION & FILE HANDLING
+--------------------------------------------------------------------------------
+local Config = {
+    -- Detection & Timers
+    DETECTION_ANGLE = 0.85,      -- Dot product threshold (~60-degree cone)
+    FREEZE_TIME = 0.5,           -- How long player must look to freeze Null
+    TELEPORT_DELAY = 0.25,       -- How long after looking away before Null teleports
+    
+    -- Distances & Speed
+    SPAWN_DISTANCE_MIN = 20,     -- Studs away on initial spawn
+    SPAWN_DISTANCE_MAX = 30,
+    CHASE_TRIGGER_DISTANCE = 10, -- Distance (studs) that triggers chase mode
+    FLOAT_SPEED = 4,             -- Speed during Idle/Stalking phase
+    CHASE_SPEED = 14,            -- Speed during Chase phase
+    KILL_DISTANCE = 3.5,         -- Distance where Null kills/damages the player
+    
+    -- Progressive Pressure
+    TELEPORT_CLOSER_STEP = 3,    -- How many studs closer Null gets per teleport
+    
+    -- Paths
+    FILE_NAME = "null.rbxm",
+    GITHUB_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/null.rbxm",
+    
+    -- Asset Sound IDs
+    ASSETS = {
+        SpawnSound = "rbxassetid://9114223141",
+        StaticSound = "rbxassetid://9114222881",
+        ChaseSound = "rbxassetid://9114227139",
+        DeathSound = "rbxassetid://9069609268"
+    }
+}
+
+local hints = {
+    "You died to an entity named Null...",
+    "He spwns randomly in a room.",
+    "Maintain eye contact to completely freeze him in place.",
+    "When looking away, avoid lingering too long before he teleports closer!"
+}
+
+-- Executor File Download Engine
+if not isfile(Config.FILE_NAME) then
+    print("[Null Engine]: Downloading model asset from GitHub...")
+    local success, modelData = pcall(function()
+        return game:HttpGet(Config.GITHUB_URL)
+    end)
+    
+    if success and modelData then
+        writefile(Config.FILE_NAME, modelData)
+        print("[Null Engine]: Successfully downloaded and cached model.")
+    else
+        error("[Null Engine]: Failed to download asset from repository source.")
+    end
+end
+
+-- Load the custom asset through the executor API
+local customAssetId = getcustomasset(Config.FILE_NAME)
+local loadedObjects = game:GetObjects(customAssetId)
+local NullModel = loadedObjects[1]
+
+if not NullModel then
+    error("[Null Engine]: Failed to parse loaded .rbxm asset.")
+end
+
+--------------------------------------------------------------------------------
+-- STATE MACHINE ENUMS
+--------------------------------------------------------------------------------
+local STATES = {
+    IDLE = "Idle",
+    FROZEN = "Frozen",
+    TELEPORT = "Teleport",
+    CHASE = "Chase",
+    DEAD = "Dead"
+}
+local currentState = STATES.IDLE
+
+--------------------------------------------------------------------------------
+-- INITIALIZATION & UI SETUP
+--------------------------------------------------------------------------------
+NullModel.Name = "Null_Entity"
+local NullRoot = NullModel.PrimaryPart or NullModel:FindFirstChildWhichIsA("BasePart")
+
+if not NullRoot then
+    NullRoot = Instance.new("Part")
+    NullRoot.Size = Vector3.new(3, 5, 3)
+    NullRoot.Transparency = 0.5
+    NullRoot.Parent = NullModel
+    NullModel.PrimaryPart = NullRoot
+end
+
+NullRoot.Anchored = true
+NullRoot.CanCollide = false
+NullModel.Parent = Workspace
+
+-- UI Atmosphere Effects
+local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Name = "Null_Atmosphere"
+
+local Vignette = Instance.new("ImageLabel", ScreenGui)
+Vignette.Size = UDim2.new(1, 0, 1, 0)
+Vignette.BackgroundTransparency = 1
+Vignette.Image = "rbxassetid://257697368"
+Vignette.ImageColor3 = Color3.fromRGB(0, 20, 5)
+Vignette.ImageTransparency = 1
+
+local StaticEffect = Instance.new("Frame", ScreenGui)
+StaticEffect.Size = UDim2.new(1, 0, 1, 0)
+StaticEffect.BackgroundColor3 = Color3.fromRGB(0, 15, 0)
+StaticEffect.BackgroundTransparency = 1
+
+-- Audio Setup
+local function createSound(id, loop)
+    local sound = Instance.new("Sound", NullRoot)
+    sound.SoundId = id
+    sound.Volume = 0.6
+    sound.Looped = loop
+    return sound
+end
+
+local sfxSpawn = createSound(Config.ASSETS.SpawnSound, false)
+local sfxStatic = createSound(Config.ASSETS.StaticSound, true)
+local sfxChase = createSound(Config.ASSETS.ChaseSound, true)
+local sfxDeath = createSound(Config.ASSETS.DeathSound, false)
+
+--------------------------------------------------------------------------------
+-- CLEANUP FUNCTION
+--------------------------------------------------------------------------------
+local runtimeConnection
+
+local function cleanUpNull()
+    if currentState == STATES.DEAD then return end
+    currentState = STATES.DEAD
+    
+    if runtimeConnection then runtimeConnection:Disconnect() end
+    
+    sfxStatic:Stop()
+    sfxChase:Stop()
+    
+    if ScreenGui then ScreenGui:Destroy() end
+    if NullModel then NullModel:Destroy() end
+end
+
+--------------------------------------------------------------------------------
+-- STRICT PROGRESSION ROOM WATCHER
+--------------------------------------------------------------------------------
+task.spawn(function()
+    local gameData = ReplicatedStorage:WaitForChild("GameData", 5)
+    if gameData and gameData:FindFirstChild("LatestRoom") then
+        gameData.LatestRoom.Changed:Wait()
+        if currentState ~= STATES.DEAD then
+            cleanUpNull()
+            print("[Null Engine]: LatestRoom incremented. Null cleared out safely.")
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- HELPER FUNCTIONS
+--------------------------------------------------------------------------------
+local function isLookingAtNull()
+    local cameraTransform = Camera.CFrame
+    local toNull = (NullRoot.Position - cameraTransform.Position).Unit
+    local dot = cameraTransform.LookVector:Dot(toNull)
+    
+    if dot >= Config.DETECTION_ANGLE then
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.FilterDescendantsInstances = {Character, NullModel}
+        
+        local result = Workspace:Raycast(cameraTransform.Position, NullRoot.Position - cameraTransform.Position, raycastParams)
+        if not result then
+            return true
+        end
+    end
+    return false
+end
+
+local function getStalkingPosition(currentDistance)
+    local angle = math.random() * math.pi * 2
+    local offset = Vector3.new(math.cos(angle) * currentDistance, 0, math.sin(angle) * currentDistance)
+    return RootPart.Position + offset
+end
+
+--------------------------------------------------------------------------------
+-- CORE RUNTIME LOOP
+--------------------------------------------------------------------------------
+local lookTime = 0
+local lookAwayTime = 0
+local currentStalkDistance = math.random(Config.SPAWN_DISTANCE_MIN, Config.SPAWN_DISTANCE_MAX)
+
+NullModel:PivotTo(CFrame.new(getStalkingPosition(currentStalkDistance), RootPart.Position))
+sfxSpawn:Play()
+sfxStatic:Play()
+
+runtimeConnection = RunService.RenderStepped:Connect(function(deltaTime)
+    if not Character or not RootPart or currentState == STATES.DEAD then return end
+    
+    local distanceToPlayer = (NullRoot.Position - RootPart.Position).Magnitude
+    local looking = isLookingAtNull()
+    
+    -- Modified Hit Trigger (Deals 50 damage instead of instant kill)
+    if distanceToPlayer <= Config.KILL_DISTANCE then
+        local currentHealth = Humanoid.Health
+        
+        if currentHealth > 50 then
+            -- Player survives the hit, just take 50 damage and clean up Null
+            Humanoid:TakeDamage(50)
+            cleanUpNull()
+            print("[Null Engine]: Player hit. Dealt 50 damage. Null despawned.")
+            return
+        else
+            -- Fatal hit logic (Player health was 50 or below)
+            currentState = STATES.DEAD
+            runtimeConnection:Disconnect()
+            
+            task.spawn(function()
+                sfxStatic:Stop()
+                sfxChase:Stop()
+                sfxDeath:Play()
+                if ScreenGui then ScreenGui:Destroy() end
+                
+                -- Track cause of death value structure before triggering damage metrics
+                pcall(function()
+                    ReplicatedStorage.GameStats["Player_".. Player.Name].Total.DeathCause.Value = "Null"
+                end)
+                
+                -- Execution of precise Death Hint system signals matching your setup
+                local remotesFolder
+                if ReplicatedStorage:FindFirstChild("RemotesFolder") then
+                    remotesFolder = ReplicatedStorage:FindFirstChild("RemotesFolder")
+                    firesignal(remotesFolder.DeathHint.OnClientEvent, hints, "Blue")
+                -- Fallback structure check
+                elseif ReplicatedStorage:FindFirstChild("Bricks") then
+                    remotesFolder = ReplicatedStorage:FindFirstChild("Bricks")
+                    firesignal(remotesFolder.DeathHint.OnClientEvent, hints)
+                end
+                
+                -- Execute final clean blow
+                Humanoid.Health = 0
+                if NullModel then NullModel:Destroy() end
+            end)
+            return
+        end
+    end
+
+    -- Check Force Chase Boundary Condition
+    if distanceToPlayer <= Config.CHASE_TRIGGER_DISTANCE and currentState ~= STATES.CHASE then
+        currentState = STATES.CHASE
+        sfxChase:Play()
+    end
+
+    ----------------------------------------------------------------------------
+    -- State Logic Machine
+    ----------------------------------------------------------------------------
+    if currentState == STATES.CHASE then
+        local targetDirection = (RootPart.Position - NullRoot.Position).Unit
+        NullModel:PivotTo(CFrame.new(NullRoot.Position + (targetDirection * Config.CHASE_SPEED * deltaTime), RootPart.Position))
+        
+        Vignette.ImageTransparency = math.clamp(distanceToPlayer / Config.CHASE_TRIGGER_DISTANCE, 0.1, 0.8)
+        StaticEffect.BackgroundTransparency = 0.8 + (math.sin(tick() * 35) * 0.15)
+        
+    -- Dynamic Stalking Processing
+    elseif looking then
+        lookAwayTime = 0
+        lookTime = lookTime + deltaTime
+        
+        if lookTime >= Config.FREEZE_TIME then
+            currentState = STATES.FROZEN
+        end
+        
+    else
+        lookTime = 0
+        if currentState == STATES.FROZEN then
+            lookAwayTime = lookAwayTime + deltaTime
+            if lookAwayTime >= Config.TELEPORT_DELAY then
+                currentState = STATES.TELEPORT
+            end
+        end
+    end
+
+    ----------------------------------------------------------------------------
+    -- Non-Chase Positional Interpolations
+    ----------------------------------------------------------------------------
+    if currentState == STATES.IDLE then
+        local goalPos = getStalkingPosition(currentStalkDistance)
+        local targetCFrame = CFrame.new(NullRoot.Position, RootPart.Position):Lerp(CFrame.new(goalPos, RootPart.Position), deltaTime * Config.FLOAT_SPEED * 0.1)
+        NullModel:PivotTo(targetCFrame)
+        
+        Vignette.ImageTransparency = math.clamp(distanceToPlayer / Config.SPAWN_DISTANCE_MAX, 0.7, 1)
+        
+    elseif currentState == STATES.FROZEN then
+        NullModel:PivotTo(CFrame.new(NullRoot.Position, RootPart.Position))
+        StaticEffect.BackgroundTransparency = 0.95 + (math.sin(tick() * 10) * 0.02)
+        
+    elseif currentState == STATES.TELEPORT then
+        currentStalkDistance = math.clamp(currentStalkDistance - Config.TELEPORT_CLOSER_STEP, Config.CHASE_TRIGGER_DISTANCE + 2, Config.SPAWN_DISTANCE_MAX)
+        
+        local teleportPos = getStalkingPosition(currentStalkDistance)
+        NullModel:PivotTo(CFrame.new(teleportPos, RootPart.Position))
+        
+        StaticEffect.BackgroundTransparency = 0.4
+        TweenService:Create(StaticEffect, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+        
+        currentState = STATES.IDLE
+    end
+end)
