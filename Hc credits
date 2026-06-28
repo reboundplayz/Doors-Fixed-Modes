@@ -1,0 +1,86 @@
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+-- Standalone Credits Script (Updated Text & High-Visibility White Color)
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+
+-- Create the ScreenGui and protect it
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DoorsCreditsGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Use CanvasGroup to seamlessly fade RichText without color distortion
+local CanvasGroup = Instance.new("CanvasGroup")
+CanvasGroup.Size = UDim2.new(1, 0, 1, 0)
+CanvasGroup.BackgroundTransparency = 1
+CanvasGroup.GroupTransparency = 1 -- Start fully invisible
+CanvasGroup.Parent = ScreenGui
+
+-- Determine font size based on input device
+local targetTextSize = 52 -- Large size for PC users
+if UserInputService.TouchEnabled then
+    targetTextSize = 20 -- Smaller, scaled-down size for mobile/touch screens
+end
+
+-- Create the Credits Text Label
+local TextLabel = Instance.new("TextLabel")
+TextLabel.Size = UDim2.new(0.4, 0, 0.8, 0) 
+TextLabel.Position = UDim2.new(0.98, 0, 0.5, 0) 
+TextLabel.AnchorPoint = Vector2.new(1, 0.5) 
+TextLabel.BackgroundTransparency = 1
+TextLabel.Font = Enum.Font.Oswald
+TextLabel.TextSize = targetTextSize
+TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Changes default text color to pure white
+TextLabel.TextXAlignment = Enum.TextXAlignment.Center 
+TextLabel.TextYAlignment = Enum.TextYAlignment.Center
+TextLabel.RichText = true
+
+-- Updated RichText format with the new text and white text overrides for brackets/labels
+TextLabel.Text = [[
+<font color="rgb(215, 45, 35)">DOORS Hardcore: Revisited </font><font color="rgb(165, 215, 245)">by reboundplayz</font>
+<u><font color="rgb(255, 255, 255)">Credits to:</font></u>
+<font color="rgb(215, 45, 35)">THE_LOSTW3R </font><font color="rgb(210, 90, 75)">[Helper and Scripter]</font>
+<font color="rgb(215, 45, 35)">pyxlfunkin. </font><font color="rgb(210, 90, 75)">[Inspiration for Some Stuff]</font>
+<font color="rgb(240, 110, 110)">Noonie </font><font color="rgb(255, 255, 255)">[Creator of OG Hardcore, New Entities, Lore Help]</font>
+<font color="rgb(135, 220, 135)">Ping </font><font color="rgb(255, 255, 255)">[Creator of OG Hardcore, Old Music and Old Entities]</font>
+<font color="rgb(245, 215, 225)">You! [For Playing!]</font>
+]]
+
+-- Add a dark text stroke/shadow effect for readability
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Thickness = (targetTextSize > 40) and 4 or 2.5 
+UIStroke.Color = Color3.fromRGB(0, 0, 0)
+UIStroke.Transparency = 0.2
+UIStroke.Parent = TextLabel
+
+TextLabel.Parent = CanvasGroup
+
+-- Parent to CoreGui so it persists and bypasses standard player GUI restrictions
+if syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = CoreGui
+elseif gethui then
+    ScreenGui.Parent = gethui()
+else
+    ScreenGui.Parent = CoreGui
+end
+
+-- Animation Sequence
+local fadeInInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local fadeOutInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+local fadeIn = TweenService:Create(CanvasGroup, fadeInInfo, {GroupTransparency = 0})
+local fadeOut = TweenService:Create(CanvasGroup, fadeOutInfo, {GroupTransparency = 1})
+
+-- Run Timeline
+fadeIn:Play()
+fadeIn.Completed:Wait()
+
+task.wait(10) -- Hold text on screen for exactly 10 seconds
+
+fadeOut:Play()
+fadeOut.Completed:Wait()
+
+-- Clean up
+ScreenGui:Destroy()
