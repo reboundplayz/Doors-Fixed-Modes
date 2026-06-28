@@ -1,0 +1,61 @@
+-- Configuration
+local AUDIO_URL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/DOORS%20UNUSED%20SOUNDTRACK%20_%20Calm.mp3"
+local FILE_NAME = "calm_intro.mp3"
+local MAX_VOLUME = 1
+local PLAY_DURATION = 45
+local FADE_DURATION = 2 
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+-- 1. Wait for LatestRoom to change (Using your exact path)
+print("Waiting for LatestRoom to change...")
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+print("LatestRoom changed! Processing audio...")
+
+-- 2. Handle file download and custom asset loading
+if not isfile(FILE_NAME) then
+    print("Downloading audio file...")
+    local success, result = pcall(game.HttpGet, game, AUDIO_URL)
+    
+    if success and result then
+        writefile(FILE_NAME, result)
+    else
+        warn("Failed to download audio: " .. tostring(result))
+        return
+    end
+end
+
+local assetId = getcustomasset(FILE_NAME)
+
+-- 3. Create and configure the Sound object
+local sound = Instance.new("Sound")
+sound.SoundId = assetId
+sound.Volume = 0
+sound.Looped = true
+sound.Parent = Workspace
+
+-- 4. Play and Fade Functions
+local function fadeSound(targetVolume, duration)
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+    local tween = TweenService:Create(sound, tweenInfo, {Volume = targetVolume})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+-- Execute playback sequence
+sound:Play()
+print("Fading in...")
+fadeSound(MAX_VOLUME, FADE_DURATION)
+
+-- Keep playing for the remaining time
+task.wait(PLAY_DURATION - (FADE_DURATION * 2))
+
+print("Fading out...")
+fadeSound(0, FADE_DURATION)
+
+-- Clean up
+sound:Stop()
+sound:Destroy()
+print("Audio sequence complete.")
