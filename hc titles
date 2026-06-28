@@ -1,0 +1,173 @@
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Create UI Container (Protected for Executors)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DoorsTitleExecutorUI"
+screenGui.ResetOnSpawn = false
+
+local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+if success and coreGui then
+	screenGui.Parent = coreGui
+else
+	screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- --- ASSET CONFIGURATIONS ---
+
+-- FLOOR 1: Hotel (Image & Audio Configurations)
+local floor1Assets = {
+	[49]  = {img = "rbxassetid://116973403635203", sound = "rbxassetid://1835274270"},
+	[52]  = {img = "rbxassetid://132845796257739", sound = "https://github.com/Sosnen/Ping-s-Dumbass-projects-/blob/main/Dark-Depths_Entrencebetter.mp3?raw=true"},
+	[89]  = {img = "rbxassetid://134915349317581", sound = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/LA_The_Courtyard.ogg", isExtraLarge = true},
+	[90]  = {img = "rbxassetid://93745272268748", sound = "rbxassetid://1847269119", isExtraLarge = true},
+	[100] = {img = "rbxassetid://71349440589614",  sound = "rbxassetid://1837449237"}
+}
+
+-- FLOOR 2: Mines (Image & Audio Configurations)
+local floor2Assets = {
+	[50]  = {img = "rbxassetid://76463970284986",   sound = "rbxassetid://1835274270"},
+	[52]  = {img = "rbxassetid://105930189184869",  sound = "https://github.com/Sosnen/Ping-s-Dumbass-projects-/blob/main/Dark-Depths_Entrencebetter.mp3?raw=true"},
+	[100] = {img = "rbxassetid://135487629337974",  sound = "rbxassetid://1837449237"}
+}
+
+-- Herb Global Configuration
+local HERB_IMAGE = "rbxassetid://97179723751697"
+local HERB_SOUND = "https://github.com/Sosnen/Ping-s-Dumbass-projects-/blob/main/Ambience_Infirmary_Entrence.mp3?raw=true"
+
+-- --- HELPERS & AUDIO UTILITIES ---
+
+local function getAudioId(soundPath)
+	if string.match(soundPath, "^http") then
+		local fileName = "DoorsTitleSound_" .. string.gsub(string.match(soundPath, "/([^/]+)$") or "temp", "[^%w%.]", "") .. ".mp3"
+		if not isfile(fileName) then
+			local success, fileData = pcall(function() return game:HttpGet(soundPath) end)
+			if success and fileData then writefile(fileName, fileData) else return nil end
+		end
+		return getcustomasset(fileName)
+	else
+		return soundPath
+	end
+end
+
+local function checkForHerb(roomInstance)
+	if not roomInstance then return false end
+	if roomInstance:FindFirstChild("Green_Herb") then return true end
+	if roomInstance:FindFirstChild("Assets") and roomInstance.Assets:FindFirstChild("Green_Herb") then return true end
+	for _, desc in ipairs(roomInstance:GetDescendants()) do
+		if desc.Name == "Green_Herb" then return true end
+	end
+	return false
+end
+
+-- --- MAIN COROUTINE CALLS ---
+
+local function displayTitle(imgAsset, soundAssetPath, isFloor2, isExtraLarge)
+	local isMobile = UserInputService.TouchEnabled
+	local size = UDim2.new(0, 1920, 0, 750) 
+	local targetYPos = 0.01
+
+	-- Sizing configurations
+	if isFloor2 then
+		-- Floor 2 layout (Mines atmosphere boost)
+		size = isMobile and UDim2.new(0, 850, 0, 325) or UDim2.new(0, 2200, 0, 850)
+		targetYPos = 0.005 
+	-- Applied mobile sizing adjustments here for Rooms 89 and 90
+	elseif isExtraLarge then
+		size = isMobile and UDim2.new(0, 850, 0, 325) or UDim2.new(0, 2400, 0, 920)
+		targetYPos = 0.002
+	else
+		-- Standard Floor 1 setup
+		size = isMobile and UDim2.new(0, 550, 0, 210) or UDim2.new(0, 1920, 0, 750)
+	end
+
+	-- UI Setup
+	local titleImage = Instance.new("ImageLabel")
+	titleImage.Name = "MainTitle"
+	titleImage.Size = size
+	titleImage.Position = UDim2.new(0.5, 0, targetYPos, 0)
+	titleImage.AnchorPoint = Vector2.new(0.5, 0)
+	titleImage.BackgroundTransparency = 1
+	titleImage.Image = imgAsset
+	titleImage.ImageTransparency = 1
+	titleImage.ZIndex = 10
+	titleImage.ScaleType = Enum.ScaleType.Fit
+	titleImage.Parent = screenGui
+
+	-- Audio handling
+	if soundAssetPath then
+		task.spawn(function()
+			local finalSoundId = getAudioId(soundAssetPath)
+			if finalSoundId then
+				local soundObj = Instance.new("Sound")
+				soundObj.SoundId = finalSoundId
+				soundObj.Volume = 1
+				soundObj.Parent = Workspace
+				soundObj:Play()
+				soundObj.Ended:Connect(function() soundObj:Destroy() end)
+			end
+		end)
+	end
+
+	-- Visual Fades
+	local fadeIn = TweenService:Create(titleImage, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0})
+	fadeIn:Play()
+	fadeIn.Completed:Wait()
+
+	task.wait(5)
+
+	local fadeOut = TweenService:Create(titleImage, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {ImageTransparency = 1})
+	fadeOut:Play()
+	fadeOut.Completed:Wait()
+	titleImage:Destroy()
+end
+
+-- --- EVENT LOOP TRACKING ---
+
+local gameData = ReplicatedStorage:WaitForChild("GameData")
+local latestRoom = gameData:WaitForChild("LatestRoom")
+local floorValue = gameData:WaitForChild("Floor")
+
+latestRoom.Changed:Connect(function(roomValue)
+	local currentRoomsFolder = Workspace:FindFirstChild("CurrentRooms")
+	if not currentRoomsFolder then return end
+
+	local roomInstance = currentRoomsFolder:FindFirstChild(tostring(roomValue))
+	if not roomInstance then
+		roomInstance = currentRoomsFolder:WaitForChild(tostring(roomValue), 3)
+	end
+
+	local currentFloor = floorValue.Value
+
+	-- FLOOR 1: HOTEL TARGETS
+	if currentFloor == "Hotel" then
+		if floor1Assets[roomValue] then
+			task.spawn(function()
+				displayTitle(floor1Assets[roomValue].img, floor1Assets[roomValue].sound, false, floor1Assets[roomValue].isExtraLarge)
+			end)
+		end
+		
+	-- FLOOR 2: MINES TARGETS
+	else
+		if roomValue == 50 then
+			task.spawn(function()
+				task.wait(25) -- Cutscene buffer
+				displayTitle(floor2Assets[50].img, floor2Assets[50].sound, true, false)
+			end)
+		elseif floor2Assets[roomValue] then
+			task.spawn(function()
+				displayTitle(floor2Assets[roomValue].img, floor2Assets[roomValue].sound, true, false)
+			end)
+		end
+	end
+
+	-- Herb Check
+	if roomInstance and checkForHerb(roomInstance) then
+		task.spawn(function()
+			displayTitle(HERB_IMAGE, HERB_SOUND, (currentFloor ~= "Hotel"), false)
+		end)
+	end
+end)
