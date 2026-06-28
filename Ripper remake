@@ -186,7 +186,7 @@ entity:SetCallback("OnEnterRoom", function(room, firstTime)
             }
 
             -- Blacklist items
-            local blacklist = {"wardrobe", "bed", "rug", "key", "drawer", "book", "breaker", "table", "desk", "gold"}
+            local blacklist = {"wardrobe", "bed", "rug", "key", "drawer", "book", "breaker", "table", "desk", "gold", "dresser"}
 
             for _, item in pairs(assetContainer:GetChildren()) do
                 if item:IsA("Model") and item.Name ~= "Door" and item.Name ~= "HidingSpots" then
