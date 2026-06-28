@@ -7,7 +7,7 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Regul
 local entity = Spawner:Create({
     Entity = {
         Name = "Cease",
-        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/cease%20remake%20better.rbxm",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/ceasebro.rbxm",
         HeightOffset = 0
     },
     Lights = {
