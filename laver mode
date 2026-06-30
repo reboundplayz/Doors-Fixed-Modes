@@ -20,7 +20,29 @@ game.SoundService.AmbientReverb = Enum.ReverbType.Cave
 warn("Loading")
 _G.ver = 2.1
 
-local sync = loadstring(game:HttpGet("https://raw.githubusercontent.com/ChronoAcceleration/Comet-Development/refs/heads/main/Doors/Utility/SyncHelper.lua"))()
+-- Helper function to safely execute external loadstrings
+local function safeLoadstring(url)
+    local success, source = pcall(game.HttpGet, game, url)
+    if not success then
+        warn("Failed to fetch script from: " .. url)
+        return nil
+    end
+    
+    local func, err = loadstring(source)
+    if not func then
+        warn("Syntax error in script: " .. tostring(err) .. " | URL: " .. url)
+        return nil
+    end
+    
+    return func()
+end
+
+-- Local random generator function to replace sync
+local function generateRandom(min, max, seed)
+    local r = Random.new(seed)
+    return r:NextInteger(min, max)
+end
+
 local seed = game.ReplicatedStorage.GameData.GameSeed.Value
 local lastroom = game.ReplicatedStorage.GameData.LatestRoom
 local tweenservice = game:GetService("TweenService")
@@ -40,67 +62,85 @@ local corrodesp = {}
 local moriartysp = {}
 local deathsp = {}
 
-for i = 15 , 95 , sync:generateFullRandom(6,8,seed) do
-  table.insert(chaoticsp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+-- Generate chaoticsp
+local i = 15
+while i <= 95 do
+    table.insert(chaoticsp, generateRandom(i - 4, i + 7, seed + i))
+    i = i + generateRandom(6, 8, seed)
 end
 
-for i = 12 , 99 , sync:generateFullRandom(8,5,seed) do
-  table.insert(classiosp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+-- Generate classiosp
+i = 12
+while i <= 99 do
+    table.insert(classiosp, generateRandom(i - 4, i + 7, seed + i))
+    i = i + generateRandom(8, 5, seed)
 end
 
-for i = 6 , 90 , sync:generateFullRandom(8,6,seed) do
-  table.insert(corrodesp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+-- Generate corrodesp
+i = 6
+while i <= 90 do
+    table.insert(corrodesp, generateRandom(i - 4, i + 7, seed + i))
+    i = i + generateRandom(8, 6, seed)
 end
 
-for i = 17 , 96 , sync:generateFullRandom(4,5,seed) do
-  table.insert(moriartysp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+-- Generate moriartysp
+i = 17
+while i <= 96 do
+    table.insert(moriartysp, generateRandom(i - 4, i + 7, seed + i))
+    i = i + generateRandom(4, 5, seed)
 end
 
-for i = 20 , 99 , sync:generateFullRandom(8,5,seed) do
-  table.insert(deathsp,sync:generateFullRandom(i - 4,i + 7,seed + i))
+-- Generate deathsp
+i = 20
+while i <= 99 do
+    table.insert(deathsp, generateRandom(i - 4, i + 7, seed + i))
+    i = i + generateRandom(8, 5, seed)
 end
 
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Loaded",true)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Loaded", true)
 warn("Loaded")
-
 
 lastroom.changed:wait()
 
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Laver mode ".. _G.ver .." activated",true)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Laver mode ".. _G.ver .." activated", true)
 task.wait(3)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Made by Silly cat cat and localplayer",true)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Made by Silly cat cat and localplayer", true)
 task.wait(3)
-require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption(captions[sync:generateFullRandom(0,#captions,seed)],true)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption(captions[generateRandom(1, #captions, seed)], true)
 
 lastroom.changed:connect(function()
     if table.find(chaoticsp, lastroom.Value) then
-	task.spawn(function()
-	        task.wait(sync:generateFullRandom(5,15,lastroom.Value))
-	        loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/chaotic"))()
-end)
-    	end
-	if table.find(classiosp, lastroom.Value) then
-		task.spawn(function()
-			task.wait(sync:generateFullRandom(2,12,lastroom.Value))
-	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/classicorebuondier"))()
-		end)
-    	end
-if table.find(corrodesp, lastroom.Value) then
-		task.spawn(function()
-			task.wait(sync:generateFullRandom(6,6,lastroom.Value))
-	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/corrode"))()
-		end)
-    	end
-if table.find(moriartysp, lastroom.Value) then
-		task.spawn(function()
-			task.wait(sync:generateFullRandom(1,17,lastroom.Value))
-	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/moriarty"))()
-		end) 
-       end
-if table.find(deathsp, lastroom.Value) then
-		task.spawn(function()
-			task.wait(sync:generateFullRandom(2,20,lastroom.Value))
-	        	loadstring(game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/death"))()
-		end)
-    	end
+        task.spawn(function()
+            task.wait(generateRandom(5, 15, lastroom.Value))
+            safeLoadstring("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/chaotic")
+        end)
+    end
+    
+    if table.find(classiosp, lastroom.Value) then
+        task.spawn(function()
+            task.wait(generateRandom(2, 12, lastroom.Value))
+            safeLoadstring("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/classicorebuondier")
+        end)
+    end
+    
+    if table.find(corrodesp, lastroom.Value) then
+        task.spawn(function()
+            task.wait(generateRandom(6, 6, lastroom.Value))
+            safeLoadstring("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/corrode")
+        end)
+    end
+    
+    if table.find(moriartysp, lastroom.Value) then
+        task.spawn(function()
+            task.wait(generateRandom(1, 17, lastroom.Value))
+            safeLoadstring("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/moriarty")
+        end) 
+    end
+    
+    if table.find(deathsp, lastroom.Value) then
+        task.spawn(function()
+            task.wait(generateRandom(2, 20, lastroom.Value))
+            safeLoadstring("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/death")
+        end)
+    end
 end)
