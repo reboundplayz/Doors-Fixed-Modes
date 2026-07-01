@@ -9,7 +9,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local frostURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/BROFROSTBITEFINISHED.rbxm"
+local frostURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/bruhfrostbtiebenolag.rbxm"
 local iciclesURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/icicles.rbxm"
 
 -- Helper to safely create/get tint
@@ -59,7 +59,7 @@ task.spawn(function()
     end
 
     local static = model:FindFirstChild("Static Effect", true)
-    local glitchParticles = model:FindFirstChild("Glitch", true)
+    local glitchParticles = model:FindFirstChild("Snow", true)
     local close = model:FindFirstChild("close", true)
     local far = model:FindFirstChild("far", true)
     
@@ -71,7 +71,7 @@ task.spawn(function()
     if glitchParticles then glitchParticles.Enabled = false end
     if close then close.Volume = 0; close:Stop() end
     if far then far.Volume = 0; far:Stop() end
-    if static then static.Volume = 1; static.Looped = true; static.PlaybackSpeed = 0.112; static:Play() end
+    if static then static.Volume = 1; static.Looped = true; static.PlaybackSpeed = 0.1; static:Play() end
 
     -- Variables to hold icicle data for later reference
     local spawnedIcicles = {}
