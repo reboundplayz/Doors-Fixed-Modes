@@ -100,7 +100,6 @@ local function isPlayerMoving()
     return Humanoid and Humanoid.MoveDirection.Magnitude > 0.1
 end
 
-
 -- Completely strip collision from Cease's physical body parts
 local function disableEntityCollision(model)
     for _, desc in ipairs(model:GetDescendants()) do
@@ -122,17 +121,6 @@ entity:SetCallback("OnSpawned", function()
         local entityModel = workspace:WaitForChild("Cease", 5)
         if entityModel then
             disableEntityCollision(entityModel)
-            
-            local startTime = os.clock()
-            while os.clock() - startTime < 3 do
-                local repent = entityModel:FindFirstChild("Repent", true)
-                if repent and repent:IsA("Sound") then
-                    repent:Stop()
-                    repent:Destroy()
-                    break
-                end
-                task.wait(0.05)
-            end
         end
     end)
 end)
@@ -206,8 +194,65 @@ end)
 
 entity:SetCallback("OnEnterRoom", function(room: Model, firstTime: boolean)
     changeLightColors()
+    
     local entityModel = workspace:FindFirstChild("Cease")
-    if entityModel then disableEntityCollision(entityModel) end
+    if entityModel then 
+        disableEntityCollision(entityModel) 
+        
+        -- Play the "Repent" sound found inside HSUR / Model as seen in image_176088.png
+        local repentSound = entityModel:FindFirstChild("Repent", true)
+        if repentSound and repentSound:IsA("Sound") then
+            repentSound:Play()
+        end
+    end
+
+    -- ====== CEASE FREEZE EFFECT ======
+    task.spawn(function()
+        local originalStates = {}
+        local disabledInteractions = {}
+        local frostColor = Color3.fromRGB(155, 215, 255) -- Vivid ice blue
+        local meltTime = 10
+        local meltTweenInfo = TweenInfo.new(meltTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+
+        -- 1. Scan and instantly apply the frozen blue frost state
+        for _, desc in ipairs(room:GetDescendants()) do
+            if desc:IsA("BasePart") and desc.Name ~= "Light" and desc.Name ~= "Neon" and desc.Name ~= "Bulb" then
+                originalStates[desc] = {
+                    Color = desc.Color,
+                    Material = desc.Material
+                }
+                desc.Color = frostColor
+                desc.Material = Enum.Material.Ice -- Creates the white frost overlay look
+            elseif desc:IsA("ProximityPrompt") or desc:IsA("ClickDetector") then
+                if desc.Enabled == true then
+                    disabledInteractions[desc] = true
+                    desc.Enabled = false
+                end
+            end
+        end
+
+        -- 2. Smoothly fade the color back to normal over 10 seconds
+        for part, original in pairs(originalStates) do
+            if part and part.Parent then
+                TweenService:Create(part, meltTweenInfo, {Color = original.Color}):Play()
+            end
+        end
+
+        -- 3. Wait out the timer, clear the frost material, and unfreeze interactions
+        task.wait(meltTime)
+        
+        for part, original in pairs(originalStates) do
+            if part and part.Parent then
+                part.Material = original.Material
+            end
+        end
+
+        for interaction, _ in pairs(disabledInteractions) do
+            if interaction and interaction.Parent then
+                interaction.Enabled = true
+            end
+        end
+    end)
 end)
 
 entity:SetCallback("OnDespawning", function()
