@@ -84,7 +84,7 @@ SilenceModel:SetPrimaryPartCFrame(skySpawnCFrame)
 
 local repentSound = SilenceModel:FindFirstChild("Repent", true)
 if repentSound and repentSound:IsA("Sound") then
-    repentSound.Volume = 8
+    repentSound.Volume = 2
     repentSound:Play()
 end
 
