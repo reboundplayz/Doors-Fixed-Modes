@@ -46,6 +46,12 @@ local FADE_DELAY = 3          -- Seconds before fading out
 local FADE_TIME = 0.5         -- Duration of fade tween
 local IDLE_TRANSPARENCY = 0.5 -- How transparent the bar gets when idle (0 = fully visible, 1 = invisible)
 
+-- Helper function to check if Seek Music is currently playing
+local function IsSeekMusicPlaying()
+    local SeekMusic = workspace:FindFirstChild("SeekMusic")
+    return SeekMusic and SeekMusic:IsA("Sound") and SeekMusic.Playing
+end
+
 -- 1. Build the DOORS Health Bar Clone
 local PlayerGui = Player:WaitForChild("PlayerGui")
 local MainUI = PlayerGui:WaitForChild("MainUI")
@@ -230,7 +236,7 @@ if UserInputService.TouchEnabled then
     end
     
     MobileSprint.MouseButton1Click:Connect(function()
-        if IsExhausted then return end
+        if IsExhausted or IsSeekMusicPlaying() then return end
         IsSprinting = not IsSprinting
         LastActivityTime = os.clock()
     end)
@@ -238,7 +244,7 @@ else
     -- PC Keybind (Q) - Hold
     UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
-        if input.KeyCode == Enum.KeyCode.Q and not IsExhausted then
+        if input.KeyCode == Enum.KeyCode.Q and not IsExhausted and not IsSeekMusicPlaying() then
             IsSprinting = true
             LastActivityTime = os.clock()
         end
@@ -247,7 +253,7 @@ else
     UserInputService.InputEnded:Connect(function(input)
         if input.KeyCode == Enum.KeyCode.Q then
             IsSprinting = false
-            LastActivityTime = osclock()
+            LastActivityTime = os.clock()
         end
     end)
 end
@@ -262,6 +268,11 @@ RunService.Heartbeat:Connect(function(dt)
     end
 
     UpdateBaseSpeed()
+
+    -- Automatically turn off sprint tracking if Seek's music starts playing mid-run
+    if IsSeekMusicPlaying() then
+        IsSprinting = false
+    end
 
     local isActivelyUsing = (IsSprinting and Humanoid.MoveDirection.Magnitude > 0) or IsExhausted
 
