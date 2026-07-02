@@ -7,7 +7,7 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Regul
 local entity = Spawner:Create({
     Entity = {
         Name = "Deer God",
-        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/deergod%20final.rbxm",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/deer%20god%20BETTER.rbxm",
         HeightOffset = 0
     },
     Lights = {
@@ -29,7 +29,7 @@ local entity = Spawner:Create({
     Movement = {
         Speed = 20,
         Delay = 0,
-        Reverse = false
+        Reversed = false
     },
     Rebounding = {
         Enabled = false,
@@ -380,11 +380,6 @@ local function PlayCustomCutscene()
     
     camera.CameraType = Enum.CameraType.Custom
     
-    -- Assign Death Cause right before dying
-    pcall(function()
-        game:GetService("ReplicatedStorage").GameStats["Player_" .. LocalPlayer.Name].Total.DeathCause.Value = "Deer God"
-    end)
-
     local character = LocalPlayer.Character
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
