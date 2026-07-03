@@ -8,11 +8,13 @@ local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
-local frostURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/bruhfrostbtiebenolag.rbxm"
+local frostURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/bossfightfrostbite.rbxm"
+local effectsURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/effectsfrost.rbxm"
 local iciclesURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/icicles.rbxm"
+local musicURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/%D0%9A%C3%B8%D1%81%D0%BC%C3%B8%D1%81.mp3"
 
--- Helper to safely create/get tint
 local function getTint()
     local t = Lighting:FindFirstChild("FrostbiteTint")
     if not t then
@@ -39,62 +41,141 @@ G.LoadGithubModel = function(url)
 end
 
 task.spawn(function()
-    -- Load Frostbite Entity
-    local entity = G.LoadGithubModel(frostURL)
-    if not entity then return nil end
-    local model = entity:IsA("Model") and entity or entity:FindFirstChildWhichIsA("Model", true)
+    local mainEntity = G.LoadGithubModel(frostURL)
+    local effectsEntity = G.LoadGithubModel(effectsURL)
+    local iciclesContainer = G.LoadGithubModel(iciclesURL)
+    if not mainEntity or not effectsEntity then return nil end
     
-    for _, v in ipairs(model:GetDescendants()) do
+    local originalModel = mainEntity:IsA("Model") and mainEntity or mainEntity:FindFirstChildWhichIsA("Model", true)
+    for _, v in ipairs(originalModel:GetDescendants()) do
         if v:IsA("BasePart") then v.CanCollide = false; v.CanQuery = false; v.CanTouch = false end
     end
     
-    model.Parent = workspace
-    local part = model:FindFirstChild("FrostyNew") or model:FindFirstChildWhichIsA("BasePart", true)
-    local latestRoomVal = ReplicatedStorage.GameData.LatestRoom.Value
-    local currentRoom = workspace.CurrentRooms:FindFirstChild(tostring(latestRoomVal))
-    local floorPart = currentRoom and currentRoom:FindFirstChild("Parts") and currentRoom.Parts:FindFirstChild("Floor")
+    local startRoomVal = ReplicatedStorage.GameData.LatestRoom.Value
+    local targetRoomNumber = startRoomVal + 4
     
-    if currentRoom and floorPart and part then
-        part.CFrame = floorPart.CFrame + Vector3.new(0, 12.5, 0)
+    originalModel.Parent = workspace
+    local initialRoom = workspace.CurrentRooms:FindFirstChild(tostring(startRoomVal))
+    local initialFloor = initialRoom and initialRoom:FindFirstChild("Parts") and initialRoom.Parts:FindFirstChild("Floor")
+    local mainPart = originalModel:FindFirstChild("FrostyNew") or originalModel:FindFirstChildWhichIsA("BasePart", true)
+    if mainPart and initialFloor then
+        mainPart.CFrame = initialFloor.CFrame + Vector3.new(0, 12.5, 0)
     end
 
-    local static = model:FindFirstChild("Static Effect", true)
-    local glitchParticles = model:FindFirstChild("Snow", true)
-    local close = model:FindFirstChild("close", true)
-    local far = model:FindFirstChild("far", true)
+    local static = originalModel:FindFirstChild("Static Effect", true)
+    local close = originalModel:FindFirstChild("close", true)
+    local far = originalModel:FindFirstChild("far", true)
+    local heylois = originalModel:FindFirstChild("Heylois", true)
+    local face = originalModel:FindFirstChild("face", true)
     
-    -- Hide features during initial forming
-    local heylois = model:FindFirstChild("Heylois", true)
-    local face = model:FindFirstChild("face", true)
-    if heylois then heylois.Enabled = false end
-    if face then face.Enabled = false end
-    if glitchParticles then glitchParticles.Enabled = false end
     if close then close.Volume = 0; close:Stop() end
     if far then far.Volume = 0; far:Stop() end
+    
+    if heylois then heylois.Enabled = false end
+    if face then face.Enabled = false end
     if static then static.Volume = 1; static.Looped = true; static.PlaybackSpeed = 0.1; static:Play() end
 
-    -- Variables to hold icicle data for later reference
-    local spawnedIcicles = {}
-    local playerTouchedIcicle = false
-    local connections = {}
+    local mainBlizzardEmitters = {}
+    for _, v in ipairs(originalModel:GetDescendants()) do
+        if v:IsA("ParticleEmitter") and v.Name == "ParticleEmitter" then
+            v.Enabled = false
+            table.insert(mainBlizzardEmitters, v)
+        end
+    end
 
-    -- FORMING PHASE (6 Seconds)
-    task.wait(6)
+    local currentPhase = 1
+    local activeEffectsModels = {}
+    local maxMusicVolume = 0.6
 
-    -- MANUAL FADE IN
-    local tint = getTint()
+    -- --- BOSS MUSIC CONFIGURATION ---
+    local bgm = Instance.new("Sound")
+    bgm.Name = "FrostbiteMusic"
+    bgm.Volume = maxMusicVolume
+    bgm.Parent = workspace
+
     task.spawn(function()
-        for i = 1, 50 do
-            tint.Contrast = tint.Contrast + 0.01
-            tint.Saturation = tint.Saturation - 0.02
-            task.wait(0.01)
+        if writefile and getcustomasset and request then
+            local file = string.match(musicURL, "([^/]+)$") or "boss_music.mp3"
+            local res = request({Url = musicURL, Method = "GET"})
+            if res.StatusCode == 200 then
+                writefile(file, res.Body)
+                bgm.SoundId = getcustomasset(file)
+            end
         end
     end)
 
-    -- Formed with face: Enable Face, Heylois, and Glitch Particles
+    local function scaleParticles(emitter)
+        if not emitter then return end
+        local currentSeq = emitter.Size
+        local newKeys = {}
+        for _, key in ipairs(currentSeq.Keypoints) do
+            table.insert(newKeys, NumberSequenceKeypoint.new(key.Time, key.Value * 2, key.Envelope * 2))
+        end
+        emitter.Size = NumberSequence.new(newKeys)
+    end
+
+    local function spawnEffectsInRoom(roomNumber)
+        local room = workspace.CurrentRooms:FindFirstChild(tostring(roomNumber))
+        if not room then return end
+        local floorPart = room:FindFirstChild("Parts") and room.Parts:FindFirstChild("Floor")
+        if not floorPart then return end
+
+        local fxModel = effectsEntity:Clone()
+        for _, v in ipairs(fxModel:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.CanCollide = false
+                v.CanTouch = false
+                v.CanQuery = false
+            end
+        end
+        
+        fxModel.Parent = workspace
+        table.insert(activeEffectsModels, fxModel)
+
+        local fxRoot = fxModel:IsA("BasePart") and fxModel or fxModel:FindFirstChildWhichIsA("BasePart", true)
+        if fxRoot then
+            fxRoot.CFrame = floorPart.CFrame + Vector3.new(0, 12.5, 0)
+        end
+
+        if currentPhase == 2 then
+            for _, emitter in ipairs(fxModel:GetDescendants()) do
+                if emitter:IsA("ParticleEmitter") then
+                    scaleParticles(emitter)
+                end
+            end
+        end
+    end
+
+    -- --- MUSIC MANAGEMENT THREAD ---
+    local musicThreadActive = true
+    task.spawn(function()
+        repeat task.wait() until bgm.SoundId ~= ""
+        
+        bgm.TimePosition = 40
+        bgm:Play()
+        
+        while musicThreadActive and bgm.Parent do
+            if currentPhase == 1 then
+                if bgm.TimePosition >= 80 then -- 1:20 limit
+                    bgm.TimePosition = 40
+                end
+            elseif currentPhase == 2 then
+                if bgm.TimePosition >= 140 then -- 2:20 loop point back to 1:40
+                    bgm.TimePosition = 100
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+
+    -- --- FORMING PHASE DELAY (6 Seconds) ---
+    task.wait(6)
+    
+    for _, emitter in ipairs(mainBlizzardEmitters) do
+        if emitter then emitter.Enabled = true end
+    end
     if heylois then heylois.Enabled = true end
     if face then face.Enabled = true end 
-    if glitchParticles then glitchParticles.Enabled = true end
 
     if static then 
         task.spawn(function()
@@ -107,116 +188,306 @@ task.spawn(function()
     if close then close:Play(); task.spawn(function() for i=1,10 do close.Volume = close.Volume + 0.1; task.wait(0.15) end end) end
     if far then far:Play(); task.spawn(function() for i=1,10 do far.Volume = far.Volume + 0.1; task.wait(0.15) end end) end
 
-    -- --- ICICLE MECHANIC RUNS ONLY AFTER FORMING ---
-    local iciclesContainer = G.LoadGithubModel(iciclesURL)
-    if iciclesContainer and floorPart then
+    local tint = getTint()
+    task.spawn(function()
+        for i = 1, 50 do
+            tint.Contrast = tint.Contrast + 0.01
+            tint.Saturation = tint.Saturation - 0.02
+            task.wait(0.01)
+        end
+    end)
+
+    -- --- PHASE 2 BLIZZARD TIMER (30 seconds after forming ends) ---
+    local phase2Timer = task.delay(30, function()
+        currentPhase = 2
+        
+        -- Smoothly Fade Out Phase 1 Music
+        local fadeTweenOut = TweenService:Create(bgm, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {Volume = 0})
+        fadeTweenOut:Play()
+        fadeTweenOut.Completed:Wait()
+        
+        -- Swap time positioning to Phase 2 entry point
+        bgm.TimePosition = 100 
+        
+        -- Smoothly Fade In Phase 2 Music
+        local fadeTweenIn = TweenService:Create(bgm, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {Volume = maxMusicVolume})
+        fadeTweenIn:Play()
+        
+        for _, emitter in ipairs(mainBlizzardEmitters) do
+            scaleParticles(emitter)
+        end
+
+        for _, fxModel in ipairs(activeEffectsModels) do
+            if fxModel and fxModel.Parent then
+                for _, emitter in ipairs(fxModel:GetDescendants()) do
+                    if emitter:IsA("ParticleEmitter") then
+                        scaleParticles(emitter)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- --- SETUP MOBILE INTERACTIONS ---
+    local player = Players.LocalPlayer
+    local screenGui = nil
+    local mobileButton = nil
+
+    if UserInputService.TouchEnabled then
+        local pGui = player:WaitForChild("PlayerGui")
+        screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "FrostbiteMobileUI"
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = pGui
+
+        mobileButton = Instance.new("ImageButton")
+        mobileButton.Size = UDim2.new(0, 130, 0, 130)
+        mobileButton.Position = UDim2.new(0.70, 0, 0.60, 0)
+        mobileButton.BackgroundTransparency = 1
+        mobileButton.Image = "rbxassetid://127530665626086" 
+        mobileButton.Visible = false
+        mobileButton.Parent = screenGui
+    end
+
+    local activeRoomIcicles = {}
+    local activeConnections = {}
+    local playerTouchedIcicle = false
+
+    local function spawnIciclesForRoom(roomNumber)
+        for _, oldIcicle in ipairs(activeRoomIcicles) do
+            if oldIcicle.instance then oldIcicle.instance:Destroy() end
+        end
+        for _, conn in ipairs(activeConnections) do
+            if conn then conn:Disconnect() end
+        end
+        activeRoomIcicles = {}
+        activeConnections = {}
+
+        local room = workspace.CurrentRooms:FindFirstChild(tostring(roomNumber))
+        if not room or not iciclesContainer then return end
+        
+        local floorPart = room:FindFirstChild("Parts") and room.Parts:FindFirstChild("Floor")
+        if not floorPart then return end
+
+        local targetDoor = nil
+        for _, d in ipairs(room:GetDescendants()) do
+            if string.find(string.lower(d.Name), "door") and (d:IsA("BasePart") or d:IsA("Model")) then
+                targetDoor = d
+                break
+            end
+        end
+
         local options = iciclesContainer:GetChildren()
-        if #options > 0 then
-            for i = 1, 4 do
-                local randomSelection = options[math.random(1, #options)]
-                local chosenIcicle = randomSelection:Clone()
-                
-                if chosenIcicle:IsA("Model") then
-                    for _, p in ipairs(chosenIcicle:GetDescendants()) do
-                        if p:IsA("BasePart") then
-                            p.Size = p.Size * 0.6
-                            p.CanCollide = false
-                            p.CanTouch = true
-                            p.CanQuery = true
-                        end
-                    end
-                elseif chosenIcicle:IsA("BasePart") then
-                    chosenIcicle.Size = chosenIcicle.Size * 0.6
-                    chosenIcicle.CanCollide = false
-                    chosenIcicle.CanTouch = true
-                    chosenIcicle.CanQuery = true
-                end
+        if #options == 0 then return end
 
+        for i = 1, 4 do
+            local randomSelection = options[math.random(1, #options)]
+            local chosenIcicle = randomSelection:Clone()
+            local mainPart = chosenIcicle:IsA("BasePart") and chosenIcicle or chosenIcicle:FindFirstChildWhichIsA("BasePart", true)
+
+            for _, p in ipairs(chosenIcicle:IsA("Model") and chosenIcicle:GetDescendants() or {chosenIcicle}) do
+                if p:IsA("BasePart") then
+                    p.Size = p.Size * 0.6
+                    p.CanCollide = true
+                    p.CanTouch = true
+                    p.CanQuery = true
+                    p.Anchored = true
+                end
+            end
+
+            local targetCF
+            if i == 1 and targetDoor then
+                if targetDoor:IsA("Model") then targetCF = targetDoor:GetPivot() else targetCF = targetDoor.CFrame end
+            else
                 local floorSize = floorPart.Size
-                local rx = (math.random() - 0.5) * (floorSize.X * 0.8)
-                local rz = (math.random() - 0.5) * (floorSize.Z * 0.8)
-                
-                local targetCF = floorPart.CFrame * CFrame.new(rx, -0.5, rz)
-                local initialCF = targetCF * CFrame.new(0, -6, 0)
-                
-                if chosenIcicle:IsA("Model") then
-                    chosenIcicle:PivotTo(initialCF)
-                else
-                    chosenIcicle.CFrame = initialCF
-                end
-                chosenIcicle.Parent = workspace
+                local rx = (math.random() - 0.5) * (floorSize.X * 0.7)
+                local rz = (math.random() - 0.5) * (floorSize.Z * 0.7)
+                targetCF = floorPart.CFrame * CFrame.new(rx, 0, rz)
+            end
 
-                table.insert(spawnedIcicles, {instance = chosenIcicle, start = initialCF, target = targetCF})
+            local initialCF = targetCF * CFrame.new(0, -7, 0)
+            if chosenIcicle:IsA("Model") then chosenIcicle:PivotTo(initialCF) else chosenIcicle.CFrame = initialCF end
+            chosenIcicle.Parent = workspace
 
-                local function onTouch(hit)
-                    local player = Players.LocalPlayer
-                    if hit and hit.Parent == player.Character then
-                        local hum = hit.Parent:FindFirstChildOfClass("Humanoid")
-                        if hum then
-                            hum.WalkSpeed = 8
-                            playerTouchedIcicle = true
+            chosenIcicle:SetAttribute("Cracks", 0)
+
+            local prompt = Instance.new("ProximityPrompt")
+            prompt.ObjectText = "Icicle"
+            prompt.ActionText = "Crack"
+            prompt.KeyboardKeyCode = Enum.KeyCode.F
+            prompt.RequiresLineOfSight = false
+            prompt.MaxActivationDistance = 10
+            prompt.HoldDuration = 0
+            prompt.Parent = mainPart
+
+            table.insert(activeRoomIcicles, {instance = chosenIcicle, start = initialCF, target = targetCF, prompt = prompt, main = mainPart})
+
+            prompt.Triggered:Connect(function()
+                local currentCracks = chosenIcicle:GetAttribute("Cracks") or 0
+                currentCracks = currentCracks + 1
+                chosenIcicle:SetAttribute("Cracks", currentCracks)
+                
+                if currentCracks >= 3 then
+                    prompt:Destroy()
+                    for _, p in ipairs(chosenIcicle:IsA("Model") and chosenIcicle:GetDescendants() or {chosenIcicle}) do
+                        if p:IsA("BasePart") then
+                            p.Anchored = false
+                            p.CanCollide = false
+                            p.CanTouch = false
+                            p.CustomPhysicalProperties = PhysicalProperties.new(0, 0.3, 0.5)
                         end
                     end
                 end
+            end)
 
-                if chosenIcicle:IsA("BasePart") then
-                    table.insert(connections, chosenIcicle.Touched:Connect(onTouch))
-                else
-                    for _, p in ipairs(chosenIcicle:GetDescendants()) do
-                        if p:IsA("BasePart") then
-                            table.insert(connections, p.Touched:Connect(onTouch))
+            local function onTouch(hit)
+                if hit and hit.Parent == player.Character then
+                    local hum = hit.Parent:FindFirstChildOfClass("Humanoid")
+                    if hum then hum.WalkSpeed = 8; playerTouchedIcicle = true end
+                end
+            end
+            table.insert(activeConnections, mainPart.Touched:Connect(onTouch))
+        end
+
+        task.spawn(function()
+            for step = 1, 20 do
+                for _, data in ipairs(activeRoomIcicles) do
+                    if data.instance and data.instance.Parent then
+                        local lerpedCFrame = data.start:Lerp(data.target, step / 20)
+                        if data.instance:IsA("Model") then data.instance:PivotTo(lerpedCFrame) else data.instance.CFrame = lerpedCFrame end
+                    end
+                end
+                task.wait(0.02)
+            end
+        end)
+    end
+
+    spawnIciclesForRoom(startRoomVal)
+
+    -- SOFTLOCK SAFETY LOOP
+    task.spawn(function()
+        while originalModel and originalModel.Parent and ReplicatedStorage.GameData.LatestRoom.Value < targetRoomNumber do
+            for _, data in ipairs(activeRoomIcicles) do
+                if data.instance and data.instance.Parent then
+                    local currentCF = data.instance:IsA("Model") and data.instance:GetPivot() or data.instance.CFrame
+                    if currentCF.Y < -50 or (data.instance:GetAttribute("Cracks") or 0) >= 3 then
+                        for _, p in ipairs(data.instance:IsA("Model") and data.instance:GetDescendants() or {data.instance}) do
+                            if p:IsA("BasePart") then
+                                p.CanCollide = false
+                                p.CanTouch = false
+                            end
                         end
                     end
                 end
             end
+            task.wait(0.5)
+        end
+    end)
 
-            task.spawn(function()
-                for i = 1, 20 do
-                    for _, data in ipairs(spawnedIcicles) do
-                        if data.instance and data.instance.Parent then
-                            local lerpedCFrame = data.start:Lerp(data.target, i / 20)
-                            if data.instance:IsA("Model") then
-                                data.instance:PivotTo(lerpedCFrame)
-                            else
-                                data.instance.CFrame = lerpedCFrame
+    local roomChangedConn
+    roomChangedConn = ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function(newRoomVal)
+        if newRoomVal >= targetRoomNumber then
+            roomChangedConn:Disconnect()
+        else
+            spawnIciclesForRoom(newRoomVal)
+            spawnEffectsInRoom(newRoomVal)
+        end
+    end)
+
+    if UserInputService.TouchEnabled and mobileButton then
+        task.spawn(function()
+            local mobileConnection = nil
+            while originalModel and originalModel.Parent and ReplicatedStorage.GameData.LatestRoom.Value < targetRoomNumber do
+                local char = player.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local closestPrompt = nil
+                local minDistance = 10
+
+                if root then
+                    for _, data in ipairs(activeRoomIcicles) do
+                        if data.main and data.main.Parent and data.main:FindFirstChildOfClass("ProximityPrompt") then
+                            local dist = (root.Position - data.main.Position).Magnitude
+                            if dist < minDistance then
+                                minDistance = dist
+                                closestPrompt = data.main:FindFirstChildOfClass("ProximityPrompt")
                             end
                         end
                     end
-                    task.wait(0.02)
                 end
-            end)
-        end
-    end
 
-    -- Damage Loop
-    local player = Players.LocalPlayer
-    local active = true
-    task.spawn(function()
-        while active and model and model.Parent do
-            local char = player.Character
-            if char and char:FindFirstChild("Humanoid") then
-                local hasHeat = false
-                local tool = char:FindFirstChild("Lighter") or char:FindFirstChild("Candle")
-                if tool then
-                    for _, obj in ipairs(tool:GetDescendants()) do
-                        if obj:IsA("PointLight") and obj.Enabled then hasHeat = true; break end
-                    end
-                end
-                if not hasHeat and char.Humanoid.Health > 0 then
-                    char.Humanoid:TakeDamage(10)
-                    
-                    -- DEATH CAUSE LOGIC ADDED HERE
-                    if char.Humanoid.Health <= 0 then
-                        pcall(function()
-                            local playerStats = ReplicatedStorage:FindFirstChild("GameStats") and ReplicatedStorage.GameStats:FindFirstChild("Player_" .. player.Name)
-                            if playerStats and playerStats:FindFirstChild("Total") and playerStats.Total:FindFirstChild("DeathCause") then
-                                playerStats.Total.DeathCause.Value = "FrostBite"
+                if closestPrompt then
+                    mobileButton.Visible = true
+                    if not mobileConnection then
+                        mobileConnection = mobileButton.MouseButton1Click:Connect(function()
+                            if closestPrompt then
+                                closestPrompt:InputHoldBegin()
+                                task.wait(0.05)
+                                closestPrompt:InputHoldEnd()
                             end
                         end)
+                    end
+                else
+                    mobileButton.Visible = false
+                    if mobileConnection then mobileConnection:Disconnect(); mobileConnection = nil end
+                end
+                task.wait(0.1)
+            end
+            if mobileConnection then mobileConnection:Disconnect() end
+        end)
+    end
+
+    -- --- DAMAGE ENGINE ROUTINE ---
+    local active = true
+    task.spawn(function()
+        while active and originalModel and originalModel.Parent do
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChild("Humanoid")
+            
+            if hum and root and hum.Health > 0 then
+                local safeFromFrost = false
+                
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj.Name == "Fireplace" then
+                        local checkPart = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                        if checkPart and (root.Position - checkPart.Position).Magnitude <= 15 then
+                            safeFromFrost = true
+                            break
+                        end
+                    end
+                end
+                
+                if not safeFromFrost then
+                    local tool = char:FindFirstChild("Lighter") or char:FindFirstChild("Candle")
+                    if tool then
+                        for _, obj in ipairs(tool:GetDescendants()) do
+                            if obj:IsA("PointLight") and obj.Enabled then safeFromFrost = true; break end
+                        end
+                    end
+                end
+                
+                if not safeFromFrost then
+                    local damageAmount = 0
+                    if currentPhase == 1 then
+                        damageAmount = 2
+                    elseif currentPhase == 2 then
+                        damageAmount = 10
+                    end
+                    
+                    if damageAmount > 0 then
+                        hum:TakeDamage(damageAmount)
                         
-                        local remote = ReplicatedStorage:FindFirstChild("Bricks", true) or ReplicatedStorage:FindFirstChild("RemotesFolder", true)
-                        if remote and remote:FindFirstChild("DeathHint") then
-                            firesignal(remote.DeathHint.OnClientEvent, hints)
+                        if hum.Health <= 0 then
+                            pcall(function()
+                                local playerStats = ReplicatedStorage:FindFirstChild("GameStats") and ReplicatedStorage.GameStats:FindFirstChild("Player_" .. player.Name)
+                                if playerStats and playerStats:FindFirstChild("Total") and playerStats.Total:FindFirstChild("DeathCause") then
+                                    playerStats.Total.DeathCause.Value = "FrostBite"
+                                end
+                            end)
+                            local remote = ReplicatedStorage:FindFirstChild("Bricks", true) or ReplicatedStorage:FindFirstChild("RemotesFolder", true)
+                            if remote and remote:FindFirstChild("DeathHint") then
+                                firesignal(remote.DeathHint.OnClientEvent, hints)
+                            end
                         end
                     end
                 end
@@ -225,48 +496,48 @@ task.spawn(function()
         end
     end)
 
-    -- Wait for room change to despawn
-    ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+    while ReplicatedStorage.GameData.LatestRoom.Value < targetRoomNumber do
+        ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+    end
+
+    -- --- FINAL CLEANUP AND DESPAWN ---
     active = false
-    
-    -- DESPAWN SOUND HANDLER
-    local modelDespawnSound = model:FindFirstChild("Despawn", true)
+    musicThreadActive = false 
+    if screenGui then screenGui:Destroy() end
+    if roomChangedConn then roomChangedConn:Disconnect() end
+
+    -- Outro music sequence
+    task.spawn(function()
+        bgm.TimePosition = 78 -- Skip directly to 1:18 outro
+        task.wait(0.2)
+        local fadeTweenOutFinal = TweenService:Create(bgm, TweenInfo.new(2, Enum.EasingStyle.Linear), {Volume = 0})
+        fadeTweenOutFinal:Play()
+        fadeTweenOutFinal.Completed:Wait()
+        bgm:Stop()
+        bgm:Destroy()
+    end)
+
+    local modelDespawnSound = originalModel:FindFirstChild("Despawn", true)
     if modelDespawnSound and modelDespawnSound:IsA("Sound") then
         local soundClone = modelDespawnSound:Clone()
         soundClone.Parent = workspace
         soundClone:Play()
-        task.delay(soundClone.TimeLength + 1, function()
-            soundClone:Destroy()
-        end)
+        task.delay(soundClone.TimeLength + 1, function() soundClone:Destroy() end)
     end
+    originalModel:Destroy()
+
+    for _, fxModel in ipairs(activeEffectsModels) do
+        if fxModel and fxModel.Parent then fxModel:Destroy() end
+    end
+    activeEffectsModels = {}
     
-    -- Disconnect touch listeners
-    for _, connection in ipairs(connections) do
-        if connection then connection:Disconnect() end
+    for _, conn in ipairs(activeConnections) do
+        if conn then conn:Disconnect() end
+    end
+    for _, data in ipairs(activeRoomIcicles) do
+        if data.instance then data.instance:Destroy() end
     end
 
-    -- Sink icicles down
-    task.spawn(function()
-        for i = 1, 20 do
-            for _, data in ipairs(spawnedIcicles) do
-                if data.instance and data.instance.Parent then
-                    local currentCF = data.instance:IsA("Model") and data.instance:GetPivot() or data.instance.CFrame
-                    local lerpedCFrame = currentCF:Lerp(data.start, i / 20)
-                    if data.instance:IsA("Model") then
-                        data.instance:PivotTo(lerpedCFrame)
-                    else
-                        data.instance.CFrame = lerpedCFrame
-                    end
-                end
-            end
-            task.wait(0.02)
-        end
-        for _, data in ipairs(spawnedIcicles) do
-            if data.instance then data.instance:Destroy() end
-        end
-    end)
-
-    -- Slowly restore player speed back to normal
     task.spawn(function()
         local char = player.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -278,12 +549,10 @@ task.spawn(function()
         end
     end)
     
-    -- MANUAL FADE OUT
     task.spawn(function()
         local steps = 40
         local initialContrast = tint.Contrast
         local initialSaturation = tint.Saturation
-        
         for i = 1, steps do
             tint.Contrast = initialContrast - (initialContrast * (i / steps))
             tint.Saturation = initialSaturation + ((0 - initialSaturation) * (i / steps))
@@ -292,5 +561,5 @@ task.spawn(function()
         tint:Destroy()
     end)
     
-    model:Destroy()
+    effectsEntity:Destroy()
 end)
