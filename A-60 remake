@@ -152,13 +152,6 @@ entity:SetCallback("OnSpawned", function()
         warn("Could not find the A-60 model in Workspace.")
     end
 
-    local GITHUB_URL, FILE_NAME = "nil", "nil"
-    if not isfile(FILE_NAME) then writefile(FILE_NAME, game:HttpGet(GITHUB_URL)) end
-    local sound = Instance.new("Sound", game:GetService("SoundService"))
-    sound.SoundId = getcustomasset(FILE_NAME)
-    sound.Volume = 4
-    sound:Play()
-
     local function forceRedTint(targetColor, duration)
         local rooms = game.Workspace:FindFirstChild("CurrentRooms")
         if not rooms then return end
@@ -370,13 +363,6 @@ end)
 entity:SetCallback("OnDespawned", function()
     print("Entity has despawned")
     table.clear(destroyedRooms) -- Flushed for clean operation next run
-
-    local GITHUB_URL, FILE_NAME = "nil", "nil"
-    if not isfile(FILE_NAME) then writefile(FILE_NAME, game:HttpGet(GITHUB_URL)) end
-    local sound = Instance.new("Sound", game:GetService("SoundService"))
-    sound.SoundId = getcustomasset(FILE_NAME)
-    sound.Volume = 4
-    sound:Play()
 
     local function forceRedTint(targetColor, duration)
         local rooms = game.Workspace:FindFirstChild("CurrentRooms")
