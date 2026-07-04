@@ -26,8 +26,6 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
 local Camera = workspace.CurrentCamera
 
 -- Dynamic default speed fallback
@@ -184,14 +182,20 @@ local function FadeUI(targetTransparency)
 end
 
 -- 4. Exhaustion Handling
-local function ToggleExhaustion(state)
+local function ToggleExhaustion(state, Humanoid)
     IsExhausted = state
     if state then
         IsSprinting = false
         if Humanoid then Humanoid.WalkSpeed = EXHAUSTED_SPEED end
         
         pcall(function()
-            require(MainUI.Initiator.Main_Game).caption("You're Exhausted.", true)
+            task.spawn(function() -- put it on another thread so the task.waits do not affect the rest of the code
+                require(MainUI.Initiator.Main_Game).caption("You're Exhausted.", true) -- have put this little animation cuz idk i like it (remove if you dont want it!)
+                task.wait(0.1)
+                require(MainUI.Initiator.Main_Game).caption("You're Exhausted..", true)
+                task.wait(0.1)
+                require(MainUI.Initiator.Main_Game).caption("You're Exhausted...", true)
+            end)
         end)
         
         TweenService:Create(Vignette, TweenInfo.new(0.4, Enum.EasingStyle.Sine), {ImageTransparency = 0.2}):Play()
@@ -207,7 +211,7 @@ local function ToggleExhaustion(state)
 end
 
 -- Monitor baseline speed updates safely
-local function UpdateBaseSpeed()
+local function UpdateBaseSpeed(Humanoid)
     if Humanoid and not IsSprinting and not IsExhausted and 
        Humanoid.WalkSpeed ~= SPRINT_SPEED and 
        Humanoid.WalkSpeed ~= REGEN_SPEED and 
@@ -260,11 +264,14 @@ end
 
 -- 6. Heartbeat Loop: Core Logic & Speeds
 RunService.Heartbeat:Connect(function(dt)
+    local Character = Player.Character -- removed CharacterAdded() for the same reason btw
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid") -- changed WaitForChild to FindFirstChildOfClass because this part runs every time so it doesnt need it and also to avoid problems if the humanoid has a different name -- thelostw3r
+
     if not Humanoid or not Humanoid.Parent then
-        Character = Player.Character or Player.CharacterAdded:Wait()
-        Humanoid = Character:WaitForChild("Humanoid")
-        BreathingSound.Parent = Character:WaitForChild("Head")
+        BreathingSound.Parent = Character:WaitForChild("Head", 10) -- put an timeout on it to avoid 10000 infinite yield messeages on console f9
+        repeat task.wait() until Humanoid
         BaseWalkSpeed = Humanoid.WalkSpeed
+        return
     end
 
     UpdateBaseSpeed()
@@ -280,13 +287,13 @@ RunService.Heartbeat:Connect(function(dt)
         Humanoid.WalkSpeed = EXHAUSTED_SPEED
         CurrentStamina = math.clamp(CurrentStamina + (STAMINA_REGEN * dt), 0, MAX_STAMINA)
         if CurrentStamina >= (MAX_STAMINA * 0.66) then
-            ToggleExhaustion(false)
+            ToggleExhaustion(false, Humanoid)
         end
     elseif IsSprinting and Humanoid.MoveDirection.Magnitude > 0 then
         Humanoid.WalkSpeed = SPRINT_SPEED
         CurrentStamina = math.clamp(CurrentStamina - (STAMINA_DRAIN * dt), 0, MAX_STAMINA)
         if CurrentStamina <= 0 then
-            ToggleExhaustion(true)
+            ToggleExhaustion(true, Humanoid)
         end
     else
         if CurrentStamina < MAX_STAMINA then
@@ -317,6 +324,8 @@ end)
 
 -- 7. RenderStepped Camera Override
 RunService.RenderStepped:Connect(function(dt)
+    local Character = Player.Character
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
     Camera = workspace.CurrentCamera
     
     local desiredFOV = NORMAL_FOV
