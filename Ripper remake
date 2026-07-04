@@ -7,7 +7,7 @@ local localPlayer = Players.LocalPlayer
 local entity = Spawner:Create({
     Entity = {
         Name = "Ripper",
-        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/ripper%20remake.rbxm",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/ripperfinal.rbxm",
         HeightOffset = 0
     },
     Lights = {
