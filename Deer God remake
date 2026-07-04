@@ -7,7 +7,7 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Regul
 local entity = Spawner:Create({
     Entity = {
         Name = "Deer God",
-        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/deer%20god%20BETTER.rbxm",
+        Asset = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/deergod%20final.rbxm",
         HeightOffset = 0
     },
     Lights = {
@@ -208,7 +208,7 @@ end
 -- Custom Cutscene System
 local function PlayCustomCutscene()
     local modelUrl = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/deergod%20fixed%20cutsecene.rbxm"
-    local modelFile = "FIXEDCUTSCENE.rbxm"
+    local modelFile = "FIXEDCUTSCENE2.rbxm"
     
     -- Clear any old duplicates or loose objects before spawning
     for _, oldObj in ipairs(workspace:GetChildren()) do
