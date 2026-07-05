@@ -1,0 +1,231 @@
+-- =============================================================================
+-- ENFORCED LIGHT AND CHANDELIER MODIFICATION SCRIPT (ALL ROOMS FIX)
+-- =============================================================================
+
+-- 1. Load and prepare the Custom Light Model
+local LightReplaceModel = game:GetObjects("rbxassetid://12543866876")[1] or nil
+
+if LightReplaceModel then
+    -- Strip any built-in light sources from the preloaded asset model
+    for _, obj in pairs(LightReplaceModel:GetDescendants()) do
+        if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+            obj:Destroy()
+        end
+    end
+else
+    warn("Failed to load LightReplaceModel from rbxassetid://12543866876")
+end
+
+-- Flags
+local Bravo = false
+
+-- 2. Core Function to Modify Room Lights & Chandeliers
+local function ChangeStyle(room)
+    if not LightReplaceModel then return end
+    
+    -- Ensure descendants are checked even if they load in a split-second late
+    local function processObject(v)
+        -- Handle LightStands
+        if v.Name == "LightStand" then
+            if game.ReplicatedStorage.GameData.LatestRoom.Value < 51 then
+                local torch = LightReplaceModel:Clone()
+                torch:PivotTo(v:GetPivot())
+                
+                local findpivot = torch:FindFirstChild("Pivot")
+                if findpivot then findpivot.Parent = v end
+                
+                -- Utilizing WaitForChild to handle replication delays
+                local lightFixture = v:WaitForChild("LightFixture", 5)
+                if not lightFixture then return end
+                
+                local findvneon = lightFixture:WaitForChild('Neon', 5)
+                local finddust = torch.LightFixture:WaitForChild('Dust', 5)
+                
+                if findvneon and finddust then
+                    finddust.Parent = lightFixture
+                    finddust.CanCollide = false
+                    finddust.Neon.Part1 = findvneon
+                    
+                    local findneon = torch.LightFixture:WaitForChild('Neon')
+                    for _, kid in findneon:GetChildren() do
+                        kid.Parent = findvneon
+                    end
+                    
+                    for _, sh in pairs(lightFixture:GetDescendants()) do
+                        if sh:IsA("ParticleEmitter") or sh:IsA("Beam") then
+                            -- Check nesting safely
+                            pcall(function()
+                                sh.Enabled = lightFixture.Neon.CenterAttach.SpotLight.Enabled
+                            end)
+                        end
+                    end
+                    
+                    if lightFixture:FindFirstChild("BulbZap") then
+                        lightFixture:FindFirstChild("BulbZap").SoundId = "rbxassetid://4398878054"
+                    end
+                    
+                    lightFixture.ChildAdded:Connect(function(child)
+                        if child.Name == "BulbZap" then
+                            child.SoundId = "rbxassetid://4398878054"
+                        end
+                    end)
+                    
+                    local runservice
+                    pcall(function()
+                        runservice = lightFixture.Neon.CenterAttach.SpotLight.Changed:Connect(function()
+                            local shouldEnable = lightFixture.Neon.CenterAttach.SpotLight.Brightness > 0
+                            local findall = lightFixture:GetDescendants()
+                            if lightFixture.Neon.CenterAttach.SpotLight.Enabled == true then
+                                for _, object in pairs(findall) do
+                                    if object:IsA("ParticleEmitter") or object:IsA("Beam") then
+                                        object.Enabled = shouldEnable
+                                    end
+                                end
+                            elseif lightFixture.Neon.CenterAttach.SpotLight.Enabled == false then
+                                for _, object in pairs(findall) do
+                                    if object:IsA("ParticleEmitter") or object:IsA("Beam") then
+                                        object.Enabled = lightFixture.Neon.CenterAttach.SpotLight.Enabled
+                                    end
+                                end
+                            end
+                        end)
+                    end)
+                    
+                    v.Destroying:Connect(function()
+                        if runservice then runservice:Disconnect() end
+                    end)
+                end
+                
+                torch:Destroy()
+            else
+                if game.ReplicatedStorage.GameData.LatestRoom.Value < 90 then
+                    v:Destroy()
+                end
+            end
+        end
+        
+        -- Handle Chandeliers
+        if v.Name == "Chandelier" then
+            local torch = LightReplaceModel:Clone()
+            torch:PivotTo(v:GetPivot())
+            
+            local torchfixture = torch:WaitForChild("LightFixture", 5)
+            local fixture = v:WaitForChild("LightFixture", 5)
+            
+            if torchfixture and fixture then
+                local torchneon = torchfixture:WaitForChild("Neon", 5)
+                local neon = fixture:WaitForChild("Neon", 5)
+                
+                if torchneon and neon then
+                    pcall(function()
+                        torchneon:FindFirstChild("Bright sh idfk").CFrame = CFrame.new(-0.062, 1.065, 0.092, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+                        torchneon.Glow.CFrame = CFrame.new(-0.062, 1.065, 0.092, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+                        torchneon.atachm.CFrame = CFrame.new(-0.062, 1.065, 0.092, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+                        
+                        torchneon:FindFirstChild("Bright sh idfk").Parent = neon
+                        torchneon:FindFirstChild("King attachment the second").Parent = neon
+                        torchneon.Glow.Parent = neon
+                        torchneon.atachm.Parent = neon
+                    end)
+                    
+                    torchfixture.Dust.Neon.Part1 = neon
+                    torchfixture.Dust.CanCollide = false
+                    torchfixture.Dust.Parent = fixture
+                    
+                    if v:FindFirstChild("Stand") and v:FindFirstChild("Stand"):FindFirstChild("BulbZap") then
+                        v:FindFirstChild("Stand"):FindFirstChild("BulbZap").SoundId = "rbxassetid://4398878054"
+                    end
+                    
+                    if v:FindFirstChild("Stand") then
+                        v:FindFirstChild("Stand").ChildAdded:Connect(function(child)
+                            if child.Name == "BulbZap" then
+                                child.SoundId = "rbxassetid://4398878054"
+                            end
+                        end)
+                    end
+                    
+                    for _, sh in pairs(fixture:GetDescendants()) do
+                        if sh:IsA("ParticleEmitter") or sh:IsA("Beam") then
+                            pcall(function()
+                                sh.Enabled = fixture:FindFirstChild("SpotLight").Enabled
+                            end)
+                        end
+                    end
+                    
+                    local runservice
+                    pcall(function()
+                        runservice = fixture:FindFirstChild("SpotLight").Changed:Connect(function()
+                            local shouldEnable = fixture:FindFirstChild("SpotLight").Brightness > 0
+                            local findall = fixture:GetDescendants()
+                            if fixture:FindFirstChild("SpotLight").Enabled == true then
+                                for _, object in pairs(findall) do
+                                    if object:IsA("ParticleEmitter") or object:IsA("Beam") then
+                                        object.Enabled = shouldEnable
+                                    end
+                                end
+                            elseif fixture:FindFirstChild("SpotLight").Enabled == false then
+                                for _, object in pairs(findall) do
+                                    if object:IsA("ParticleEmitter") or object:IsA("Beam") then
+                                        object.Enabled = fixture:FindFirstChild("SpotLight").Enabled
+                                    end
+                                end
+                            end
+                        end)
+                    end)
+                    
+                    v.Destroying:Connect(function()
+                        if runservice then runservice:Disconnect() end
+                    end)
+                end
+            end
+            
+            torch:Destroy()
+        end
+    end
+
+    -- Run for elements already inside the room
+    for _, descendant in pairs(room:GetDescendants()) do
+        processObject(descendant)
+    end
+    
+    -- Listen if components load slightly after the room parent container initializes
+    room.DescendantAdded:Connect(processObject)
+end
+
+-- =============================================================================
+-- APPLICATION INTERFACE
+-- =============================================================================
+
+-- 3. Run initially for EVERY room currently generated in workspace
+for _, room in pairs(workspace.CurrentRooms:GetChildren()) do
+    ChangeStyle(room)
+end
+
+-- 4. Listen actively for EVERY single new room that gets appended
+workspace.CurrentRooms.ChildAdded:Connect(function(room)
+    ChangeStyle(room)
+end)
+
+-- 5. Dark Ambience Listener (Destroying lights when triggered)
+workspace.Ambience_Dark.Played:Connect(function()
+    Bravo = true
+    task.wait(0.01)
+    
+    local currentRoomNum = game.ReplicatedStorage.GameData.LatestRoom.Value
+    local lightfixturesfolder = workspace.CurrentRooms:FindFirstChild(tostring(currentRoomNum))
+    
+    if lightfixturesfolder then
+        if lightfixturesfolder:FindFirstChild("Assets") and lightfixturesfolder.Assets:FindFirstChild("Light_Fixtures") then
+            lightfixturesfolder.Assets:FindFirstChild("Light_Fixtures"):Destroy()
+        end
+        for _, lightstandfind in ipairs(lightfixturesfolder:GetDescendants()) do
+            if lightstandfind.Name == "LightStand" then
+                lightstandfind:Destroy()
+            end
+        end
+    end
+    
+    workspace.Ambience_Dark:Stop()
+    game.Lighting.FogStart = 10
+    game.Lighting.FogEnd = 10000000
+end)
