@@ -2,226 +2,182 @@ local G = getgenv()
 local ReplicatedStorage = game.ReplicatedStorage
 local remotesFolder = nil
 
+print("🚀 [Rebound Debug]: Script execution started.")
+
+-- Safe wrapper for firesignal to prevent nil call crashes
+local function safeFireSignal(signal, ...)
+    if typeof(firesignal) == "function" then
+        pcall(firesignal, signal, ...)
+    else
+        print("⚠️ [Rebound Debug]: firesignal is not supported by this executor.")
+    end
+end
+
 G.LoadGithubAudio = function(url)
     if not (writefile and getcustomasset and request) then return nil end
-
-    -- Generate consistent filename from URL
     local function generateFileName(url)
         local hash = 0
-        for i = 1, #url do
-            hash = (hash * 31 + string.byte(url, i)) % 2^32
-        end
-        return "rebound_fix_" .. tostring(hash) .. ".mp3"
+        for i = 1, #url do hash = (hash * 31 + string.byte(url, i)) % 2^32 end
+        return "rebound_audio_" .. tostring(hash) .. ".mp3"
     end
-    
     local fileName = generateFileName(url)
-    
-    -- Check if file exists and return it
-    local success, exists = pcall(function()
-        return isfile and isfile(fileName)
-    end)
-    
+    local success, exists = pcall(function() return isfile and isfile(fileName) end)
     if success and exists then
-        local assetSuccess, assetId = pcall(function()
-            return getcustomasset(fileName)
-        end)
-        
-        if assetSuccess then
-            print("✅ Áudio Rebound carregado do cache!")
-            return assetId
-        end
+        local assetSuccess, assetId = pcall(function() return getcustomasset(fileName) end)
+        if assetSuccess then return assetId end
     end
-
-    -- Download new audio if not exists
-    local response = request({
-        Url = url,
-        Method = "GET",
-        Headers = {
-            ["Accept"] = "audio/mpeg, audio/ogg, application/octet-stream"
-        }
-    })
-
-    if response.StatusCode ~= 200 then
-        warn("Xeno: Falha no download. Status: " .. response.StatusCode)
-        return nil
-    end
-    
+    local response = request({Url = url, Method = "GET"})
+    if response.StatusCode ~= 200 then return nil end
     writefile(fileName, response.Body)
-    
-    local success, assetId = pcall(function()
-        return getcustomasset(fileName)
-    end)
-
-    if success then
-        print("✅ Áudio Rebound carregado com sucesso!")
-        return assetId
-    end
-    
-    warn("Erro no getcustomasset: " .. tostring(assetId))
-    return nil
+    local assetSuccess, assetId = pcall(function() return getcustomasset(fileName) end)
+    return assetSuccess and assetId or nil
 end
 
 G.LoadGithubModel = function(url)
-    if not (writefile and getcustomasset and request) then
-        return nil
-    end
+    print("📦 [Rebound Debug]: Loading model: " .. tostring(url))
+    if not (writefile and getcustomasset and request) then return nil end
     
-    -- Generate a consistent filename based on the URL
     local function generateFileName(url)
         local hash = 0
-        for i = 1, #url do
-            hash = (hash * 31 + string.byte(url, i)) % 2^32
-        end
-        return "rebound_" .. tostring(hash) .. ".rbxm"
+        for i = 1, #url do hash = (hash * 31 + string.byte(url, i)) % 2^32 end
+        return "rebound_model_" .. tostring(hash) .. ".rbxm"
     end
-    
     local fileName = generateFileName(url)
     
-    -- Check if file already exists
-    local fileExists = false
-    local success, exists = pcall(function()
-        return isfile and isfile(fileName)
-    end)
+    local response = request({Url = url, Method = "GET"})
+    if response.StatusCode ~= 200 then return nil end
+    writefile(fileName, response.Body)
     
-    if success and exists then
-        fileExists = true
-        -- Try to load existing model first
-        local assetId = getcustomasset(fileName)
-        local loadSuccess, result = pcall(function()
-            return game:GetObjects(assetId)[1]
-        end)
-        
-        if loadSuccess and result then
-            return result
+    local assetId = getcustomasset(fileName)
+    local entityModel = nil
+    
+    local methods = {
+        function() return getobjects and getobjects(assetId)[1] end,
+        function() return getgenv().getobjects and getgenv().getobjects(assetId)[1] end,
+        function() return game:GetObjects(assetId)[1] end
+    }
+    
+    for i, method in ipairs(methods) do
+        local success, result = pcall(method)
+        if success and result and typeof(result) == "Instance" then
+            print("✅ [Rebound Debug]: Model unpacked successfully using method " .. i)
+            entityModel = result
+            break
         end
     end
     
-    -- If file doesn't exist or loading failed, download new one
-    local response = request({Url = url, Method = "GET"})
-    if response.StatusCode ~= 200 then return nil end
+    if not entityModel then
+        warn("⚠️ [Rebound Debug]: Executor blocked .rbxm file parsing. Generating visible fallback part.")
+        entityModel = Instance.new("Model")
+        entityModel.Name = "ReboundEntity"
+        
+        local mainPart = Instance.new("Part")
+        mainPart.Name = "HumanoidRootPart"
+        mainPart.Size = Vector3.new(5, 6, 5)
+        mainPart.Color = Color3.fromRGB(0, 102, 255)
+        mainPart.Material = Enum.Material.Neon
+        mainPart.CanCollide = false
+        mainPart.Anchored = true
+        mainPart.Parent = entityModel
+        entityModel.PrimaryPart = mainPart
+    end
     
-    writefile(fileName, response.Body)
-    local assetId = getcustomasset(fileName)
-    local success, result = pcall(function()
-        return game:GetObjects(assetId)[1]
-    end)
-    
-    if success and result then return result end
-    return nil
+    return entityModel
 end
 
 local function Rebound(entity, isFirstRun)
-    local repStorage = game.ReplicatedStorage
-    local gameData = repStorage.GameData
-    local latestRoom = gameData.LatestRoom
-    local plusRoom = latestRoom.Value + 1
-    local currentRooms = workspace.CurrentRooms
+    if not entity then return end
+    local gameData = ReplicatedStorage:WaitForChild("GameData")
+    local latestRoom = gameData:WaitForChild("LatestRoom")
+    local currentRooms = workspace:WaitForChild("CurrentRooms")
     local killed = false
     local speed = 1.5
-    local cameraShaker = require(game.ReplicatedStorage.CameraShaker)
-    local camera = workspace.CurrentCamera
-
-    local camShake = cameraShaker.new(Enum.RenderPriority.Camera.Value, function(cf)
-        camera.CFrame = camera.CFrame * cf
-    end)
-    camShake:Start()
-
-    if not entity then return end
-
-    local function GetLastRoom()
-        return currentRooms:FindFirstChild(plusRoom)
-    end
-    local entityPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
     
-    -- Set default routing attribute if missing
+    local cameraShaker
+    pcall(function() cameraShaker = require(ReplicatedStorage:FindFirstChild("CameraShaker")) end)
+    
+    local camera = workspace.CurrentCamera
+    local camShake
+    if cameraShaker and typeof(cameraShaker) == "table" and cameraShaker.new then
+        pcall(function()
+            camShake = cameraShaker.new(Enum.RenderPriority.Camera.Value, function(cf)
+                camera.CFrame = camera.CFrame * cf
+            end)
+            camShake:Start()
+        end)
+    end
+
+    local entityPart = entity.PrimaryPart or entity:FindFirstChildWhichIsA("BasePart")
+    if not entityPart then return end
+    
     if not workspace:GetAttribute("ReboundDirection") then
         workspace:SetAttribute("ReboundDirection", "Backward")
     end
     local currentDirection = workspace:GetAttribute("ReboundDirection")
 
-    -- Only position at spawn points on the absolute first run of a chain
+    local function GetLastRoom()
+        local targetRoomNum = latestRoom.Value + 1
+        local room = currentRooms:FindFirstChild(targetRoomNum) or currentRooms:FindFirstChild(latestRoom.Value)
+        return room
+    end
+
     if isFirstRun then
         entityPart.CanCollide = false
         entityPart.Anchored = true
-        if currentDirection == "Backward" then
-            entityPart.CFrame = GetLastRoom().RoomExit.CFrame + Vector3.new(0,0.6,0)
-        else
-            if currentRooms:FindFirstChild(1) and currentRooms[1]:FindFirstChild("RoomEntrance") then
-                entityPart.CFrame = currentRooms[1].RoomEntrance.CFrame + Vector3.new(0,0.6,0)
+        
+        local spawnRoom = GetLastRoom()
+        if spawnRoom then
+            if currentDirection == "Backward" then
+                local exitPart = spawnRoom:WaitForChild("RoomExit", 3)
+                if exitPart then entityPart.CFrame = exitPart.CFrame + Vector3.new(0, 0.6, 0) end
             else
-                entityPart.CFrame = GetLastRoom().RoomExit.CFrame + Vector3.new(0,0.6,0)
+                if currentRooms:FindFirstChild(1) and currentRooms[1]:FindFirstChild("RoomEntrance") then
+                    entityPart.CFrame = currentRooms[1].RoomEntrance.CFrame + Vector3.new(0, 0.6, 0)
+                end
             end
         end
-        wait(4)
+        task.wait(4)
     end
 
-    if workspace:FindFirstChild("SeekMovingNewClone") or workspace:FindFirstChild("SeekMoving") then
-        entityPart.CanCollide = false
-        entityPart.Anchored = false
-        return
-    end
+    if workspace:FindFirstChild("SeekMovingNewClone") or workspace:FindFirstChild("SeekMoving") then return end
 
-    -- Get or create sound so it never restarts or duplicates
     local moving = entityPart:FindFirstChild("ReboundMovingSound")
     if not moving then
         local rebmoving = G.LoadGithubAudio("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/0623(1).MP3")
         moving = Instance.new("Sound")
         moving.Name = "ReboundMovingSound"
-        moving.SoundId = rebmoving
+        moving.SoundId = rebmoving or ""
         moving.Parent = entityPart
         moving.Volume = 10
-        moving:Play()
+        if rebmoving then moving:Play() end
     elseif not moving.IsPlaying then
         moving:Play()
     end
 
     local function canSeeTarget(target, size)
-        if killed == true then
-            return
-        end
-        local function isBossActive()
-            local room = latestRoom.Value
-            if room == 50 or room == 100 then return true end
-            if workspace:FindFirstChild("SeekMovingNewClone") or workspace:FindFirstChild("SeekMoving") then return true end
-            
-            for _, sound in pairs(game.ReplicatedStorage:GetDescendants()) do
-                if sound:IsA("Sound") and sound.IsPlaying and (sound.Name:find("Music") or sound.Name == "Shade") then
-                    return true
-                end
-            end
-            return false
-        end
-
-        if isBossActive() then return end
+        if killed or workspace:FindFirstChild("SeekMovingNewClone") then return false end
+        local room = latestRoom.Value
+        if room == 50 or room == 100 then return false end
         
         local origin = entityPart.Position
         local direction = (target.HumanoidRootPart.Position - origin).unit * size
         local ray = Ray.new(origin, direction)
-
-        local hit, pos = workspace:FindPartOnRay(ray, entityPart)
-
-        if hit then
-            if hit:IsDescendantOf(target) then
-                killed = true
-                return true
-            end
-        else
-            return false
+        local hit = workspace:FindPartOnRay(ray, entityPart)
+        if hit and hit:IsDescendantOf(target) then
+            killed = true
+            return true
         end
+        return false
     end
 
     local dmgLoop = task.spawn(function()
-        while entityPart ~= nil and entity ~= nil and entity.Parent ~= nil do wait(0.5)
+        while entityPart and entity and entity.Parent do task.wait(0.5)
             local v = game.Players.LocalPlayer
-            if v.Character ~= nil and v.Character.HumanoidRootPart then
+            if v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
                 if canSeeTarget(v.Character, 50) and not v.Character:GetAttribute("Hiding") then
-                    moving:Stop()
+                    if moving then moving:Stop() end
                     
-                    -- ====================================================================
-                    -- INTEGRATED NEW JUMPSCARE SYSTEM
-                    -- ====================================================================
                     local playerGui = v:WaitForChild("PlayerGui")
-                    
                     local staticGui = Instance.new("ScreenGui")
                     staticGui.Name = "DeerGodStaticGui"
                     staticGui.ResetOnSpawn = false
@@ -230,25 +186,19 @@ local function Rebound(entity, isFirstRun)
                     staticGui.Parent = playerGui
 
                     local staticImage = Instance.new("ImageLabel")
-                    staticImage.Name = "StaticImage"
+                    staticImage.Size = UDim2.new(1.3, 0, 1.3, 0)
+                    staticImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+                    staticImage.AnchorPoint = Vector2.new(0.5, 0.5)
                     staticImage.Image = "rbxassetid://8806708292"
-                    staticImage.ImageTransparency = 0
                     staticImage.BackgroundTransparency = 1
                     staticImage.ImageColor3 = Color3.fromRGB(0, 100, 255)
-                    
-                    staticImage.Size = UDim2.new(1.3, 0, 1.3, 0) 
-                    staticImage.AnchorPoint = Vector2.new(0.5, 0.5)
-                    staticImage.Position = UDim2.new(0.5, 0, 0.5, 0)
                     staticImage.Parent = staticGui
 
                     local staticActive = true
-
                     task.spawn(function()
                         local rand = Random.new()
                         while staticActive and staticImage and staticImage.Parent do
-                            local xOffset = rand:NextNumber(-45, 45)
-                            local yOffset = rand:NextNumber(-45, 45)
-                            staticImage.Position = UDim2.new(0.5, xOffset, 0.5, yOffset)
+                            staticImage.Position = UDim2.new(0.5, rand:NextNumber(-45, 45), 0.5, rand:NextNumber(-45, 45))
                             task.wait(0.015)
                         end
                     end)
@@ -257,40 +207,29 @@ local function Rebound(entity, isFirstRun)
                     local fileName2 = "Reboundremakeye_Final_Audio.mp3"
                     
                     if not isfile(fileName1) then 
-                        writefile(fileName1, game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/0614.mp3")) 
+                        pcall(function() writefile(fileName1, game:HttpGet("https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/0614.mp3")) end)
                     end
                     if not isfile(fileName2) then 
-                        writefile(fileName2, game:HttpGet("https://raw.githubusercontent.com/Francisco1692qzd/RevivedOldHardcore/main/JumpscareReb.mp3")) 
+                        pcall(function() writefile(fileName2, game:HttpGet("https://raw.githubusercontent.com/Francisco1692qzd/RevivedOldHardcore/main/JumpscareReb.mp3")) end)
                     end
 
-                    local jumpSound = Instance.new("Sound")
+                    local jumpSound = Instance.new("Sound", game:GetService("SoundService"))
                     jumpSound.SoundId = getcustomasset(fileName1)
                     jumpSound.Volume = 5
                     jumpSound.Looped = true
-                    jumpSound.Parent = game:GetService("SoundService")
                     jumpSound:Play()
 
-                    local finalSound = Instance.new("Sound")
+                    local finalSound = Instance.new("Sound", game:GetService("SoundService"))
                     finalSound.SoundId = getcustomasset(fileName2)
                     finalSound.Volume = 5
-                    finalSound.Looped = false
                     finalSound.Pitch = 0.5
-                    finalSound.Parent = game:GetService("SoundService")
 
-                    local JUMPSCARE_DURATION = 1.75 
-                    local AUDIO_START_TIME = 0.25 
-                    local blueTintColors = {Color3.fromRGB(173, 216, 230), Color3.fromRGB(0, 0, 139)} 
-
+                    local JUMPSCARE_DURATION = 1.75
                     local startTime = os.clock()
                     local finalPhaseStarted = false
 
-                    local loopConnection = jumpSound.DidLoop:Connect(function()
-                        jumpSound.TimePosition = AUDIO_START_TIME
-                    end)
-
-                    local finalLoopConnection = finalSound.DidLoop:Connect(function()
-                        finalSound.TimePosition = AUDIO_START_TIME
-                    end)
+                    local loopConnection = jumpSound.DidLoop:Connect(function() jumpSound.TimePosition = 0.25 end)
+                    local finalLoopConnection = finalSound.DidLoop:Connect(function() finalSound.TimePosition = 0.25 end)
 
                     task.spawn(function()
                         while staticActive and not finalPhaseStarted do
@@ -302,50 +241,45 @@ local function Rebound(entity, isFirstRun)
                     end)
 
                     task.spawn(function()
+                        local blueTintColors = {Color3.fromRGB(173, 216, 230), Color3.fromRGB(0, 0, 139)}
                         local lastImgPosition = UDim2.new(0.5, 0, 0.5, 0)
                         
                         while os.clock() - startTime < JUMPSCARE_DURATION do
-                            local img = Instance.new("ImageLabel")
+                            local img = Instance.new("ImageLabel", staticGui)
                             img.Image = "rbxassetid://136737940723651"
                             img.BackgroundTransparency = 1
-                            img.BorderSizePixel = 0
                             img.AnchorPoint = Vector2.new(0.5, 0.5)
                             img.ImageColor3 = blueTintColors[math.random(1, #blueTintColors)]
-                            
-                            local randomWidth = math.random(200, 700)
-                            local randomHeight = math.random(200, 700)
-                            img.Size = UDim2.new(0, randomWidth, 0, randomHeight)
-                            
+                            img.Size = UDim2.new(0, math.random(200, 700), 0, math.random(200, 700))
                             lastImgPosition = UDim2.new(math.random(0, 100)/100, 0, math.random(0, 100)/100, 0)
                             img.Position = lastImgPosition
                             img.Rotation = math.random(0, 360)
-                            img.Parent = staticGui
                             
-                            task.wait(0.04) 
+                            task.wait(0.04)
                             img:Destroy()
                         end
                         
-                        finalPhaseStarted = true 
+                        finalPhaseStarted = true
                         if loopConnection then loopConnection:Disconnect() end
-                        jumpSound:Stop()
-                        jumpSound:Destroy()
+                        jumpSound:Stop() jumpSound:Destroy()
                         
                         finalSound:Play()
                         
-                        local finalImg = Instance.new("ImageLabel")
+                        local finalImg = Instance.new("ImageLabel", staticGui)
                         finalImg.Image = "rbxassetid://136737940723651"
                         finalImg.BackgroundTransparency = 1
-                        finalImg.BorderSizePixel = 0
                         finalImg.AnchorPoint = Vector2.new(0.5, 0.5)
                         finalImg.Position = lastImgPosition
-                        finalImg.Size = UDim2.new(0, 400, 0, 400) 
-                        finalImg.Rotation = math.random(-45, 45)   
-                        finalImg.ImageColor3 = Color3.new(1, 0, 0) 
-                        finalImg.Parent = staticGui
+                        finalImg.Size = UDim2.new(0, 400, 0, 400)
+                        finalImg.ImageColor3 = Color3.new(1, 0, 0)
                         
                         task.spawn(function()
-                            v.Character:FindFirstChildWhichIsA("Humanoid"):TakeDamage(100)
-                            game.ReplicatedStorage.GameStats["Player_" .. v.Character.Name].Total.DeathCause.Value = "Rebound"
+                            if v.Character:FindFirstChildWhichIsA("Humanoid") then
+                                v.Character:FindFirstChildWhichIsA("Humanoid"):TakeDamage(100)
+                            end
+                            pcall(function()
+                                game.ReplicatedStorage.GameStats["Player_" .. v.Character.Name].Total.DeathCause.Value = "Rebound"
+                            end)
                             
                             local hints = {
                                 "You died to an entity named Rebound...",
@@ -353,228 +287,184 @@ local function Rebound(entity, isFirstRun)
                                 "Whenever this happens, do not go forward, stay on your desired hiding spot!"
                             }
                             if ReplicatedStorage:FindFirstChild("RemotesFolder") then
-                                remotesFolder = ReplicatedStorage:FindFirstChild("RemotesFolder")
-                                firesignal(remotesFolder.DeathHint.OnClientEvent, hints, "Blue")
+                                safeFireSignal(ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, hints, "Blue")
                             elseif ReplicatedStorage:FindFirstChild("Bricks") then
-                                remotesFolder = ReplicatedStorage:FindFirstChild("Bricks")
-                                firesignal(remotesFolder.DeathHint.OnClientEvent, hints)
+                                safeFireSignal(ReplicatedStorage.Bricks.DeathHint.OnClientEvent, hints)
                             end
                         end)
 
                         local TweenService = game:GetService("TweenService")
-                        local growInfo = TweenInfo.new(1.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                        local growTween = TweenService:Create(finalImg, growInfo, {
+                        local growTween = TweenService:Create(finalImg, TweenInfo.new(1.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                             Position = UDim2.new(0.5, 0, 0.5, 0),
-                            Size = UDim2.new(1.2, 0, 1.2, 0) 
+                            Size = UDim2.new(1.2, 0, 1.2, 0)
                         })
-                        
-                        growTween:Play()
-                        growTween.Completed:Wait() 
+                        growTween:Play() growTween.Completed:Wait()
                         
                         if finalLoopConnection then finalLoopConnection:Disconnect() end
-                        finalSound.Looped = false 
                         
-                        local fadeInfo = TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-                        local imgFade = TweenService:Create(finalImg, fadeInfo, {ImageTransparency = 1})
-                        local soundFade = TweenService:Create(finalSound, fadeInfo, {Volume = 0})
+                        local fadeInfo = TweenInfo.new(1.5, Enum.EasingStyle.Linear)
+                        TweenService:Create(finalImg, fadeInfo, {ImageTransparency = 1}):Play()
+                        TweenService:Create(finalSound, fadeInfo, {Volume = 0}):Play()
                         local bgFade = TweenService:Create(staticImage, fadeInfo, {ImageTransparency = 1})
-                        
-                        imgFade:Play()
-                        soundFade:Play()
-                        bgFade:Play()
-                        imgFade.Completed:Wait()
+                        bgFade:Play() bgFade.Completed:Wait()
                         
                         staticActive = false
-                        if staticGui then
-                            staticGui:Destroy()
-                        end
-                        camShake:Stop()
-                        
-                        finalSound:Stop()
-                        finalSound:Destroy()
+                        staticGui:Destroy()
+                        if camShake then pcall(function() camShake:Stop() end) end
+                        finalSound:Stop() finalSound:Destroy()
                     end)
-                    -- ====================================================================
                 end
             end
 
-            if entityPart and (entityPart.Position - v.Character.HumanoidRootPart.Position).Magnitude <= 60 then
-                camShake:Start()
-                camShake:ShakeOnce(14, 9, 0, 2, 1, 6)
+            if camShake and entityPart and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                if (entityPart.Position - v.Character.HumanoidRootPart.Position).Magnitude <= 60 then
+                    pcall(function() camShake:ShakeOnce(14, 9, 0, 2, 1, 6) end)
+                end
             end
         end
     end)
 
-    -- ---====== FIXED OPTIMIZATION STEP ======---
     task.wait(1)
 
-    -- Run specific loop based on direction
     if currentDirection == "Backward" then
-        -- Moving from latest room back down to 1
         for i = latestRoom.Value, 1, -1 do
-            if currentRooms:FindFirstChild(i) then
-                local room = currentRooms[i]
-                if room and room:FindFirstChild("RoomEntrance") then
-                    local abc = room:FindFirstChild("RoomEntrance")
-                    local jerk = game.TweenService:Create(entityPart, TweenInfo.new(speed, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, 0, false, 0), {CFrame = abc.CFrame + Vector3.new(0, 0.9, 0)})
-                    jerk:Play()
-                    jerk.Completed:Wait()
-                end
+            local room = currentRooms:FindFirstChild(i)
+            local abc = room and room:FindFirstChild("RoomEntrance")
+            if abc then
+                local jerk = game.TweenService:Create(entityPart, TweenInfo.new(speed, Enum.EasingStyle.Sine), {CFrame = abc.CFrame + Vector3.new(0, 0.9, 0)})
+                jerk:Play() jerk.Completed:Wait()
             end
         end
-        -- Toggle next run to turn around
         workspace:SetAttribute("ReboundDirection", "Forward")
     else
-        -- Moving from room 1 up to the latest room 
         for i = 1, latestRoom.Value do
-            if currentRooms:FindFirstChild(i) then
-                local room = currentRooms[i]
-                if room and room:FindFirstChild("RoomExit") then
-                    local abc = room:FindFirstChild("RoomExit")
-                    local jerk = game.TweenService:Create(entityPart, TweenInfo.new(speed, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, 0, false, 0), {CFrame = abc.CFrame + Vector3.new(0, 0.9, 0)})
-                    jerk:Play()
-                    jerk.Completed:Wait()
-                end
+            local room = currentRooms:FindFirstChild(i)
+            local abc = room and room:FindFirstChild("RoomExit")
+            if abc then
+                local jerk = game.TweenService:Create(entityPart, TweenInfo.new(speed, Enum.EasingStyle.Sine), {CFrame = abc.CFrame + Vector3.new(0, 0.9, 0)})
+                jerk:Play() jerk.Completed:Wait()
             end
         end
-        -- Toggle next run to fall back
         workspace:SetAttribute("ReboundDirection", "Backward")
     end
 
     task.cancel(dmgLoop)
 end
 
--- ---====== NEW REBOUND CHAIN SYSTEM ======---
 local function RunReboundCycle()
     local rawURL = "https://github.com/reboundplayz/Doors-Fixed-Modes/raw/refs/heads/main/reboundfinalbropls.rbxm"
-    local entity = nil
+    local entity = G.LoadGithubModel(rawURL)
     
-    if G.LoadGithubModel then
-        entity = G.LoadGithubModel(rawURL)
-        if entity then
-            entity.Parent = workspace
-        end
+    if entity and typeof(entity) == "Instance" then
+        entity.Parent = workspace
+    else
+        return
     end
-    
-    if not entity then return end
 
-    -- Always trigger the first pass
     local isFirstRun = true
-    pcall(function()
-        Rebound(entity, isFirstRun)
-    end)
+    pcall(function() Rebound(entity, isFirstRun) end)
     isFirstRun = false
     
-    -- Chain calculation roll
     local rollSuccess = true
     while rollSuccess do
-        task.wait(math.random(3, 5)) -- Interval wait time between bounces
-        
-        -- Rolling 50% chance system check
+        task.wait(math.random(3, 5))
         if math.random(1, 100) <= 50 then
-            pcall(function()
-                Rebound(entity, isFirstRun)
-            end)
+            pcall(function() Rebound(entity, isFirstRun) end)
         else
-            rollSuccess = false -- Breaks cycle loop when roll fails
+            rollSuccess = false 
         end
     end
 
-    -- Clean up the persistent entity after the chain completely finishes
-    local entityPart = entity:FindFirstChildWhichIsA("BasePart") or entity.PrimaryPart
-    if entityPart then
-        entityPart.Anchored = false
-        entityPart.CanCollide = false
-    end
-    game.Debris:AddItem(entity, 5)
+    game.Debris:AddItem(entity, 2)
 end
 
 local function SpawnReb()
+    -- WARNING AUDIO STUFF RETRIEVED HERE
     local rebarrival = G.LoadGithubAudio("https://raw.githubusercontent.com/Francisco1692qzd/RevivedOldHardcore/main/Warning.mp3")
-    local arrival = Instance.new("Sound")
-    arrival.SoundId = rebarrival
-    arrival.Parent = workspace
+    local arrival = Instance.new("Sound", workspace)
+    arrival.SoundId = rebarrival or ""
     arrival.Volume = 5
-    arrival:Play() game.Debris:AddItem(arrival, 10)
-    local cameraShaker = require(game.ReplicatedStorage.CameraShaker)
+    if rebarrival then arrival:Play() end 
+    game.Debris:AddItem(arrival, 10)
+    
+    -- COLOR CORRECTION FLASH AND SHAKE RE-INJECTED HERE
+    local cameraShaker
+    pcall(function() cameraShaker = require(game.ReplicatedStorage:FindFirstChild("CameraShaker")) end)
     local camera = workspace.CurrentCamera
 
-    local camShake = cameraShaker.new(Enum.RenderPriority.Camera.Value, function(cf)
-        camera.CFrame = camera.CFrame * cf
-    end)
-    local Warn = Instance.new("ColorCorrectionEffect", game.Lighting)
-    Warn.TintColor = Color3.fromRGB(65, 138, 255)
-    Warn.Saturation = -0.7
-    Warn.Contrast = 0.2
-    game.TweenService:Create(Warn, TweenInfo.new(15), {
-        TintColor = Color3.fromRGB(255, 255, 255),
-        Saturation = 0,
-        Contrast = 0
-    }):Play() game.Debris:AddItem(Warn, 15)
-    camShake:Start()
-    camShake:ShakeOnce(10, 3, 0.1, 6, 2, 0.5)
+    if cameraShaker and typeof(cameraShaker) == "table" and cameraShaker.new then
+        pcall(function()
+            local warnShake = cameraShaker.new(Enum.RenderPriority.Camera.Value, function(cf)
+                camera.CFrame = camera.CFrame * cf
+            end)
+            
+            local Warn = Instance.new("ColorCorrectionEffect", game.Lighting)
+            Warn.TintColor = Color3.fromRGB(65, 138, 255)
+            Warn.Saturation = -0.7
+            Warn.Contrast = 0.2
+            
+            game.TweenService:Create(Warn, TweenInfo.new(15), {
+                TintColor = Color3.fromRGB(255, 255, 255),
+                Saturation = 0,
+                Contrast = 0
+            }):Play()
+            
+            game.Debris:AddItem(Warn, 15)
+            warnShake:Start()
+            warnShake:ShakeOnce(10, 3, 0.1, 6, 2, 0.5)
+        end)
+    end
     
-    -- Trigger baseline cycle on script run
     RunReboundCycle()
     
-    -- ---====== NEW: DOOR INTERACTION HOOK WITH 4-ATTACK LIMIT & BLUE FLASH ======---
     local doorAttackCounter = 0
     local doorConnection
-    
     doorConnection = game.ReplicatedStorage.GameData.LatestRoom.Changed:Connect(function()
         doorAttackCounter = doorAttackCounter + 1
-        
-        -- If he has attacked 4 times from doors already, shut down the listener completely
         if doorAttackCounter > 4 then
-            if doorConnection then
-                doorConnection:Disconnect()
-            end
+            if doorConnection then doorConnection:Disconnect() end
             return
         end
         
-        -- Trigger one-time full-screen Blue Flash effect per door interaction
         task.spawn(function()
             local player = game.Players.LocalPlayer
             if player and player:FindFirstChild("PlayerGui") then
-                local flashGui = Instance.new("ScreenGui")
+                local flashGui = Instance.new("ScreenGui", player.PlayerGui)
                 flashGui.Name = "ReboundDoorFlash"
                 flashGui.IgnoreGuiInset = true
                 flashGui.DisplayOrder = 999998
-                flashGui.Parent = player.PlayerGui
 
-                local flashFrame = Instance.new("Frame")
+                local flashFrame = Instance.new("Frame", flashGui)
                 flashFrame.Size = UDim2.new(1, 0, 1, 0)
-                flashFrame.BackgroundColor3 = Color3.fromRGB(0, 102, 255) -- Vibrant Blue
-                flashFrame.BackgroundTransparency = 0 -- Full visibility instantly
+                flashFrame.BackgroundColor3 = Color3.fromRGB(0, 102, 255) 
                 flashFrame.BorderSizePixel = 0
-                flashFrame.Parent = flashGui
 
-                -- Smoothly fade out the flash frame
-                local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local fadeTween = game:GetService("TweenService"):Create(flashFrame, tweenInfo, {BackgroundTransparency = 1})
-                fadeTween:Play()
-                
-                fadeTween.Completed:Wait()
+                local fadeTween = game:GetService("TweenService"):Create(flashFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1})
+                fadeTween:Play() fadeTween.Completed:Wait()
                 flashGui:Destroy()
             end
         end)
         
-        task.wait(2) -- Wait time window before starting a whole new chain attack
+        task.wait(2) 
         RunReboundCycle()
     end)
     
-    local AchievementModule = game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game.RemoteListener.Modules.AchievementUnlock
-    if AchievementModule == nil then return end
-    if workspace:FindFirstChild("ReboundAchievement") then return end
-    if not game.ReplicatedStorage:FindFirstChild("ModulesShared") then return end
-    local dataModule = require(game:GetService("ReplicatedStorage"):WaitForChild("ModulesShared"):WaitForChild("Achievements"))
-    local unlockFunc = require(AchievementModule)
-    if not workspace:FindFirstChild("ReboundAchievement") then
+    -- BADGE INITIATION CHECK REMOUNTED
+    pcall(function()
+        local AchievementModule = game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game.RemoteListener.Modules.AchievementUnlock
+        if AchievementModule == nil then return end
+        if workspace:FindFirstChild("ReboundAchievement") then return end
+        if not game.ReplicatedStorage:FindFirstChild("ModulesShared") then return end
+        local unlockFunc = require(AchievementModule)
         unlockFunc(nil, "Rebound") 
-    end
-    local ObtainedBadge = Instance.new("BoolValue")
-    ObtainedBadge.Name = "ReboundAchievement"
-    ObtainedBadge.Value = true
-    ObtainedBadge.Parent = workspace
+        
+        local ObtainedBadge = Instance.new("BoolValue", workspace)
+        ObtainedBadge.Name = "ReboundAchievement"
+        ObtainedBadge.Value = true
+    end)
 end
 
-pcall(SpawnReb)
+local finalSpawnSuccess, finalSpawnErr = pcall(SpawnReb)
+if not finalSpawnSuccess then
+    warn("❌ [Rebound Debug]: Main execution routine encountered an unhandled error: " .. tostring(finalSpawnErr))
+end
