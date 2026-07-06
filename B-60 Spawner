@@ -1,5 +1,7 @@
 local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Not-Guestly/Modes/refs/heads/main/Entity-Spawner-Fixed-By-Guestly%20(Outernal)"))()
 
+if game.Workspace:FindFirstChild("SeekMovingNewClone") then return end 
+
 ---====== Configuration ======---
 local EntityName = "B-60"
 local ModelAssetID = 110509069639175 
